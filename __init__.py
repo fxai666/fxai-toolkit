@@ -35,6 +35,7 @@ from .fxai_audio_manager import FxAiAudioManager
 from .fxai_audio_load import FxAiLoadAudioByIndex
 from .fxai_prompt_manager import FxAiPromptManager
 from .fxai_resize_image_downscale import FxAiImageDownscale
+from .fxai_prompt_load import FxAiLoadPromptByIndex
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
@@ -49,6 +50,7 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiLoadAudioByIndex":FxAiLoadAudioByIndex,
 	"FxAiPromptManager":FxAiPromptManager,
 	"FxAiImageDownscale":FxAiImageDownscale,
+	"FxAiLoadPromptByIndex":FxAiLoadPromptByIndex,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -61,8 +63,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiMultiAudioLoad":"凤希AI - 多音频加载",
 	"FxAiAudioManager":"凤希AI - 音频管理器",
 	"FxAiLoadAudioByIndex":"凤希AI - 音频管理器 - 音频加载",
-	"FxAiPromptManager":"凤希AI - 提示词管理",
 	"FxAiImageDownscale":"凤希AI - 图片缩小 - 按倍数",
+	"FxAiPromptManager":"凤希AI - 提示词管理",
+	"FxAiLoadPromptByIndex":"凤希AI - 提示词管理 - 提示词加载",
 }
 
 WEB_DIRECTORY = "./js"

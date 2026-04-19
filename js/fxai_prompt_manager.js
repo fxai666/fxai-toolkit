@@ -11,54 +11,7 @@ async function fetchFileList(subdir) {
     return data.files;
 }
 
-// 上传提示词文件（支持自定义文件名）
-async function uploadFiles(files, subdir, customFilename, onProgress) {
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        let finalName = "";
-
-        // 有自定义文件名就用，没有就用原文件名
-        if (customFilename && customFilename.trim() !== "") {
-            const ext = file.name.split('.').pop().toLowerCase();
-            finalName = customFilename.trim() + "." + ext;
-        } else {
-            finalName = file.name;
-        }
-
-        // 过滤非法字符
-        finalName = finalName.replace(/[\\/*?:"<>|]/g, "");
-        if (!finalName) finalName = "prompt.txt";
-
-        const formData = new FormData();
-        formData.append("prompt", file, finalName);
-        formData.append("subdir", subdir);
-
-        try {
-            const response = await fetch(api.apiURL("/fxpromptmanager/upload"), {
-                method: "POST",
-                body: formData,
-            });
-            if (!response.ok) throw new Error(`上传失败 ${response.status}`);
-            onProgress?.(i, 1);
-        } catch (err) {
-            throw new Error(`${finalName} 上传失败：${err.message}`);
-        }
-    }
-}
-
-// 预览提示词内容
-async function previewPrompt(subdir, filename) {
-    try {
-        const resp = await fetch(api.apiURL(`/fxpromptmanager/preview?subdir=${encodeURIComponent(subdir)}&filename=${encodeURIComponent(filename)}`));
-        if (!resp.ok) throw new Error("预览失败");
-        const content = await resp.text();
-        alert(`【${filename}】\n\n${content}`);
-    } catch (err) {
-        alert("预览失败：" + err.message);
-    }
-}
-
-// 新增：删除提示词文件
+// 删除提示词文件
 async function deletePrompt(subdir, filename) {
     try {
         const resp = await fetch(api.apiURL(`/fxpromptmanager/delete?subdir=${encodeURIComponent(subdir)}&filename=${encodeURIComponent(filename)}`));
@@ -73,19 +26,34 @@ async function deletePrompt(subdir, filename) {
     }
 }
 
-// 阻止默认拖拽打开
-function preventDefaultDragDrop() {
-    document.addEventListener('dragover', e => e.preventDefault());
-    document.addEventListener('drop', e => e.preventDefault());
-    document.addEventListener('dragenter', e => e.preventDefault());
-    document.addEventListener('dragleave', e => e.preventDefault());
+// 保存前端自定义输入的提示词
+async function saveManualPrompt(subdir, filename, content) {
+    try {
+        const formData = new FormData();
+        formData.append("subdir", subdir);
+        formData.append("filename", filename);
+        formData.append("content", content);
+        
+        const response = await fetch(api.apiURL("/fxpromptmanager/save_manual"), {
+            method: "POST",
+            body: formData,
+        });
+        
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || "保存失败");
+        }
+        return true;
+    } catch (err) {
+        alert("保存失败：" + err.message);
+        return false;
+    }
 }
 
-// 构建 UI
+// 构建自定义UI
 function addUI(node) {
     if (node._uiAdded) return;
     node._uiAdded = true;
-    preventDefaultDragDrop();
 
     const subdirWidget = node.widgets.find(w => w.name === "目录");
     if (!subdirWidget) return;
@@ -99,21 +67,25 @@ function addUI(node) {
     node.addDOMWidget("prompt_ui", "prompt_ui", container, { serialize: false });
 
     // ======================
-    // 【自定义文件名输入框】
+    // 自定义：手动输入提示词区域
     // ======================
+    const manualPromptWrap = document.createElement("div");
+    manualPromptWrap.style.marginBottom = "12px";
+    
+    // 文件名输入行
     const nameWrap = document.createElement("div");
     nameWrap.style.display = "flex";
     nameWrap.style.gap = "8px";
     nameWrap.style.marginBottom = "8px";
     nameWrap.style.alignItems = "center";
 
-    const label = document.createElement("div");
-    label.textContent = "文件名：";
-    label.style.color = "#ccc";
+    const nameLabel = document.createElement("div");
+    nameLabel.textContent = "保存文件名：";
+    nameLabel.style.color = "#ccc";
 
     const filenameInput = document.createElement("input");
     filenameInput.type = "text";
-    filenameInput.placeholder = "留空则用原文件名（不用输 .txt）";
+    filenameInput.placeholder = "请输入文件名（无需.txt后缀）";
     filenameInput.style.flex = 1;
     filenameInput.style.padding = "5px";
     filenameInput.style.backgroundColor = "#2a2a2a";
@@ -121,179 +93,187 @@ function addUI(node) {
     filenameInput.style.border = "1px solid #666";
     filenameInput.style.borderRadius = "4px";
 
-    nameWrap.appendChild(label);
+    nameWrap.appendChild(nameLabel);
     nameWrap.appendChild(filenameInput);
-    container.appendChild(nameWrap);
+    manualPromptWrap.appendChild(nameWrap);
 
-    // 拖拽上传区
-    const dropArea = document.createElement("div");
-    dropArea.style.padding = "12px";
-    dropArea.style.border = "2px dashed #777";
-    dropArea.style.borderRadius = "6px";
-    dropArea.style.textAlign = "center";
-    dropArea.style.color = "#ccc";
-    dropArea.textContent = "📥 拖拽 .txt 提示词文件到这里上传";
-    container.appendChild(dropArea);
+    // 大提示词多行输入框
+    const promptTextarea = document.createElement("textarea");
+    promptTextarea.placeholder = "手动输入提示词";
+    promptTextarea.style.width = "100%";
+    promptTextarea.style.minHeight = "120px";
+    promptTextarea.style.padding = "8px";
+    promptTextarea.style.backgroundColor = "#2a2a2a";
+    promptTextarea.style.color = "#fff";
+    promptTextarea.style.border = "1px solid #666";
+    promptTextarea.style.borderRadius = "4px";
+    promptTextarea.style.resize = "vertical";
+    manualPromptWrap.appendChild(promptTextarea);
 
-    dropArea.addEventListener("dragover", e => {
-        e.preventDefault();
-        dropArea.style.borderColor = "#fff";
-    });
-    dropArea.addEventListener("dragleave", () => {
-        dropArea.style.borderColor = "#777";
-    });
-    dropArea.addEventListener("drop", async e => {
-        e.preventDefault();
-    e.stopPropagation();
-    dropArea.style.borderColor = "#777";
-    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.txt'));
-    if (!files.length) { alert("只支持 .txt 文件"); return; }
+    // 保存+刷新按钮行（合并到同一行）
+    const btnRow = document.createElement("div");
+    btnRow.style.display = "flex";
+    btnRow.style.gap = "8px";
+    btnRow.style.marginTop = "8px";
 
-    uploadBtn.disabled = true;
-    const oldText = uploadBtn.textContent;
-    uploadBtn.textContent = "上传中...";
-    try {
-        await uploadFiles(files, subdirWidget.value, filenameInput.value, () => {});
-        filenameInput.value = "";
-        await updateList();
-    } catch (e) {
-        alert(e.message);
-    } finally {
-        uploadBtn.textContent = oldText;
-        uploadBtn.disabled = false;
-    }
-});
+    // 【确认保存】按钮
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "✅ 确认保存";
+    saveBtn.style.padding = "6px 12px";
+    saveBtn.style.backgroundColor = "#2d7d46";
+    saveBtn.style.color = "#fff";
+    saveBtn.style.border = "none";
+    saveBtn.style.borderRadius = "4px";
+    saveBtn.style.cursor = "pointer";
+    
+    saveBtn.onclick = async function() {
+        const filename = filenameInput.value.trim();
+        const content = promptTextarea.value.trim();
+        
+        if (!filename) {
+            alert("请输入保存的文件名！");
+            return;
+        }
+        if (!content) {
+            alert("请输入提示词内容！");
+            return;
+        }
 
-// 按钮组
-const btnWrap = document.createElement("div");
-btnWrap.style.display = "flex";
-btnWrap.style.gap = "8px";
-btnWrap.style.marginTop = "8px";
-btnWrap.style.marginBottom = "8px";
-
-const uploadBtn = document.createElement("button");
-uploadBtn.textContent = "📤 选择文件上传";
-
-const refreshBtn = document.createElement("button");
-refreshBtn.textContent = "🔄 刷新列表";
-
-btnWrap.appendChild(uploadBtn);
-btnWrap.appendChild(refreshBtn);
-container.appendChild(btnWrap);
-
-// 文件列表
-const listWrap = document.createElement("div");
-listWrap.style.maxHeight = "400px";
-listWrap.style.overflowY = "auto";
-listWrap.style.border = "1px solid #666";
-listWrap.style.padding = "4px";
-container.appendChild(listWrap);
-
-// 点击上传
-uploadBtn.onclick = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    input.accept = ".txt";
-    input.onchange = async () => {
-        const files = Array.from(input.files).filter(f => f.name.endsWith('.txt'));
-        if (!files.length) return;
-
-        uploadBtn.disabled = true;
-        const oldText = uploadBtn.textContent;
-        uploadBtn.textContent = "上传中...";
+        saveBtn.disabled = true;
+        saveBtn.textContent = "保存中...";
         try {
-            await uploadFiles(files, subdirWidget.value, filenameInput.value, () => {});
-            filenameInput.value = "";
-            await updateList();
-        } catch (e) {
-            alert(e.message);
+            const isSuccess = await saveManualPrompt(
+                subdirWidget.value,
+                filename,
+                content
+            );
+            if (isSuccess) {
+                alert("提示词保存成功！");
+                filenameInput.value = "";
+                promptTextarea.value = "";
+                await updateList(); // 保存成功自动刷新列表
+            }
         } finally {
-            uploadBtn.textContent = oldText;
-            uploadBtn.disabled = false;
+            saveBtn.disabled = false;
+            saveBtn.textContent = "✅ 确认保存";
         }
     };
-    input.click();
-};
 
-// 刷新
-refreshBtn.onclick = updateList;
+    // 刷新按钮
+    const refreshBtn = document.createElement("button");
+    refreshBtn.textContent = "🔄 刷新列表";
+    refreshBtn.style.padding = "6px 12px";
+    refreshBtn.style.backgroundColor = "#444";
+    refreshBtn.style.color = "#fff";
+    refreshBtn.style.border = "none";
+    refreshBtn.style.borderRadius = "4px";
+    refreshBtn.style.cursor = "pointer";
+    refreshBtn.onclick = updateList;
 
-// 更新列表（无排序、无拖拽）
-async function updateList() {
-    const files = await fetchFileList(subdirWidget.value);
-    listWrap.innerHTML = "";
+    // 将两个按钮添加到同一行
+    btnRow.appendChild(saveBtn);
+    btnRow.appendChild(refreshBtn);
+    manualPromptWrap.appendChild(btnRow);
+    container.appendChild(manualPromptWrap);
 
-    files.forEach(file => {
-        const item = document.createElement("div");
-        item.style.padding = "6px 8px";
-        item.style.backgroundColor = "#222";
-        item.style.borderRadius = "4px";
-        item.style.marginBottom = "4px";
-        item.style.display = "flex";
-        item.style.justifyContent = "space-between";
-        item.style.alignItems = "center";
+    // 提示词文件列表容器
+    const listWrap = document.createElement("div");
+    listWrap.style.maxHeight = "400px";
+    listWrap.style.overflowY = "auto";
+    listWrap.style.border = "1px solid #666";
+    listWrap.style.padding = "4px";
+    container.appendChild(listWrap);
 
-        const nameText = document.createElement("div");
-        nameText.textContent = file;
-        nameText.style.color = "#fff";
-        nameText.style.fontSize = "13px";
+    // ========== 列表渲染：严格 1.2.3.4 数字序号 + 文件名 ==========
+    async function updateList() {
+        const files = await fetchFileList(subdirWidget.value);
+        listWrap.innerHTML = "";
 
-        const btnGroup = document.createElement("div");
-        btnGroup.style.display = "flex";
-        btnGroup.style.gap = "6px";
+        files.forEach(function(file, index) {
+            const item = document.createElement("div");
+            item.style.padding = "6px 8px";
+            item.style.backgroundColor = "#222";
+            item.style.borderRadius = "4px";
+            item.style.marginBottom = "4px";
+            item.style.display = "flex";
+            item.style.justifyContent = "space-between";
+            item.style.alignItems = "center";
 
-        const previewBtn = document.createElement("button");
-        previewBtn.textContent = "预览";
-        previewBtn.style.fontSize = "12px";
-        previewBtn.style.padding = "2px 6px";
-        previewBtn.style.backgroundColor = "#444";
-        previewBtn.style.color = "#fff";
-        previewBtn.style.border = "none";
-        previewBtn.style.borderRadius = "3px";
-        previewBtn.onclick = () => previewPrompt(subdirWidget.value, file);
+            // 序号 + 文件名主体
+            const nameText = document.createElement("div");
+            nameText.style.display = "flex";
+            nameText.style.alignItems = "center";
+            nameText.style.color = "#fff";
+            nameText.style.fontSize = "13px";
+            
+            // 1、2、3...序号
+            const serialNum = document.createElement("span");
+            serialNum.textContent = index + ". ";
+            serialNum.style.color = "#88ccff";
+            serialNum.style.marginRight = "8px";
+            serialNum.style.fontWeight = "bold";
 
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "删除";
-        delBtn.style.fontSize = "12px";
-        delBtn.style.padding = "2px 6px";
-        delBtn.style.backgroundColor = "#c72c2c";
-        delBtn.style.color = "#fff";
-        delBtn.style.border = "none";
-        delBtn.style.borderRadius = "3px";
-        delBtn.onclick = async () => {
-            if (!confirm(`确定删除 ${file}？`)) return;
-                
-            // 调用删除接口
-            const isSuccess = await deletePrompt(subdirWidget.value, file);
-            if (isSuccess) {
-                await updateList(); // 删除成功后刷新列表
-            }
-        };
+            // 完整文件名作为标题
+            const fileName = document.createElement("span");
+            fileName.textContent = file;
 
-        btnGroup.appendChild(previewBtn);
-        btnGroup.appendChild(delBtn);
-        item.appendChild(nameText);
-        item.appendChild(btnGroup);
-        listWrap.appendChild(item);
-    });
-}
+            nameText.appendChild(serialNum);
+            nameText.appendChild(fileName);
 
-// 目录切换刷新
-const oldCb = subdirWidget.callback;
-subdirWidget.callback = (v) => {
-    oldCb?.call(this, v);
+            // 删除按钮（移除预览按钮）
+            const btnGroup = document.createElement("div");
+            btnGroup.style.display = "flex";
+            btnGroup.style.gap = "6px";
+
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "删除";
+            delBtn.style.fontSize = "12px";
+            delBtn.style.padding = "2px 6px";
+            delBtn.style.backgroundColor = "#c72c2c";
+            delBtn.style.color = "#fff";
+            delBtn.style.border = "none";
+            delBtn.style.borderRadius = "3px";
+            delBtn.onclick = async function() {
+                if (!confirm("确定删除 " + file + "？")) return;
+                const isSuccess = await deletePrompt(subdirWidget.value, file);
+                if (isSuccess) {
+                    await updateList();
+                }
+            };
+
+            btnGroup.appendChild(delBtn);
+            item.appendChild(nameText);
+            item.appendChild(btnGroup);
+            listWrap.appendChild(item);
+        });
+
+        // 空列表提示
+        if (files.length === 0) {
+            const emptyTip = document.createElement("div");
+            emptyTip.style.padding = "12px";
+            emptyTip.style.textAlign = "center";
+            emptyTip.style.color = "#888";
+            emptyTip.textContent = "暂无提示词文件";
+            listWrap.appendChild(emptyTip);
+        }
+    }
+
+    // 目录切换自动刷新列表
+    const oldCb = subdirWidget.callback;
+    subdirWidget.callback = function(v) {
+        if (oldCb) oldCb.call(this, v);
+        updateList();
+    };
+
+    // 初始加载列表
     updateList();
-};
-
-updateList();
 }
 
 app.registerExtension({
     name: "FxPromptManager",
     async nodeCreated(node) {
         if (node.comfyClass === TARGET_CLASS) {
-            setTimeout(() => addUI(node), 100);
+            setTimeout(function() { addUI(node); }, 100);
         }
 },
 });

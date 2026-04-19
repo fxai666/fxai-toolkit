@@ -3,9 +3,8 @@ import re
 import folder_paths
 import server
 from aiohttp import web
-import mimetypes
 
-# 安全路径校验
+# 安全路径校验 防止路径穿越漏洞
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
     full_path = os.path.abspath(os.path.join(base_dir, path))
@@ -13,18 +12,19 @@ def safe_path_join(base_dir, path):
         return None
     return full_path
 
-# 提示词目录
+# 获取提示词根目录
 def get_prompt_dir(subdir=""):
     comfy_root = folder_paths.base_path
     base_dir = "fxai/prompts"
     target_dir = os.path.join(comfy_root, base_dir)
     if subdir:
+        # 过滤文件名非法字符
         subdir = re.sub(r'[\\/*?:"<>|]', "", subdir)
         target_dir = os.path.join(target_dir, subdir)
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
-# 列出 txt 文件（直接显示原文件名，不排序、不编号）
+# 列出目录内所有txt提示词文件
 def list_prompts(target_dir):
     if not os.path.isdir(target_dir):
         return []
@@ -33,57 +33,49 @@ def list_prompts(target_dir):
         fp = os.path.join(target_dir, f)
         if os.path.isfile(fp) and f.lower().endswith(".txt"):
             files.append(f)
-    files.sort()  # 按字母顺序展示
+    files.sort()
     return files
 
-# ---------- API ----------
-async def get_preview(request):
-    subdir = request.query.get("subdir", "")
-    filename = request.query.get("filename", "")
-    if not filename:
-        return web.json_response({"error": "未提供文件名"}, status=400)
-    target_dir = get_prompt_dir(subdir)
-    safe_file = safe_path_join(target_dir, filename)
-    if not safe_file or not os.path.exists(safe_file):
-        return web.json_response({"error": "文件不存在"}, status=404)
-    try:
-        with open(safe_file, "r", encoding="utf-8") as f:
-            return web.Response(text=f.read(), content_type="text/plain; charset=utf-8")
-    except:
-        return web.json_response({"error": "读取失败"}, status=500)
-
+# ------------------- 后端API接口 -------------------
+# 获取文件列表
 async def get_file_list(request):
     subdir = request.query.get("subdir", "")
     target_dir = get_prompt_dir(subdir)
     files = list_prompts(target_dir)
     return web.json_response({"files": files, "total": len(files)})
 
-# 上传：直接用前端传的文件名，不自动编号
-async def upload_prompt_custom(request):
+# 保存前端自定义输入的提示词（唯一保存接口）
+async def save_manual_prompt(request):
     try:
         data = await request.post()
-        prompt_file = data.get("prompt")
         subdir = data.get("subdir", "")
-        if not prompt_file or not hasattr(prompt_file, "file"):
-            return web.json_response({"error": "无有效文件"}, status=400)
+        filename = data.get("filename", "").strip()
+        content = data.get("content", "").strip()
 
-        filename = prompt_file.filename
+        if not filename:
+            return web.json_response({"error": "文件名不能为空"}, status=400)
+        if not content:
+            return web.json_response({"error": "提示词内容不能为空"}, status=400)
+
+        # 清洗非法字符 + 自动补全txt后缀
         filename = re.sub(r'[\\/*?:"<>|]', "", filename)
         if not filename.lower().endswith(".txt"):
-            filename = os.path.splitext(filename)[0] + ".txt"
+            filename += ".txt"
 
         target_dir = get_prompt_dir(subdir)
         save_path = safe_path_join(target_dir, filename)
         if not save_path:
             return web.json_response({"error": "非法路径"}, status=403)
 
-        with open(save_path, "wb") as f:
-            f.write(prompt_file.file.read())
+        # 写入本地文件
+        with open(save_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        
         return web.json_response({"success": True, "name": filename})
     except Exception as e:
-        return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
+        return web.json_response({"error": f"保存失败：{str(e)}"}, status=500)
 
-# 新增：删除文件接口
+# 删除提示词文件
 async def delete_prompt(request):
     subdir = request.query.get("subdir", "")
     filename = request.query.get("filename", "")
@@ -96,67 +88,42 @@ async def delete_prompt(request):
         return web.json_response({"error": "文件不存在"}, status=404)
     
     try:
-        os.remove(safe_file)  # 删除文件
+        os.remove(safe_file)
         return web.json_response({"success": True, "name": filename})
     except Exception as e:
         return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
 
-# 废弃接口，保留兼容
-async def get_next_number(request):
-    return web.json_response({"next_num": 0})
-
-async def apply_changes(request):
-    return web.json_response({"success": True, "files": []})
-
-# 注册路由
+# ------------------- 接口路由注册 -------------------
 try:
-    server.PromptServer.instance.routes.get("/fxpromptmanager/preview")(get_preview)
     server.PromptServer.instance.routes.get("/fxpromptmanager/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxpromptmanager/upload")(upload_prompt_custom)
-    server.PromptServer.instance.routes.get("/fxpromptmanager/delete")(delete_prompt)  # 注册删除路由
-    server.PromptServer.instance.routes.get("/fxpromptmanager/next_number")(get_next_number)
-    server.PromptServer.instance.routes.post("/fxpromptmanager/apply")(apply_changes)
-    print("✅ 凤希提示词管理器 已加载")
+    server.PromptServer.instance.routes.post("/fxpromptmanager/save_manual")(save_manual_prompt)
+    server.PromptServer.instance.routes.get("/fxpromptmanager/delete")(delete_prompt)
+    print("✅ 凤希提示词管理器 已加载完成")
 except Exception as e:
     print(f"❌ 提示词管理器加载失败：{e}")
 
-# ComfyUI 节点
+# ------------------- ComfyUI 核心节点定义 -------------------
 class FxAiPromptManager:
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "目录": ("STRING", {"default": "default"}),
+                "目录": ("STRING", {"default": "sucai"}),
             },
-            "optional": {
-                "手动输入提示词": ("STRING", {"multiline": True, "default": ""}),
-                "保存文件名": ("STRING", {"default": "my_prompt"}),
+            "optional":{
+                "刷新标记": ("INT", {"forceInput": True}),
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("文件列表", "目录路径", "总数")
+    # 修改返回值：添加文件总数输出
+    RETURN_TYPES = ("STRING", "INT")
+    RETURN_NAMES = ("目录路径", "文件总数")
     FUNCTION = "run"
     CATEGORY = "凤希AI"
 
-    def save_manual_prompt(self, text, save_dir, filename):
-        if not text.strip():
-            return
-        try:
-            filename = re.sub(r'[\\/*?:"<>|]', "", filename)
-            if not filename.lower().endswith(".txt"):
-                filename += ".txt"
-            save_path = os.path.join(save_dir, filename)
-            with open(save_path, "w", encoding="utf-8") as f:
-                f.write(text.strip())
-            print(f"[凤希] 已保存：{save_path}")
-        except:
-            pass
-
-    def run(self, 目录="", 手动输入提示词="", 保存文件名="my_prompt"):
+    # 运行函数：返回目录路径 + 该目录下txt文件的总数
+    def run(self, 目录="",刷新标记=0):
         target_dir = get_prompt_dir(目录)
-        if 手动输入提示词.strip():
-            self.save_manual_prompt(手动输入提示词, target_dir, 保存文件名)
-        files = list_prompts(target_dir)
-        file_str = "\n".join(files) if files else "无文件"
-        return (file_str, target_dir, len(files))
+        file_list = list_prompts(target_dir)  # 获取目录下的txt文件列表
+        file_count = len(file_list)          # 计算文件总数
+        return (target_dir, file_count,)     # 返回目录路径和总数
