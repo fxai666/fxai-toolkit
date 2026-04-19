@@ -1,7 +1,20 @@
 import { app } from "../../scripts/app.js";
 
-// 工具函数：显示提示
+// 全局单例 Toast 控制（解决卡顿核心！）
+let currentToast = null;
+let toastTimeout = null;
+
+// 工具函数：显示提示（修复版，绝不卡顿）
 function showToast(message, type = "info", duration = 3000) {
+    // 先销毁旧 Toast（永远只保留一个）
+    if (currentToast && currentToast.parentNode) {
+        currentToast.parentNode.removeChild(currentToast);
+    }
+    if (toastTimeout) {
+        clearTimeout(toastTimeout);
+        toastTimeout = null;
+    }
+
     if (!document.getElementById('comfy-toast-styles')) {
         const style = document.createElement('style');
         style.id = 'comfy-toast-styles';
@@ -23,7 +36,10 @@ function showToast(message, type = "info", duration = 3000) {
                 max-width: 400px;
                 max-height:50px;
                 word-break: break-word;
-                animation: toast-slide-in 0.3s ease, toast-fade-out 0.3s ease 2.7s forwards;
+                animation: toast-slide-in 0.3s ease;
+            }
+            .comfy-toast-fade {
+                animation: toast-fade-out 0.3s ease forwards;
             }
             .comfy-toast-info { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
             .comfy-toast-success { background: linear-gradient(135deg, #10b981, #047857); }
@@ -44,6 +60,7 @@ function showToast(message, type = "info", duration = 3000) {
     
     const toast = document.createElement("div");
     toast.className = `comfy-toast comfy-toast-${type}`;
+    currentToast = toast; // 保存单例
     
     let icon = "ℹ️";
     switch(type) {
@@ -55,17 +72,22 @@ function showToast(message, type = "info", duration = 3000) {
     toast.innerHTML = `<span style="font-size: 16px;">${icon}</span><span>凤希AI友情提示：${message}</span>`;
     document.body.appendChild(toast);
     
-    setTimeout(() => {
+    // 自动消失
+    toastTimeout = setTimeout(() => {
         if (toast.parentNode) {
-            toast.style.animation = "toast-fade-out 0.3s ease forwards";
+            toast.classList.add("comfy-toast-fade");
             setTimeout(() => {
                 if (toast.parentNode) toast.parentNode.removeChild(toast);
+                currentToast = null;
             }, 300);
         }
     }, duration);
     
     return toast;
 }
+
+    // 全局请求锁：防止重复请求（解决疯狂点击卡顿）
+    let isRefreshing = false;
 
     // 扩展主逻辑
     app.registerExtension({
@@ -97,6 +119,11 @@ function showToast(message, type = "info", duration = 3000) {
 });
 
 function refreshModelsWithToast(node) {
+    // 请求锁：正在加载时不重复执行（核心防卡）
+    if (isRefreshing) {
+        return;
+    }
+
     const hostWidget = node.widgets.find(w => w.name === "API主机地址");
     
     if (!hostWidget || !hostWidget.value) {
@@ -104,7 +131,9 @@ function refreshModelsWithToast(node) {
         return;
     }
     
-    const loadingToast = showToast("正在加载模型列表...", "info", 9999999);
+    // 开启加载锁
+    isRefreshing = true;
+    const loadingToast = showToast("正在加载模型列表...", "info", 30000); // 最多等30秒
     
     fetch(`/fxaiprompt/get_models?host=${encodeURIComponent(hostWidget.value)}`)
         .then(r => {
@@ -112,6 +141,7 @@ function refreshModelsWithToast(node) {
             return r.json();
         })
         .then(d => {
+            isRefreshing = false; // 释放锁
             if (loadingToast.parentNode) loadingToast.parentNode.removeChild(loadingToast);
             
             if (d.models && d.models.length > 0) {
@@ -121,12 +151,13 @@ function refreshModelsWithToast(node) {
                     sel.value = d.models[0];
                 }
                 node.setDirtyCanvas(true);
-                showToast(`已加载 ${d.models.length} 个模型`, "success");
+                showToast("模型加载成功", "success");
             } else {
                 showToast("未找到可用模型", "warning");
             }
         })
         .catch(err => {
+            isRefreshing = false; // 释放锁
             if (loadingToast.parentNode) loadingToast.parentNode.removeChild(loadingToast);
             showToast(`加载失败：${err.message}`, "error");
         });

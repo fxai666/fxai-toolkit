@@ -50,7 +50,7 @@ class FxAiImageDownscale:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
+            "optional": {
                 "图片": ("IMAGE",),
                 "缩小倍数": ("INT", {
                     "default": 2,
@@ -67,8 +67,14 @@ class FxAiImageDownscale:
     FUNCTION = "downscale_image"
     CATEGORY = "凤希AI"
 
-    def downscale_image(self, 图片, 缩小倍数):
+    def downscale_image(self, 图片=None, 缩小倍数=None):
         try:
+            # ===================== 终极修复：空输入直接返回 None =====================
+            if 图片 is None or 图片.numel() == 0:
+                # 直接返回 None！下游节点会自动识别为空，不执行任何处理
+                return (None, 0, 0)
+            # ======================================================================
+            
             resized_image, new_h, new_w = resize_image_downscale(图片, 缩小倍数)
             return (resized_image, new_h, new_w)
         except Exception as e:

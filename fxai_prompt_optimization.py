@@ -47,6 +47,7 @@ class FxAiPromptGenerator:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "是否开启提示词优化": ("BOOLEAN", {"default": True,"tooltip":"当关闭时，原样输出提示词"}),
                 "API主机地址": ("STRING", {"default": "http://127.0.0.1:11434"}),
                 "模型选择": ([_DEFAULT_MODEL], {"default": _DEFAULT_MODEL}),
                 "推理后释放资源": ("BOOLEAN", {"default": True}),
@@ -74,8 +75,10 @@ class FxAiPromptGenerator:
     RETURN_NAMES = ("生成的提示词", "分段时长")
     FUNCTION = "generate"
 
-    def generate(self, API主机地址, 模型选择, 推理后释放资源, 系统提示词,分段时长=0,用户提示词="", 图片一=None, 图片二=None, 图片三=None):
-        # 只使用 模型选择 下拉框的值
+    def generate(self,是否开启提示词优化, API主机地址, 模型选择, 推理后释放资源, 系统提示词,分段时长=0,用户提示词="", 图片一=None, 图片二=None, 图片三=None):
+        if not 是否开启提示词优化:
+           return (用户提示词, 分段时长)
+
         if 模型选择 == "":
             return ("⚠️ 请先点击【刷新模型】加载 Ollama 模型",)
 

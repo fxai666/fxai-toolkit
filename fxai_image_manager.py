@@ -22,17 +22,28 @@ def get_image_dir(subdir=""):
     target_dir = os.path.join(comfy_root, base_dir)
     
     if subdir:
-        # 过滤非法路径字符
         subdir = re.sub(r'[\\/*?:"<>|]', "", subdir)
         target_dir = os.path.join(target_dir, subdir)
     
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
+def get_last_number(target_dir):
+    used = set()
+    if os.path.isdir(target_dir):
+        for f in os.listdir(target_dir):
+            m = re.match(r'^(\d+)', f)
+            if m:
+                used.add(int(m.group(1)))
+    next_num = 0
+    while next_num in used:
+        next_num += 1
+    return next_num
+
 def list_images(target_dir):
     if not os.path.isdir(target_dir):
         return []
-    pattern = re.compile(r'(.+)\.(png|jpg|jpeg)$', re.IGNORECASE)
+    pattern = re.compile(r'(.+)\.(png|jpg|jpeg|webp)$', re.IGNORECASE)
     files = []
     for f in os.listdir(target_dir):
         fp = os.path.join(target_dir, f)
@@ -72,15 +83,7 @@ async def get_preview(request):
 async def get_next_number(request):
     subdir = request.query.get("subdir", "")
     target_dir = get_image_dir(subdir)
-    used = set()
-    if os.path.isdir(target_dir):
-        for f in os.listdir(target_dir):
-            m = re.match(r'^(\d+)', f)
-            if m:
-                used.add(int(m.group(1)))
-    next_num = 0
-    while next_num in used:
-        next_num += 1
+    next_num = get_last_number(target_dir)
     return web.json_response({"next_num": next_num})
 
 async def get_file_list(request):
@@ -96,12 +99,10 @@ async def apply_changes(request):
         ordered_filenames = data.get("ordered_filenames", [])
         target_dir = get_image_dir(subdir)
 
-        # 安全校验：只允许操作当前目录内文件
         existing_files = list_images(target_dir)
         existing_set = set(existing_files)
         safe_ordered = [f for f in ordered_filenames if f in existing_set]
 
-        # 删除不在新列表中的文件
         to_delete = existing_set - set(safe_ordered)
         for f in to_delete:
             fp = safe_path_join(target_dir, f)
@@ -122,7 +123,6 @@ async def apply_changes(request):
             os.rename(old_fp, temp_fp)
             temp_map.append((temp_fp, new_name))
 
-        # 重命名为最终文件名
         for temp_fp, new_name in temp_map:
             final_fp = safe_path_join(target_dir, new_name)
             if temp_fp and final_fp:
@@ -142,21 +142,29 @@ async def upload_image_custom(request):
         if not image or not hasattr(image, 'file'):
             return web.json_response({"error": "未上传有效图片"}, status=400)
 
-        # 安全文件名：过滤非法字符
-        filename = re.sub(r'[\\/*?:"<>|]', "", image.filename)
-        if not filename:
+        # 安全过滤文件名
+        original_filename = re.sub(r'[\\/*?:"<>|]', "", image.filename)
+        if not original_filename:
             return web.json_response({"error": "文件名为空"}, status=400)
 
         target_dir = get_image_dir(subdir)
-        save_path = safe_path_join(target_dir, filename)
-        if not save_path:
-            return web.json_response({"error": "非法路径"}, status=403)
+        
+        # ✅ 自动获取当前最大序号 + 1
+        next_num = get_last_number(target_dir)
+        
+        # ✅ 保留原始后缀！！！
+        ext = original_filename.split('.')[-1].lower()
+        if ext not in ['png', 'jpg', 'jpeg', 'webp']:
+            ext = 'png'
+        
+        new_filename = f"{next_num:03d}.{ext}"
+        save_path = safe_path_join(target_dir, new_filename)
 
-        # 写入文件
+        # 保存
         with open(save_path, "wb") as f:
             f.write(image.file.read())
 
-        return web.json_response({"success": True, "name": filename})
+        return web.json_response({"success": True, "name": new_filename})
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
@@ -194,16 +202,7 @@ class FxAiImageManager:
             return
         try:
             os.makedirs(save_dir, exist_ok=True)
-            used_numbers = set()
-            for f in os.listdir(save_dir):
-                match = re.match(r'^(\d+)', f)
-                if match:
-                    used_numbers.add(int(match.group(1)))
-
-            next_num = 0
-            while next_num in used_numbers:
-                next_num += 1
-
+            next_num = get_last_number(save_dir)
             image_np = (image_tensor.cpu().numpy() * 255).astype(np.uint8)
             for i in range(image_np.shape[0]):
                 img = Image.fromarray(image_np[i])

@@ -83,6 +83,24 @@ async def upload_prompt_custom(request):
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
+# 新增：删除文件接口
+async def delete_prompt(request):
+    subdir = request.query.get("subdir", "")
+    filename = request.query.get("filename", "")
+    if not filename:
+        return web.json_response({"error": "未提供文件名"}, status=400)
+    
+    target_dir = get_prompt_dir(subdir)
+    safe_file = safe_path_join(target_dir, filename)
+    if not safe_file or not os.path.exists(safe_file):
+        return web.json_response({"error": "文件不存在"}, status=404)
+    
+    try:
+        os.remove(safe_file)  # 删除文件
+        return web.json_response({"success": True, "name": filename})
+    except Exception as e:
+        return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
+
 # 废弃接口，保留兼容
 async def get_next_number(request):
     return web.json_response({"next_num": 0})
@@ -95,6 +113,7 @@ try:
     server.PromptServer.instance.routes.get("/fxpromptmanager/preview")(get_preview)
     server.PromptServer.instance.routes.get("/fxpromptmanager/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxpromptmanager/upload")(upload_prompt_custom)
+    server.PromptServer.instance.routes.get("/fxpromptmanager/delete")(delete_prompt)  # 注册删除路由
     server.PromptServer.instance.routes.get("/fxpromptmanager/next_number")(get_next_number)
     server.PromptServer.instance.routes.post("/fxpromptmanager/apply")(apply_changes)
     print("✅ 凤希提示词管理器 已加载")

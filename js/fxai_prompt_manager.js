@@ -58,6 +58,21 @@ async function previewPrompt(subdir, filename) {
     }
 }
 
+// 新增：删除提示词文件
+async function deletePrompt(subdir, filename) {
+    try {
+        const resp = await fetch(api.apiURL(`/fxpromptmanager/delete?subdir=${encodeURIComponent(subdir)}&filename=${encodeURIComponent(filename)}`));
+        if (!resp.ok) {
+            const errData = await resp.json();
+            throw new Error(errData.error || "删除失败");
+        }
+        return true;
+    } catch (err) {
+        alert("删除失败：" + err.message);
+        return false;
+    }
+}
+
 // 阻止默认拖拽打开
 function preventDefaultDragDrop() {
     document.addEventListener('dragover', e => e.preventDefault());
@@ -248,8 +263,12 @@ async function updateList() {
         delBtn.style.borderRadius = "3px";
         delBtn.onclick = async () => {
             if (!confirm(`确定删除 ${file}？`)) return;
-            // 前端删除列表项，后端下次刷新会同步
-            item.remove();
+                
+            // 调用删除接口
+            const isSuccess = await deletePrompt(subdirWidget.value, file);
+            if (isSuccess) {
+                await updateList(); // 删除成功后刷新列表
+            }
         };
 
         btnGroup.appendChild(previewBtn);
