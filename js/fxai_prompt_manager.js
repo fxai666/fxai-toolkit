@@ -148,7 +148,6 @@ function addUI(node) {
                 content
             );
             if (isSuccess) {
-                alert("提示词保存成功！");
                 filenameInput.value = "";
                 promptTextarea.value = "";
                 await updateList(); // 保存成功自动刷新列表
