@@ -52,8 +52,7 @@ async function saveManualPrompt(subdir, filename, content) {
 
 // 构建自定义UI
 function addUI(node) {
-    if (node._uiAdded) return;
-    node._uiAdded = true;
+    console.log(node);
 
     const subdirWidget = node.widgets.find(w => w.name === "目录");
     if (!subdirWidget) return;
@@ -272,7 +271,7 @@ app.registerExtension({
     name: "FxPromptManager",
     async nodeCreated(node) {
         if (node.comfyClass === TARGET_CLASS) {
-            setTimeout(function() { addUI(node); }, 100);
+            addUI(node);
         }
 },
 });

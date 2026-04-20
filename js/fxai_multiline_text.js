@@ -1,8 +1,7 @@
 import { app } from "../../scripts/app.js";
 
 app.registerExtension({
-    name: "fxai.FxAiMultiLineText",
-
+    name: "FxAiMultiLineText",
     beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "FxAiMultiLineText") return;
 
@@ -32,15 +31,12 @@ app.registerExtension({
             this.scrollContainer.style.height = "100%";
             this.scrollContainer.style.overflowY = "auto";
             this.scrollContainer.style.overflowX = "hidden";
-            this.scrollContainer.style.width = "100%";
+            this.scrollContainer.style.minWidth = "500px";
             this.scrollContainer.style.margin = "5px 0";
             this.scrollContainer.style.paddingRight = "5px";
             this.scrollContainer.style.boxSizing = "border-box";
 
-            this.addDOMWidget("lines_container", "container", this.scrollContainer, {
-                serialize: false,
-                hideOnZoom: false
-            });
+            this.addDOMWidget("lines_container", "container", this.scrollContainer);
 
             this.addWidget("button", "➕ 添加行", null, (function(node) {
                 return function() {
@@ -65,14 +61,6 @@ app.registerExtension({
                     this.size[0] = FIXED_WIDTH;
                     this.setSize([FIXED_WIDTH, size[1]]);
                 }
-            };
-
-            // 3. 右键刷新节点 → 强制恢复宽度（关键！）
-            this.onAfterConfigure = () => {
-                setTimeout(() => {
-                    this.size[0] = FIXED_WIDTH;
-                    this.setSize(this.computeSize());
-                }, 10);
             };
 
             // ======================
