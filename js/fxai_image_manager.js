@@ -6,14 +6,14 @@ const TARGET_CLASS = "FxAiImageManager";
 let sortable = null;
 
 async function fetchFileList(subdir) {
-    const resp = await fetch(api.apiURL(`/fxbatchimage/list?subdir=${encodeURIComponent(subdir)}`));
+    const resp = await fetch(api.apiURL(`/fxai/image/list?subdir=${encodeURIComponent(subdir)}`));
     if (!resp.ok) return [];
     const data = await resp.json();
     return data.files;
 }
 
 async function getNextNumber(subdir) {
-    const resp = await fetch(api.apiURL(`/fxbatchimage/next_number?subdir=${encodeURIComponent(subdir)}`));
+    const resp = await fetch(api.apiURL(`/fxai/image/next_number?subdir=${encodeURIComponent(subdir)}`));
     if (!resp.ok) throw new Error("获取序号失败");
     const data = await resp.json();
     return data.next_num;
@@ -34,7 +34,7 @@ async function uploadFiles(files, subdir, onProgress) {
 
         try {
             // 修复：使用标准 fetch 上传，替代有问题的 XMLHttpRequest
-            const response = await fetch(api.apiURL("/fxbatchimage/upload"), {
+            const response = await fetch(api.apiURL("/fxai/image/upload"), {
                 method: "POST",
                 body: formData,
             });
@@ -51,7 +51,7 @@ async function uploadFiles(files, subdir, onProgress) {
 }
 
 async function applyChanges(subdir, orderedFilenames) {
-    const resp = await fetch(api.apiURL("/fxbatchimage/apply"), {
+    const resp = await fetch(api.apiURL("/fxai/image/apply"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subdir, ordered_filenames: orderedFilenames })
@@ -217,7 +217,7 @@ function addUI(node) {
             item.style.overflow = "hidden";
 
             const img = document.createElement("img");
-            img.src = api.apiURL(`/fxbatchimage/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
+            img.src = api.apiURL(`/fxai/image/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
             img.style.width = "100%";
             img.style.height = "100%";
             img.style.objectFit = "cover";

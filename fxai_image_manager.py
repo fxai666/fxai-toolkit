@@ -170,14 +170,14 @@ async def upload_image_custom(request):
 
 # 注册路由
 try:
-    server.PromptServer.instance.routes.get("/fxbatchimage/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxbatchimage/next_number")(get_next_number)
-    server.PromptServer.instance.routes.get("/fxbatchimage/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxbatchimage/apply")(apply_changes)
-    server.PromptServer.instance.routes.post("/fxbatchimage/upload")(upload_image_custom)
-    print("✅ 凤希图片管理器 API 路由注册成功")
+    server.PromptServer.instance.routes.get("/fxai/image/preview")(get_preview)
+    server.PromptServer.instance.routes.get("/fxai/image/next_number")(get_next_number)
+    server.PromptServer.instance.routes.get("/fxai/image/list")(get_file_list)
+    server.PromptServer.instance.routes.post("/fxai/image/apply")(apply_changes)
+    server.PromptServer.instance.routes.post("/fxai/image/upload")(upload_image_custom)
+    print("✅ 凤希AI图片资源管理器已就绪 Q群：775649071")
 except Exception as e:
-    print(f"❌ 凤希图片管理器 API 注册失败：{e}")
+    print(f"❌ 凤希AI图片资源管理器启动失败：{e}")
 
 class FxAiImageManager:
     @classmethod

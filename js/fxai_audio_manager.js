@@ -6,14 +6,14 @@ const TARGET_CLASS = "FxAiAudioManager";
 let sortable = null;
 
 async function fetchFileList(subdir) {
-    const resp = await fetch(api.apiURL(`/fxbatchaudio/list?subdir=${encodeURIComponent(subdir)}`));
+    const resp = await fetch(api.apiURL(`/fxai/audio/list?subdir=${encodeURIComponent(subdir)}`));
     if (!resp.ok) return [];
     const data = await resp.json();
     return data.files;
 }
 
 async function getNextNumber(subdir) {
-    const resp = await fetch(api.apiURL(`/fxbatchaudio/next_number?subdir=${encodeURIComponent(subdir)}`));
+    const resp = await fetch(api.apiURL(`/fxai/audio/next_number?subdir=${encodeURIComponent(subdir)}`));
     if (!resp.ok) throw new Error("获取序号失败");
     const data = await resp.json();
     return data.next_num;
@@ -32,7 +32,7 @@ async function uploadFiles(files, subdir, onProgress) {
         formData.append("subdir", subdir);
 
         try {
-            const response = await fetch(api.apiURL("/fxbatchaudio/upload"), {
+            const response = await fetch(api.apiURL("/fxai/audio/upload"), {
                 method: "POST",
                 body: formData,
             });
@@ -49,7 +49,7 @@ async function uploadFiles(files, subdir, onProgress) {
 }
 
 async function applyChanges(subdir, orderedFilenames) {
-    const resp = await fetch(api.apiURL("/fxbatchaudio/apply"), {
+    const resp = await fetch(api.apiURL("/fxai/audio/apply"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subdir, ordered_filenames: orderedFilenames })
@@ -223,7 +223,7 @@ function addUI(node) {
             audio.controls = true;
             audio.style.width = "100%";
             audio.style.marginBottom = "4px";
-            audio.src = api.apiURL(`/fxbatchaudio/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
+            audio.src = api.apiURL(`/fxai/audio/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
 
             const nameSpan = document.createElement("div");
             nameSpan.textContent = file;

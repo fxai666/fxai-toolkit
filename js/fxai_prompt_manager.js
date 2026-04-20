@@ -5,7 +5,7 @@ const TARGET_CLASS = "FxAiPromptManager";
 
 // 获取提示词文件列表
 async function fetchFileList(subdir) {
-    const resp = await fetch(api.apiURL(`/fxpromptmanager/list?subdir=${encodeURIComponent(subdir)}`));
+    const resp = await fetch(api.apiURL(`/fxai/prompt/list?subdir=${encodeURIComponent(subdir)}`));
     if (!resp.ok) return [];
     const data = await resp.json();
     return data.files;
@@ -14,7 +14,7 @@ async function fetchFileList(subdir) {
 // 删除提示词文件
 async function deletePrompt(subdir, filename) {
     try {
-        const resp = await fetch(api.apiURL(`/fxpromptmanager/delete?subdir=${encodeURIComponent(subdir)}&filename=${encodeURIComponent(filename)}`));
+        const resp = await fetch(api.apiURL(`/fxai/prompt/delete?subdir=${encodeURIComponent(subdir)}&filename=${encodeURIComponent(filename)}`));
         if (!resp.ok) {
             const errData = await resp.json();
             throw new Error(errData.error || "删除失败");
@@ -34,7 +34,7 @@ async function saveManualPrompt(subdir, filename, content) {
         formData.append("filename", filename);
         formData.append("content", content);
         
-        const response = await fetch(api.apiURL("/fxpromptmanager/save_manual"), {
+        const response = await fetch(api.apiURL("/fxai/prompt/save_manual"), {
             method: "POST",
             body: formData,
         });

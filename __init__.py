@@ -6,7 +6,6 @@ import os
 def install_package(package):
     try:
         importlib.import_module(package)
-        print(f"[凤希AI音频分段器] 依赖 {package} 已安装，Q群：775649071")
         return True
     except ImportError:
         print(f"[凤希AI音频分段器] 未找到 {package}，正在自动安装...")

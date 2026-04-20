@@ -160,14 +160,14 @@ async def upload_audio_custom(request):
 
 # 注册路由
 try:
-    server.PromptServer.instance.routes.get("/fxbatchaudio/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxbatchaudio/next_number")(get_next_number)
-    server.PromptServer.instance.routes.get("/fxbatchaudio/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxbatchaudio/apply")(apply_changes)
-    server.PromptServer.instance.routes.post("/fxbatchaudio/upload")(upload_audio_custom)
-    print("✅ 凤希音频管理器 API 路由注册成功")
+    server.PromptServer.instance.routes.get("/fxai/audio/preview")(get_preview)
+    server.PromptServer.instance.routes.get("/fxai/audio/next_number")(get_next_number)
+    server.PromptServer.instance.routes.get("/fxai/audio/list")(get_file_list)
+    server.PromptServer.instance.routes.post("/fxai/audio/apply")(apply_changes)
+    server.PromptServer.instance.routes.post("/fxai/audio/upload")(upload_audio_custom)
+    print("✅ 凤希AI音频资源管理器已就绪 Q群：775649071")
 except Exception as e:
-    print(f"❌ 凤希音频管理器 API 注册失败：{e}")
+    print(f"❌ 凤希AI音频资源管理器启动失败：{e}")
 
 class FxAiAudioManager:
     @classmethod

@@ -95,12 +95,12 @@ async def delete_prompt(request):
 
 # ------------------- 接口路由注册 -------------------
 try:
-    server.PromptServer.instance.routes.get("/fxpromptmanager/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxpromptmanager/save_manual")(save_manual_prompt)
-    server.PromptServer.instance.routes.get("/fxpromptmanager/delete")(delete_prompt)
-    print("✅ 凤希提示词管理器 已加载完成")
+    server.PromptServer.instance.routes.get("/fxai/prompt/list")(get_file_list)
+    server.PromptServer.instance.routes.post("/fxai/prompt/save_manual")(save_manual_prompt)
+    server.PromptServer.instance.routes.get("/fxai/prompt/delete")(delete_prompt)
+    print("✅ 凤希AI提示词资源管理器已就绪 Q群：775649071")
 except Exception as e:
-    print(f"❌ 提示词管理器加载失败：{e}")
+    print(f"❌ 凤希AI提示词资源管理器启动失败：{e}")
 
 # ------------------- ComfyUI 核心节点定义 -------------------
 class FxAiPromptManager:
