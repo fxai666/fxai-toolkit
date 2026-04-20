@@ -135,7 +135,7 @@ function refreshModelsWithToast(node) {
     isRefreshing = true;
     const loadingToast = showToast("正在加载模型列表...", "info", 30000); // 最多等30秒
     
-    fetch(`/fxaiprompt/get_models?host=${encodeURIComponent(hostWidget.value)}`)
+    fetch(`/fxai/prompt/get_models?host=${encodeURIComponent(hostWidget.value)}`)
         .then(r => {
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return r.json();

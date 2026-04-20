@@ -289,7 +289,7 @@ function addUI(node) {
 
 // 注册ComfyUI扩展
 app.registerExtension({
-    name: "BatchAudioManager",
+    name: "FxAiAudioManager",
     async nodeCreated(node) {
         if (node.comfyClass === TARGET_CLASS) {
             setTimeout(() => addUI(node), 100);

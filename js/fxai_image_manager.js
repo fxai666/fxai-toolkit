@@ -287,7 +287,7 @@ function addUI(node) {
 }
 
 app.registerExtension({
-    name: "BatchImageLoader",
+    name: "FxAiImageLoader",
     async nodeCreated(node) {
         if (node.comfyClass === TARGET_CLASS) {
             setTimeout(() => addUI(node), 100);

@@ -472,7 +472,7 @@ function syncFromStoredState(node) {
 }
 
 app.registerExtension({
-    name: "fxai.FxAiAudioSegmenter",
+    name: "FxAiAudioSegmenter",
     async beforeRegisterNodeDef(nodeType) {
         if (nodeType.comfyClass !== TARGET_CLASS) return;
 

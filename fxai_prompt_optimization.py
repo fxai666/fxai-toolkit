@@ -33,7 +33,7 @@ async def api_get_ollama_models(request):
 
 if PromptServer:
     try:
-        PromptServer.instance.routes.get("/fxaiprompt/get_models")(api_get_ollama_models)
+        PromptServer.instance.routes.get("/fxai/prompt/get_models")(api_get_ollama_models)
     except:
         pass
 
