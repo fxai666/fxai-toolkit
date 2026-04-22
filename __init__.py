@@ -35,6 +35,8 @@ from .fxai_audio_load import FxAiLoadAudioByIndex
 from .fxai_prompt_manager import FxAiPromptManager
 from .fxai_resize_image_downscale import FxAiImageDownscale
 from .fxai_prompt_load import FxAiLoadPromptByIndex
+from .fxai_scene_manager import FxAiSceneManager
+from .fxai_scene_load import FxAiSceneLoad
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
@@ -50,11 +52,15 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiPromptManager":FxAiPromptManager,
 	"FxAiImageDownscale":FxAiImageDownscale,
 	"FxAiLoadPromptByIndex":FxAiLoadPromptByIndex,
+	"FxAiSceneManager":FxAiSceneManager,
+	"FxAiSceneLoad":FxAiSceneLoad,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FxAiAudioSegmenter": "凤希AI - 音频分段器",
-    "FxAiMultiLineText": "凤希AI - 场景管理 - 分镜设置 - 进Q群与更多的群友学习：775649071",
+    "FxAiSceneManager": "凤希AI - 场景管理V2 - 进Q群与更多的群友学习：775649071",
+    "FxAiSceneLoad": "凤希AI - 场景加载器",
+    "FxAiMultiLineText": "凤希AI - 场景管理V1 - 进Q群与更多的群友学习：775649071",
     "FxAiImageManager": "凤希AI - 图像管理器 - 群友扫地僧友情开发",
     "FxAiLoadImageByIndex": "凤希AI - 图像管理器 - 图片加载",
 	"FxAiPromptGenerator":"凤希AI - 提示词优化 - 本地Ollama",
