@@ -270,7 +270,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
 
     var imgnoInput = document.createElement("input");
     imgnoInput.type = "number";
-    imgnoInput.min = "0";
+    imgnoInput.min = "-1";
     imgnoInput.step = "1";
     imgnoInput.placeholder = "编号";
     imgnoInput.style.width = "55px";
@@ -288,6 +288,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     // 尾帧位置 —— 纯数字输入框，和图片索引完全一样
     var tailNeedleInput = document.createElement("input");
     tailNeedleInput.type = "number";
+    tailNeedleInput.min = "-1";
     tailNeedleInput.step = "1";
     tailNeedleInput.placeholder = "尾针";
     tailNeedleInput.style.width = "65px";
