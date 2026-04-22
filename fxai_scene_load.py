@@ -11,6 +11,7 @@ class FxAiSceneLoad:
                 "刷新标记": ("INT", {"forceInput": True}),
                 "通用提示词": ("STRING", {"default": "", "forceInput": True}),
                 "尾部通用提示词": ("STRING", {"default": "", "forceInput": True}),
+                "默认时长": ("INT", {"default":15, "min": 1}),
             }
         }
 
@@ -29,10 +30,10 @@ class FxAiSceneLoad:
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI"
 
-    def get_scene_data(self, 场景数据, 行索引,循环复用, 刷新标记=0,通用提示词="",尾部通用提示词=""):
+    def get_scene_data(self, 场景数据, 行索引,循环复用, 刷新标记=0,通用提示词="",尾部通用提示词="",默认时长=15):
         # 安全校验
         if not isinstance(场景数据, list) or len(场景数据) == 0:
-            raise Exception("场景数据不能为空，请连接场景管理器输出")
+            return (默认时长, f"{通用提示词}{尾部通用提示词}", 行索引, 行索引, -1, True, 行索引)
         
         场景行索引 = 行索引
         if 循环复用 > 1:
@@ -42,8 +43,8 @@ class FxAiSceneLoad:
 
         # 索引越界自动修正
         total_lines = len(场景数据)
-        if 行索引 > total_lines:
-            return (15, f"{通用提示词}{尾部通用提示词}", 行索引, 行索引, -1, True, 行索引)
+        if 行索引 >= total_lines:
+            return (默认时长, f"{通用提示词}{尾部通用提示词}", 行索引, 行索引, -1, True, 行索引)
 
         # 取出指定行数据
         line = 场景数据[行索引]
