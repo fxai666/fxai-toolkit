@@ -15,7 +15,7 @@ class FxAiSceneLoad:
         }
 
     # 输出：新增「尾帧位置」端口
-    RETURN_TYPES = ("FLOAT", "STRING", "INT", "INT", "BOOLEAN", "INT", "INT")
+    RETURN_TYPES = ("FLOAT", "STRING", "INT", "INT", "INT", "BOOLEAN", "INT")
     RETURN_NAMES = (
         "时长(秒)",
         "提示词",
@@ -52,7 +52,9 @@ class FxAiSceneLoad:
         时长 = float(line.get("时长(秒)", 5.0))
         提示词 = f"{通用提示词}{line.get('提示词文本', '')}{尾部通用提示词}"
         音频索引 = int(line.get("音频索引", 0))
-        图片索引 = int(line.get("图片索引", 0))
+        图片索引 = int(line.get("图片索引", -1))
+        if 图片索引 < 0:
+           图片索引 = 行索引
         
         # 转场：数字 1 → True，0 → False（布尔值输出）
         转场值 = int(line.get("转场", 1))

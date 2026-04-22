@@ -193,7 +193,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     defaultValue = defaultValue || "";
     defaultDuration = defaultDuration || 5;
     defaultAudioNo = defaultAudioNo || 0;
-    defaultImgNo = defaultImgNo ?? 0;
+    defaultImgNo = defaultImgNo ?? -1;
     defaultTailNeedle = defaultTailNeedle ?? -1;
     defaultTransition = defaultTransition ?? 1;
 
@@ -424,8 +424,8 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     });
 
     imgnoInput.addEventListener("input", function() {
-        var val = parseInt(imgnoInput.value) || 0;
-        if (val < 0) val = 0;
+        var val = parseInt(imgnoInput.value) || -1;
+        if (val < -1) val = -1;
         imgnoInput.value = val;
         item.imgno = val;
         updateHidden(node);

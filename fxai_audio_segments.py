@@ -280,6 +280,9 @@ class FxAiAudioSegmenter:
                 "帧率": ("FLOAT", {"default": 24.0, "step": 0.1, "round": 0.1}),
                 "最大长宽": ("INT", {"default": 960, "min": 320, "step": 1}),
             },
+            "optional": {
+                "刷新标记": ("INT", {"forceInput": True}),
+            }
         }
 
     RETURN_TYPES = ("AUDIO", "STRING", "INT", "INT", "INT", "FLOAT", "FLOAT", "INT")
@@ -309,6 +312,7 @@ class FxAiAudioSegmenter:
         结束分段索引=0,
         帧率=24.0,
 		最大长宽=960,
+		刷新标记=0
     ):
         audio = _load_audio_tensor_from_file(音频文件)
         waveform, sample_rate = _normalize_audio_tensor(audio)

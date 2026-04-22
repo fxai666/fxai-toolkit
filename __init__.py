@@ -59,7 +59,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FxAiAudioSegmenter": "凤希AI - 音频分段器",
     "FxAiSceneManager": "凤希AI - 场景管理V2 - 进Q群与更多的群友学习：775649071",
-    "FxAiSceneLoad": "凤希AI - 场景加载器",
+    "FxAiSceneLoad": "凤希AI - 场景数据加载",
     "FxAiMultiLineText": "凤希AI - 场景管理V1 - 进Q群与更多的群友学习：775649071",
     "FxAiImageManager": "凤希AI - 图像管理器 - 群友扫地僧友情开发",
     "FxAiLoadImageByIndex": "凤希AI - 图像管理器 - 图片加载",
