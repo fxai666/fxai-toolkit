@@ -424,7 +424,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     });
 
     imgnoInput.addEventListener("input", function() {
-        var val = parseInt(imgnoInput.value) || -1;
+        var val = parseInt(imgnoInput.value);
         if (val < -1) val = -1;
         imgnoInput.value = val;
         item.imgno = val;
@@ -432,7 +432,8 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     });
 
     tailNeedleInput.addEventListener("input", function() {
-        var val = parseInt(tailNeedleInput.value) || -1;
+        var val = parseInt(tailNeedleInput.value) ;
+        if (val < -1) val = -1;
         tailNeedleInput.value = val;
         item.tailNeedle = val;
         updateHidden(node);
