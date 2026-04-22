@@ -5,6 +5,7 @@ class FxAiSceneLoad:
             "required": {
                 "场景数据": ("LIST", {"forceInput": True}),
                 "行索引": ("INT", {"default": 0, "min": 0}),
+                "循环复用": ("INT", {"default": 0, "min": 0}),
             },
             "optional": {
                 "刷新标记": ("INT", {"forceInput": True}),
@@ -13,14 +14,14 @@ class FxAiSceneLoad:
             }
         }
 
-    # 输出：新增「尾帧索引」端口
+    # 输出：新增「尾帧位置」端口
     RETURN_TYPES = ("FLOAT", "STRING", "INT", "INT", "BOOLEAN", "INT", "INT")
     RETURN_NAMES = (
         "时长(秒)",
         "提示词",
         "音频索引",
         "图片索引",
-        "尾帧索引",
+        "尾帧位置",
         "启用转场",
         "场景行索引"
     )
@@ -28,15 +29,21 @@ class FxAiSceneLoad:
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI"
 
-    def get_scene_data(self, 场景数据, 行索引, 刷新标记=0,通用提示词="",尾部通用提示词=""):
+    def get_scene_data(self, 场景数据, 行索引,循环复用, 刷新标记=0,通用提示词="",尾部通用提示词=""):
         # 安全校验
         if not isinstance(场景数据, list) or len(场景数据) == 0:
             raise Exception("场景数据不能为空，请连接场景管理器输出")
-
+        
         # 索引越界自动修正
         total_lines = len(场景数据)
         if 行索引 >= total_lines:
             行索引 = total_lines - 1
+
+        场景行索引 = 行索引
+        if 循环复用 > 1:
+           行索引 = 行索引 % 循环复用
+        elif 循环复用 == 1:
+             行索引 = 0
 
         # 取出指定行数据
         line = 场景数据[行索引]
@@ -53,6 +60,6 @@ class FxAiSceneLoad:
         
         场景行索引 = 行索引
         
-        尾帧索引 = line.get("尾帧索引", -1)
+        尾帧位置 = line.get("尾帧位置", -1)
 
-        return (时长, 提示词, 音频索引, 图片索引, 尾帧索引, 启用转场, 场景行索引)
+        return (时长, 提示词, 音频索引, 图片索引, 尾帧位置, 启用转场, 场景行索引)

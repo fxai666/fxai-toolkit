@@ -41,7 +41,7 @@ class FxAiSceneManager:
                 "音频索引": 0,
                 "图片索引": 0,
                 "转场": 1,
-                "尾针索引": -1
+                "尾帧位置": -1
             }
 
             if isinstance(line, list):
@@ -50,7 +50,7 @@ class FxAiSceneManager:
                 line_data["提示词文本"]    = line[1] if len(line)>=2 else ""
                 line_data["音频索引"]      = int(line[2]) if len(line)>=3 and line[2] else 0
                 line_data["图片索引"]      = int(line[3]) if len(line)>=4 and line[3] else 0
-                line_data["尾针索引"]      = int(line[4]) if len(line)>=5 and line[4] is not None else -1
+                line_data["尾帧位置"]      = int(line[4]) if len(line)>=5 and line[4] is not None else -1
                 line_data["转场"]          = int(line[5]) if len(line)>=6 and line[5] else 1
                 # ==================================================================
 

@@ -171,7 +171,7 @@ function createHeader(node) {
         { text: "场景控制提示词", flex: 1 },
         { text: "音频索引", width: "55px" },
         { text: "图片索引", width: "55px" },
-        { text: "尾帧索引", width: "65px" },
+        { text: "尾帧位置", width: "65px" },
         { text: "转场", width: "60px" },
         { text: "操作", width: "90px" }
     ];
@@ -285,7 +285,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     imgnoInput.style.marginTop = "2px";
     imgnoInput.value = defaultImgNo;
 
-    // 尾帧索引 —— 纯数字输入框，和图片索引完全一样
+    // 尾帧位置 —— 纯数字输入框，和图片索引完全一样
     var tailNeedleInput = document.createElement("input");
     tailNeedleInput.type = "number";
     tailNeedleInput.step = "1";
