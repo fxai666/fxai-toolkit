@@ -4,7 +4,7 @@ class FxAiSceneLoad:
         return {
             "required": {
                 "场景数据": ("LIST", {"forceInput": True}),
-                "行索引": ("INT", {"default": 0, "min": 0}),
+                "行索引": ("INT", {"forceInput": True}),
                 "循环复用": ("INT", {"default": 0, "min": 0}),
             },
             "optional": {
@@ -34,16 +34,16 @@ class FxAiSceneLoad:
         if not isinstance(场景数据, list) or len(场景数据) == 0:
             raise Exception("场景数据不能为空，请连接场景管理器输出")
         
-        # 索引越界自动修正
-        total_lines = len(场景数据)
-        if 行索引 >= total_lines:
-            行索引 = total_lines - 1
-
         场景行索引 = 行索引
         if 循环复用 > 1:
            行索引 = 行索引 % 循环复用
         elif 循环复用 == 1:
              行索引 = 0
+
+        # 索引越界自动修正
+        total_lines = len(场景数据)
+        if 行索引 > total_lines:
+            return (15, f"{通用提示词}{尾部通用提示词}", 行索引, 行索引, -1, True, 行索引)
 
         # 取出指定行数据
         line = 场景数据[行索引]
