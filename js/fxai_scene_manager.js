@@ -146,7 +146,6 @@ app.registerExtension({
                     o.widgets_values.push({ name: "lines_data", value: json });
                 }
             }
-
             return onSerialize ? onSerialize.apply(this, arguments) : o;
         };
     },
@@ -312,22 +311,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     transitionCheckbox.style.flexShrink = "0";
     transitionCheckbox.style.cursor = "pointer";
 
-    var transitionLabel = document.createElement("span");
-    transitionLabel.style.fontSize = "12px";
-    transitionLabel.style.color = "var(--fg-color)";
-    transitionLabel.style.marginLeft = "2px";
-    transitionLabel.style.marginTop = "4px";
-    transitionLabel.style.flexShrink = "0";
-
-    var transitionContainer = document.createElement("div");
-    transitionContainer.style.display = "flex";
-    transitionContainer.style.alignItems = "center";
-    transitionContainer.style.minWidth = "50px";
-    transitionContainer.style.justifyContent = "center";
-    transitionContainer.style.flexShrink = "0";
-    transitionContainer.appendChild(transitionCheckbox);
-    transitionContainer.appendChild(transitionLabel);
-
     var upBtn = document.createElement("button");
     upBtn.textContent = "↑";
     upBtn.title = "上移此行";
@@ -376,7 +359,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     row.appendChild(audionoInput);
     row.appendChild(imgnoInput);
     row.appendChild(tailNeedleInput);
-    row.appendChild(transitionContainer);
+    row.appendChild(transitionCheckbox);
     row.appendChild(upBtn);
     row.appendChild(downBtn);
     row.appendChild(delBtn);
@@ -389,7 +372,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
         imgnoInput: imgnoInput,
         tailNeedleInput: tailNeedleInput,
         transitionCheckbox: transitionCheckbox,
-        transitionLabel: transitionLabel,
         upBtn: upBtn,
         downBtn: downBtn,
         row: row,
@@ -530,7 +512,6 @@ function updateHidden(node) {
     }
     var data = JSON.stringify(values);
     node.linesDataWidget.value = data;
-
     if (node.linesDataWidget.inputEl) {
         node.linesDataWidget.inputEl.value = data;
         var event = document.createEvent("Event");
