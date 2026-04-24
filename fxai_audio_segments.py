@@ -206,44 +206,69 @@ def _build_segments(
     keyframes, 
     skip_initial_segment, 
     include_tail_segment,
-    is_average_split=False,  # 新增：是否平均分段
-    average_duration=0.0     # 新增：平均分段时长
+    is_average_split=False,
+    average_duration=0.0
 ):
     total_duration = max(0.0, total_duration)
     segments = []
 
-    if is_average_split and average_duration > 0:
-        current = 0.0
-        while current < total_duration:
-            end = current + average_duration
-            if end > total_duration:
-                end = total_duration
-            segments.append((current, end))
-            current = end
-
+    # ======================
+    # 第一步：先生成基础分段（关键帧模式）
+    # ======================
+    markers = _normalize_keyframe_list(keyframes, total_duration)
+    if not markers:
+        segments = [(0.0, total_duration)]
     else:
-        markers = _normalize_keyframe_list(keyframes, total_duration)
-        if not markers:
-            segments = [(0.0, total_duration)]
-        else:
-            points = [0.0] + markers + [total_duration]
-            for i in range(len(points) - 1):
-                s = points[i]
-                e = points[i + 1]
-                if e > s:
-                    segments.append((s, e))
+        points = [0.0] + markers + [total_duration]
+        for i in range(len(points) - 1):
+            s = points[i]
+            e = points[i + 1]
+            if e > s:
+                segments.append((s, e))
 
+    # ======================
+    # 第二步：先剔除 首尾段（关键！必须在平均分段之前执行）
+    # ======================
     if skip_initial_segment and len(segments) > 0:
         segments = segments[1:]
 
     if not include_tail_segment and len(segments) > 0:
         segments = segments[:-1]
 
+    # 清理无效短片段
     if len(segments) > 0:
         last_s, last_e = segments[-1]
         if (last_e - last_s) < 0.1:
             segments.pop()
 
+    if not segments:
+        segments = [(0.0, total_duration)]
+
+    # ======================
+    # 第三步：对【剔除后的剩余音频】进行平均分段
+    # ======================
+    if is_average_split and average_duration > 0:
+        # 拿到剔除首尾后的完整有效音频起止时间
+        if len(segments) == 0:
+            start_total = 0.0
+            end_total = total_duration
+        else:
+            start_total = segments[0][0]
+            end_total = segments[-1][1]
+
+        # 在这个区间内做平均分
+        new_segments = []
+        current = start_total
+        while current < end_total:
+            end = current + average_duration
+            if end > end_total:
+                end = end_total
+            new_segments.append((current, end))
+            current = end
+
+        segments = new_segments
+
+    # 最终兜底
     if not segments:
         segments = [(0.0, total_duration)]
 
@@ -277,7 +302,7 @@ class FxAiAudioSegmenter:
                 "平均分段时长": ("FLOAT", {"default": 15.00, "step": 0.01, "round": 0.01}),
                 "开始分段索引": ("INT", {"default": 0, "min": 0, "step": 1}),
                 "结束分段索引": ("INT", {"default": 0, "min": 0, "step": 1}),
-                "帧率": ("FLOAT", {"default": 24.0, "step": 0.1, "round": 0.1}),
+                "帧率": ("INT", {"default": 24, "step": 1}),
                 "最大长宽": ("INT", {"default": 960, "min": 320, "step": 1}),
             },
             "optional": {
@@ -285,7 +310,7 @@ class FxAiAudioSegmenter:
             }
         }
 
-    RETURN_TYPES = ("AUDIO", "STRING", "INT", "INT", "INT", "FLOAT", "FLOAT", "INT")
+    RETURN_TYPES = ("AUDIO", "STRING", "INT", "INT", "INT", "FLOAT", "INT", "INT")
     RETURN_NAMES = ("音频", "分段列表", "循环数", "开始索引", "开始帧数", "开始秒数", "帧率", "最大长宽")
     FUNCTION = "select_segment"
     CATEGORY = "凤希AI"
@@ -310,7 +335,7 @@ class FxAiAudioSegmenter:
         平均分段时长=15,
         开始分段索引=0,
         结束分段索引=0,
-        帧率=24.0,
+        帧率=24,
 		最大长宽=960,
 		刷新标记=0
     ):

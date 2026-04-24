@@ -37,6 +37,9 @@ from .fxai_resize_image_downscale import FxAiImageDownscale
 from .fxai_prompt_load import FxAiLoadPromptByIndex
 from .fxai_scene_manager import FxAiSceneManager
 from .fxai_scene_load import FxAiSceneLoad
+from .fxai_video_generator import FxAiVideoGenerator
+from .fxai_video_merger import FxAiVideoMerger
+from .fxai_video_preview import FxAiVideoPreview
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
@@ -54,6 +57,9 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiLoadPromptByIndex":FxAiLoadPromptByIndex,
 	"FxAiSceneManager":FxAiSceneManager,
 	"FxAiSceneLoad":FxAiSceneLoad,
+	"FxAiVideoGenerator":FxAiVideoGenerator,
+	"FxAiVideoMerger":FxAiVideoMerger,
+	"FxAiVideoPreview":FxAiVideoPreview,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -71,6 +77,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiImageDownscale":"凤希AI - 图片缩小 - 按倍数",
 	"FxAiPromptManager":"凤希AI - 提示词管理",
 	"FxAiLoadPromptByIndex":"凤希AI - 提示词管理 - 提示词加载",
+	"FxAiVideoGenerator":"凤希AI - 视频生成",
+	"FxAiVideoMerger":"凤希AI - 视频合并",
+	"FxAiVideoPreview":"凤希AI - 视频预览",
 }
 
 WEB_DIRECTORY = "./js"
