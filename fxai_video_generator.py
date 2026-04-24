@@ -72,7 +72,7 @@ def audio_tensor_to_wav(audio_dict):
         )
         return temp_path
     except Exception as e:
-        print(f"[凤希音频转换失败] {str(e)}")
+        print(f"[凤希AI音频转换失败] {str(e)}")
         return ""
 
 # 图片+音频合成视频
@@ -106,7 +106,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio_path=""):
         if temp_audio and os.path.exists(temp_audio):
             os.unlink(temp_audio)
 
-    print(f"[凤希视频] 成功保存：{save_path}")
+    print(f"[凤希AI视频] 成功保存：{save_path}")
     return save_path
 
 # 节点主体

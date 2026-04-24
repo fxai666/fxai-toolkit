@@ -31,7 +31,7 @@ def merge_videos(source_dir, output_name):
     output_path = safe_path_join(output_dir, f"{output_name}.mp4")
 
     if len(videos) == 0:
-        print("[凤希合并] 无视频")
+        print("[凤希AI视频合并] 无视频")
         return None
     elif len(videos) == 1:
         shutil.copy2(videos[0], output_path)
