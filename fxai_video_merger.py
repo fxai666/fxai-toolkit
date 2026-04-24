@@ -16,15 +16,22 @@ def get_merge_output_dir():
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
-def get_video_files(source_dir):
+# ====================== 改动 1：增加 max_count 参数 ======================
+def get_video_files(source_dir, max_count=0):
     if not os.path.isdir(source_dir):
         return []
     exts = ('.mp4', '.webm', '.mov', '.avi')
     files = sorted(f for f in os.listdir(source_dir) if f.lower().endswith(exts))
+    
+    # 核心约束：只保留前 max_count 个文件
+    if max_count > 0:
+        files = files[:max_count]
+        
     return [safe_path_join(source_dir, f) for f in files]
 
-def merge_videos(source_dir, output_name):
-    videos = get_video_files(source_dir)
+def merge_videos(source_dir, output_name, max_count=0):
+    # ====================== 改动 2：传入文件数量 ======================
+    videos = get_video_files(source_dir, max_count)
     output_dir = get_merge_output_dir()
     
     output_name = re.sub(r'[\\/*?:"<>|]', "", output_name.strip())
@@ -54,7 +61,7 @@ class FxAiVideoMerger:
                 "名称前缀": ("STRING", {"default": "fxai_"}),
             },
             "optional":{
-                "刷新标记": ("INT", {"forceInput": True}),
+                "文件数量": ("INT", {"forceInput": True}),
             }
         }
 
@@ -63,14 +70,15 @@ class FxAiVideoMerger:
     FUNCTION = "run"
     CATEGORY = "凤希AI"
 
-    def run(self, 源视频文件夹路径, 名称前缀,刷新标记=0):
+    def run(self, 源视频文件夹路径, 名称前缀,文件数量=0):
         time_str = time.strftime("%Y%m%d_%H%M%S", time.localtime())
         final_name = f"{名称前缀}{time_str}"
 
         if not os.path.isdir(源视频文件夹路径):
             return ("",)
         
-        video_path = merge_videos(源视频文件夹路径, final_name)
+        # ====================== 改动 3：把文件数量传给合并函数 ======================
+        video_path = merge_videos(源视频文件夹路径, final_name, 文件数量)
         if not video_path:
             return ("",)
         
