@@ -134,12 +134,33 @@ function buildEditor(node) {
     container.style.gap = "8px";
     container.style.width = "100%";
 
+    // ========== 新增：全局阻止拖拽默认行为 ==========
+    function preventDefaultDragDrop() {
+        document.addEventListener('dragover', (e) => e.preventDefault());
+        document.addEventListener('drop', (e) => e.preventDefault());
+        document.addEventListener('dragenter', (e) => e.preventDefault());
+        document.addEventListener('dragleave', (e) => e.preventDefault());
+    }
+    preventDefaultDragDrop();
+
+    // ========== 新增：拖拽上传区域 ==========
+    const dropArea = document.createElement("div");
+    dropArea.style.padding = "15px 12px";
+    dropArea.style.border = "2px dashed #777";
+    dropArea.style.borderRadius = "6px";
+    dropArea.style.textAlign = "center";
+    dropArea.style.color = "#ccc";
+    dropArea.style.fontSize = "12px";
+    dropArea.textContent = "📥 拖拽音频到这里上传";
+    container.appendChild(dropArea);
+
     const toolbar = document.createElement("div");
     toolbar.style.display = "flex";
     toolbar.style.flexWrap = "wrap";
     toolbar.style.gap = "8px";
     toolbar.style.alignItems = "center";    
-    // 上传按钮
+
+    // 原有上传按钮
     const uploadButton = document.createElement("button");
     uploadButton.textContent = "上传音频";
     uploadButton.style.padding = "2px 6px";
@@ -147,6 +168,7 @@ function buildEditor(node) {
     uploadButton.style.fontSize = "12px";
     toolbar.appendChild(uploadButton);
 
+    // 原有播放/添加/删除按钮
     const playButton = document.createElement("button");
     playButton.textContent = "播放";
     const addButton = document.createElement("button");
@@ -158,7 +180,55 @@ function buildEditor(node) {
     status.style.opacity = "0.85";
     toolbar.append(playButton, addButton, removeButton, status);
 
+    // ========== 新增：拖拽上传逻辑 ==========
+    dropArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropArea.style.borderColor = "#fff";
+    });
+    dropArea.addEventListener("dragleave", () => {
+        dropArea.style.borderColor = "#777";
+    });
+    dropArea.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropArea.style.borderColor = "#777";
+        const files = Array.from(e.dataTransfer.files);
+        if (!files.length || !files[0].type.startsWith("audio/")) {
+            alert("请上传音频文件！");
+            return;
+        }
 
+        const file = files[0];
+        const originalText = uploadButton.textContent;
+        uploadButton.textContent = "上传中...";
+        uploadButton.disabled = true;
+        try {
+            const filename = await uploadFile(file, (p) => {
+                uploadButton.textContent = `上传中 ${Math.round(p * 100)}%`;
+            });
+            const pathWidget = getWidget(node, "音频文件");
+            if (pathWidget) {
+                if (!pathWidget.options.values.includes(filename)) {
+                    pathWidget.options.values.push(filename);
+                    pathWidget.options.values.sort();
+                }
+                pathWidget.value = filename;
+                if (pathWidget.callback) {
+                    pathWidget.callback(filename);
+                }
+            } else {
+                console.warn("未找到音频文件控件");
+            }
+        } catch (err) {
+            console.error("上传失败:", err);
+            alert("上传失败: " + err.message);
+        } finally {
+            uploadButton.textContent = originalText;
+            uploadButton.disabled = false;
+        }
+    });
+
+    // 原有Canvas和Audio部分保持不变
     const canvas = document.createElement("canvas");
     canvas.style.width = "100%";
     canvas.style.height = "180px";
@@ -182,7 +252,7 @@ function buildEditor(node) {
         })
         : null;
     if (domWidget) {
-        domWidget.computeSize = () => [DEFAULT_WIDTH - 30, 240];
+        domWidget.computeSize = () => [DEFAULT_WIDTH - 30, 280];
     }
 
     const state = {

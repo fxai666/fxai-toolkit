@@ -55,43 +55,61 @@ def get_fixed_temp_audio_path():
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
 
-# ===================== ✅ 新版：用 FFmpeg 把音频张量保存为 WAV =====================
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     try:
-        waveform = audio_dict["waveform"]  # [1, 1, T] 或 [1, T]
+        waveform = audio_dict["waveform"]  # [1, channels, samples] 或 [channels, samples]
         sample_rate = audio_dict["sample_rate"]
         
-        # 降维成 FFmpeg 能用的格式
-        waveform = waveform.squeeze().cpu().numpy()  # shape: [T] 或 [2, T]
+        # 去掉batch维度
+        if waveform.ndim == 3 and waveform.shape[0] == 1:
+            waveform = waveform.squeeze(0)  # [channels, samples]
+        
+        waveform_np = waveform.cpu().numpy()
+        
+        # 判断声道数
+        if waveform_np.ndim == 1:
+            channels = 1
+            # 单声道：直接使用
+            audio_data = waveform_np.astype(np.float32)
+        else:
+            channels = waveform_np.shape[0]
+            # 双声道或更多：需要转为交错格式 (interleaved)
+            # 从 [channels, samples] -> [samples, channels] -> 展平
+            audio_data = np.ascontiguousarray(waveform_np.T).astype(np.float32)
+        
+        raw_pcm = audio_data.tobytes()
         temp_path = get_fixed_temp_audio_path()
-
-        # 音频是 float32 张量 → 写入原始二进制，再用 FFmpeg 转 WAV
-        raw_pcm = waveform.astype(np.float32).tobytes()
-
-        # 判定声道数
-        channels = 1 if waveform.ndim == 1 else waveform.shape[0]
-
-        # FFmpeg 从原始 PCM 生成标准 WAV
-        cmd = (
-            f'ffmpeg -y -f f32le -ar {sample_rate} -ac {channels} -i pipe: '
-            f'-c:a pcm_s16le "{temp_path}"'
-        )
-
-        # 直接喂二进制数据给 FFmpeg
+        
+        # FFmpeg 命令
+        cmd = [
+            'ffmpeg', '-y',
+            '-f', 'f32le',           # 32位浮点PCM
+            '-ar', str(sample_rate), # 采样率
+            '-ac', str(channels),    # 声道数
+            '-i', 'pipe:0',          # 从stdin读取
+            '-c:a', 'pcm_s16le',     # 输出16位PCM WAV
+            temp_path
+        ]
+        
+        # 使用列表形式避免shell注入，并且更可靠
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
-            shell=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
         proc.stdin.write(raw_pcm)
         proc.stdin.close()
         proc.wait()
-
+        
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+        
         return temp_path
     except Exception as e:
         print(f"[凤希AI FFmpeg音频转换失败] {str(e)}")
+        import traceback
+        traceback.print_exc()
         return ""
 
 # 图片+音频合成视频

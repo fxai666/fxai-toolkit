@@ -8,7 +8,7 @@ import mimetypes
 import soundfile as sf
 import numpy as np
 
-# 安全路径校验：防止目录穿越
+# 安全路径校验
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
     full_path = os.path.abspath(os.path.join(base_dir, path))
@@ -39,9 +39,13 @@ def list_audios(target_dir):
             continue
         m = pattern.match(f)
         if m:
-            files.append((m.group(1), f))
-    files.sort()
-    return [f for _, f in files]
+            files.append(f)
+    return files
+
+def sanitize_filename(filename):
+    name = re.sub(r'[\\/*?:"<>|]', '', filename)
+    name = name.strip()
+    return name
 
 # ---------- HTTP 路由 ----------
 async def get_preview(request):
@@ -59,11 +63,8 @@ async def get_preview(request):
     if not mime_type:
         ext = filename.split('.')[-1].lower()
         mime_map = {
-            'mp3': 'audio/mpeg',
-            'wav': 'audio/wav',
-            'ogg': 'audio/ogg',
-            'flac': 'audio/flac',
-            'm4a': 'audio/mp4'
+            'mp3': 'audio/mpeg', 'wav': 'audio/wav', 'ogg': 'audio/ogg',
+            'flac': 'audio/flac', 'm4a': 'audio/mp4'
         }
         mime_type = mime_map.get(ext, "audio/mpeg")
     
@@ -71,20 +72,6 @@ async def get_preview(request):
         "Content-Type": mime_type,
         "Cache-Control": "no-store, no-cache, must-revalidate"
     })
-
-async def get_next_number(request):
-    subdir = request.query.get("subdir", "")
-    target_dir = get_audio_dir(subdir)
-    used = set()
-    if os.path.isdir(target_dir):
-        for f in os.listdir(target_dir):
-            m = re.match(r'^(\d+)', f)
-            if m:
-                used.add(int(m.group(1)))
-    next_num = 0
-    while next_num in used:
-        next_num += 1
-    return web.json_response({"next_num": next_num})
 
 async def get_file_list(request):
     subdir = request.query.get("subdir", "")
@@ -110,29 +97,36 @@ async def apply_changes(request):
                 os.remove(fp)
 
         temp_map = []
-        for idx, old_name in enumerate(safe_ordered):
-            old_fp = safe_path_join(target_dir, old_name)
+        for idx, old_fullname in enumerate(safe_ordered):
+            old_fp = safe_path_join(target_dir, old_fullname)
             if not old_fp or not os.path.exists(old_fp):
                 continue
+
+            # 正确解析：只保留真实文件名，不重复加序号
+            match = re.match(r'^\d{3}_(.+)', os.path.splitext(old_fullname)[0])
+            if match:
+                pure_name = match.group(1)
+            else:
+                pure_name = os.path.splitext(old_fullname)[0]
             
-            ext = old_name.split('.')[-1].lower()
-            new_name = f"{idx:03d}.{ext}"
-            temp_name = f"_tmp_{idx}_{os.urandom(4).hex()}_{old_name}"
+            ext = old_fullname.split('.')[-1].lower()
+            new_name = f"{idx:03d}_{pure_name}.{ext}"
+
+            temp_name = f"_tmp_{os.urandom(4).hex()}"
             temp_fp = safe_path_join(target_dir, temp_name)
-            
             os.rename(old_fp, temp_fp)
             temp_map.append((temp_fp, new_name))
 
         for temp_fp, new_name in temp_map:
             final_fp = safe_path_join(target_dir, new_name)
-            if temp_fp and final_fp:
-                os.rename(temp_fp, final_fp)
+            os.rename(temp_fp, final_fp)
 
         new_files = list_audios(target_dir)
         return web.json_response({"files": new_files, "success": True})
     except Exception as e:
         return web.json_response({"error": f"应用失败：{str(e)}"}, status=500)
 
+# 最终完美版：三位序号 + 纯中文原始文件名
 async def upload_audio_custom(request):
     try:
         data = await request.post()
@@ -142,32 +136,38 @@ async def upload_audio_custom(request):
         if not audio or not hasattr(audio, 'file'):
             return web.json_response({"error": "未上传有效音频"}, status=400)
 
-        filename = re.sub(r'[\\/*?:"<>|]', "", audio.filename)
-        if not filename:
+        original_filename = sanitize_filename(audio.filename)
+        if not original_filename:
             return web.json_response({"error": "文件名为空"}, status=400)
 
         target_dir = get_audio_dir(subdir)
-        save_path = safe_path_join(target_dir, filename)
-        if not save_path:
-            return web.json_response({"error": "非法路径"}, status=403)
+        
+        # 统计文件数量 +1
+        file_list = list_audios(target_dir)
+        next_num = len(file_list)
 
+        new_filename = f"{next_num:03d}_{original_filename}"
+
+        save_path = safe_path_join(target_dir, new_filename)
         with open(save_path, "wb") as f:
             f.write(audio.file.read())
-
-        return web.json_response({"success": True, "name": filename})
+        
+        return web.json_response({
+            "success": True, 
+            "name": new_filename
+        })
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
 # 注册路由
 try:
     server.PromptServer.instance.routes.get("/fxai/audio/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxai/audio/next_number")(get_next_number)
     server.PromptServer.instance.routes.get("/fxai/audio/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxai/audio/apply")(apply_changes)
     server.PromptServer.instance.routes.post("/fxai/audio/upload")(upload_audio_custom)
-    print("✅ 凤希AI音频资源管理器已就绪 Q群：775649071")
+    print("✅ 凤希AI音频资源管理器已就绪")
 except Exception as e:
-    print(f"❌ 凤希AI音频资源管理器启动失败：{e}")
+    print(f"❌ 启动失败：{e}")
 
 class FxAiAudioManager:
     @classmethod
@@ -181,65 +181,36 @@ class FxAiAudioManager:
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "INT", "AUDIO")
-    RETURN_NAMES = ("文件列表", "文件夹路径", "音频总数", "音频")
+    RETURN_TYPES = ("STRING", "INT", "AUDIO")
+    RETURN_NAMES = ("文件夹路径", "音频总数", "音频")
     FUNCTION = "run"
     CATEGORY = "凤希AI"
 
-    def _get_next_audio_num(self, target_dir):
-        used = set()
-        if os.path.isdir(target_dir):
-            for f in os.listdir(target_dir):
-                m = re.match(r'^(\d+)', f)
-                if m:
-                    used.add(int(m.group(1)))
-        next_num = 0
-        while next_num in used:
-            next_num += 1
-        return next_num
-
     def save_tensor_audio(self, audio_data, target_dir):
         try:
-            # 读取 ComfyUI 标准音频
             waveform = audio_data["waveform"]
             sample_rate = audio_data["sample_rate"]
-
-            # 🔥 修复采样率（张量 → 数字）
             if isinstance(sample_rate, torch.Tensor):
                 sample_rate = sample_rate.item()
 
             audio_np = waveform.cpu().numpy()
-
-            # 维度标准化 100% 兼容 soundfile
-            if audio_np.ndim == 3:
-                audio_np = audio_np[0]
-            if audio_np.ndim == 1:
-                audio_np = audio_np.reshape(-1, 1)
-            if audio_np.ndim == 2 and audio_np.shape[0] in (1, 2):
-                audio_np = audio_np.transpose(1, 0)
-
+            if audio_np.ndim == 3: audio_np = audio_np[0]
+            if audio_np.ndim == 1: audio_np = audio_np.reshape(-1, 1)
+            if audio_np.shape[0] in (1,2): audio_np = audio_np.transpose(1,0)
             audio_np = np.squeeze(audio_np)
-            if audio_np.ndim == 1:
-                audio_np = audio_np.reshape(-1, 1)
+            if audio_np.ndim == 1: audio_np = audio_np.reshape(-1,1)
 
-            # 保存
-            next_num = self._get_next_audio_num(target_dir)
-            save_path = os.path.join(target_dir, f"{next_num:03d}.wav")
+            next_num = len(list_audios(target_dir))
+            save_name = f"{next_num:03d}_audio.wav"
+            save_path = os.path.join(target_dir, save_name)
             sf.write(save_path, audio_np, sample_rate)
-            print(f"✅ 音频保存成功：{save_path}")
-
         except Exception as e:
-            print(f"❌ 保存音频失败：{str(e)}")
-            raise
+            print(f"❌ 保存音频失败：{e}")
 
     def run(self, 目录="", 音频=None):
         target_dir = get_audio_dir(目录)
-        
         if 音频 is not None:
             self.save_tensor_audio(音频, target_dir)
         
         files = list_audios(target_dir)
-        total = len(files)
-        file_str = "\n".join(files) if files else "无音频，请先上传"
-        
-        return (file_str, target_dir, total, 音频)
+        return (target_dir, len(files), 音频)

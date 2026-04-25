@@ -21,14 +21,11 @@ async function getNextNumber(subdir) {
 
 // 音频上传逻辑
 async function uploadFiles(files, subdir, onProgress) {
-    let nextNum = await getNextNumber(subdir);
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const ext = file.name.split('.').pop();
-        const newName = String(nextNum + i).padStart(3, '0') + '.' + ext;
 
         const formData = new FormData();
-        formData.append("audio", file, newName); 
+        formData.append("audio", file, file.name); 
         formData.append("subdir", subdir);
 
         try {
@@ -43,7 +40,7 @@ async function uploadFiles(files, subdir, onProgress) {
             
             onProgress?.(i, 1); // 进度完成
         } catch (err) {
-            throw new Error(`文件 ${newName} 上传失败: ${err.message}`);
+            throw new Error(`文件 ${file.name} 上传失败: ${err.message}`);
         }
     }
 }
@@ -84,8 +81,8 @@ function addUI(node) {
     container.style.padding = "8px";
     container.style.border = "1px solid #555";
     container.style.borderRadius = "4px";
-    container.style.minWidth = "300px";
-    node.addDOMWidget("audio_ui", "audio_ui", container, { serialize: false });
+    var domWidget=  node.addDOMWidget("audio_ui", "audio_ui", container);
+    domWidget.computeSize = () => [500, 385];
 
     // 拖拽上传区域
     const dropArea = document.createElement("div");
@@ -149,7 +146,7 @@ function addUI(node) {
     listDiv.style.display = "flex";
     listDiv.style.flexWrap = "wrap";
     listDiv.style.gap = "5px";
-    listDiv.style.maxHeight = "400px";
+    listDiv.style.maxHeight = "200px";
     listDiv.style.overflowY = "auto";
     listDiv.style.padding = "4px";
     listDiv.style.border = "1px solid #666";

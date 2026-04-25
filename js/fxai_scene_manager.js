@@ -35,7 +35,7 @@ app.registerExtension({
             this.scrollContainer.style.boxSizing = "border-box";
 
             this.addDOMWidget("lines_container", "container", this.scrollContainer);
-
+            
             // ========== 修复1：创建表头 ==========
             createHeader(this);
 
@@ -87,7 +87,7 @@ app.registerExtension({
                     }
                     for (var j = 0; j < list.length; j++) {
                         var item = list[j];
-                        var duration = 5;
+                        var duration = 15;
                         var text = "";
                         var audioNo = 0;
                         var imgNo = 0;
@@ -95,7 +95,7 @@ app.registerExtension({
                         var transition = 1;
                         
                         if (Array.isArray(item)) {
-                            duration = Number(item[0]) || 5;
+                            duration = Number(item[0]) || 15;
                             text = item[1] || "";
                             if(item.length >=3) audioNo = Number(item[2]) || 0;
                             if(item.length >=4) imgNo = Number(item[3]) || 0;
@@ -190,7 +190,7 @@ function createHeader(node) {
 
 function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImgNo, defaultTailNeedle, defaultTransition) {
     defaultValue = defaultValue || "";
-    defaultDuration = defaultDuration || 5;
+    defaultDuration = defaultDuration || 15;
     defaultAudioNo = defaultAudioNo || 0;
     defaultImgNo = defaultImgNo ?? -1;
     defaultTailNeedle = defaultTailNeedle ?? -1;
@@ -391,7 +391,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultImg
     });
 
     durationInput.addEventListener("input", function() {
-        var val = parseFloat(durationInput.value) || 5;
+        var val = parseFloat(durationInput.value) || 15;
         if (val < 0.1) val = 0.1;
         durationInput.value = val;
         item.duration = val;

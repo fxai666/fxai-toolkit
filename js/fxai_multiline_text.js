@@ -49,7 +49,7 @@ app.registerExtension({
             addLine(this);
 
             // 只定义这一个宽度：既是默认宽度，也是最小宽度
-            const FIXED_WIDTH = 720;
+            const FIXED_WIDTH = 820;
 
             // 1. 设置默认宽度
             this.size[0] = FIXED_WIDTH;
