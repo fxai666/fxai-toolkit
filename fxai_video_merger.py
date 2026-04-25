@@ -58,11 +58,9 @@ class FxAiVideoMerger:
         return {
             "required": {
                 "源视频文件夹路径": ("STRING", {"default": ""}),
+                "文件数量": ("INT", {"default": 1,"step":1}),
                 "名称前缀": ("STRING", {"default": "fxai_"}),
             },
-            "optional":{
-                "文件数量": ("INT", {"forceInput": True}),
-            }
         }
 
     RETURN_TYPES = ("STRING",)

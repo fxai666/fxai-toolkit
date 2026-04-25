@@ -63,22 +63,10 @@ app.registerExtension({
                 }
             };
 
-            // ======================
-            // 修复 分段循环复用 NaN
-            // ======================
-            for (const w of this.widgets) {
-                if (w.name === "分段循环复用") {
-                    setTimeout(function(){
-                        w.value = isNaN(w.value) ? 1 : w.value;
-                        w.onChange = () => { if (isNaN(w.value)) w.value = 1; };
-                    },0)
-                }
-            }
-
             return r;
         };
 
-        // 加载配置（新增转场字段解析）
+        // 加载配置（仅保留文本解析）
         nodeType.prototype.onConfigure = function (o) {
             var r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
             if (!o || !o.widgets_values) return r;
@@ -102,20 +90,14 @@ app.registerExtension({
                     }
                     for (var j = 0; j < list.length; j++) {
                         var item = list[j];
-                        var duration = 5;
                         var text = "";
-                        var audioNo = 1;
-                        var transition = 1; // 转场默认启用（1）
                         
                         if (Array.isArray(item)) {
-                            duration = Number(item[0]) || 5;
-                            text = item[1] || "";
-                            if(item.length >=3) audioNo = Number(item[2]) || 1;
-                            if(item.length >=4) transition = Number(item[3]) || 1; // 解析转场值
+                            text = item[0] || ""; // 仅保留文本字段
                         } else {
                             text = item || "";
                         }
-                        addLine(this, text, duration, audioNo, transition);
+                        addLine(this, text);
                     }
                 }
             } catch (e) {
@@ -125,7 +107,7 @@ app.registerExtension({
             return r;
         };
 
-        // 序列化保存（新增转场字段：秒数 → 文本 → 音频索引 → 转场）
+        // 序列化保存（仅保留文本字段）
         nodeType.prototype.onSerialize = function (o) {
             o = o || {};
             o.widgets_values = o.widgets_values || [];
@@ -133,12 +115,7 @@ app.registerExtension({
             if (this.linesDataWidget && this.lines) {
                 var values = [];
                 for (var i = 0; i < this.lines.length; i++) {
-                    values.push([
-                        this.lines[i].duration,
-                        this.lines[i].value,
-                        this.lines[i].audiono,
-                        this.lines[i].transition // 新增转场值
-                    ]);
+                    values.push(this.lines[i].value); // 仅保留文本
                 }
                 var json = JSON.stringify(values);
                 this.linesDataWidget.value = json;
@@ -162,7 +139,7 @@ app.registerExtension({
     },
 });
 
-// 新增：创建顶部表头标签（增加转场列）
+// 创建顶部表头标签（仅保留序号、文本、操作列）
 function createHeader(node) {
     var header = document.createElement("div");
     header.style.display = "flex";
@@ -176,13 +153,10 @@ function createHeader(node) {
     header.style.fontWeight = "bold";
     header.style.color = "#ffffff";
 
-    // 表头标签文本（新增转场列）
+    // 表头标签文本（移除时长、音频索引、转场列）
     var labels = [
         { text: "序号", width: "24px" },
-        { text: "时长", width: "50px" },
         { text: "提示词文本", flex: 1 },
-        { text: "音频索引", width: "55px" },
-        { text: "转场", width: "60px" }, // 新增转场表头
         { text: "操作", width: "90px" }
     ];
 
@@ -199,12 +173,9 @@ function createHeader(node) {
     node.scrollContainer.appendChild(header);
 }
 
-// 添加行：新增转场复选框参数（默认启用）
-function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultTransition) {
+// 添加行（仅保留文本字段）
+function addLine(node, defaultValue) {
     defaultValue = defaultValue || "";
-    defaultDuration = defaultDuration || 5;
-    defaultAudioNo = defaultAudioNo || 1;
-    defaultTransition = (defaultTransition === undefined || defaultTransition === null) ? 1 : defaultTransition; // 转场默认1（启用）
 
     var idx = node.lines.length;
     var row = document.createElement("div");
@@ -228,25 +199,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultTra
     lineNumLabel.style.marginTop = "6px";
     lineNumLabel.style.flexShrink = "0";
 
-    // 2. 秒数输入框
-    var durationInput = document.createElement("input");
-    durationInput.type = "number";
-    durationInput.min = "0.1";
-    durationInput.step = "0.1";
-    durationInput.placeholder = "秒";
-    durationInput.style.width = "50px";
-    durationInput.style.height = "28px";
-    durationInput.style.padding = "0 6px";
-    durationInput.style.borderRadius = "4px";
-    durationInput.style.border = "1px solid var(--comfy-menu-border-color)";
-    durationInput.style.backgroundColor = "var(--comfy-input-bg)";
-    durationInput.style.color = "var(--fg-color)";
-    durationInput.style.textAlign = "center";
-    durationInput.style.flexShrink = "0";
-    durationInput.style.marginTop = "2px";
-    durationInput.value = defaultDuration;
-
-    // 3. 文本框
+    // 2. 文本框（仅保留核心文本输入）
     var textarea = document.createElement("textarea");
     textarea.placeholder = "输入内容...";
     textarea.style.flex = "1";
@@ -263,54 +216,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultTra
     textarea.style.boxSizing = "border-box";
     textarea.value = defaultValue;
 
-    // 4. 音频索引输入框
-    var audionoInput = document.createElement("input");
-    audionoInput.type = "number";
-    audionoInput.min = "0";
-    audionoInput.step = "1";
-    audionoInput.placeholder = "编号";
-    audionoInput.style.width = "55px";
-    audionoInput.style.height = "28px";
-    audionoInput.style.padding = "0 6px";
-    audionoInput.style.borderRadius = "4px";
-    audionoInput.style.border = "1px solid var(--comfy-menu-border-color)";
-    audionoInput.style.backgroundColor = "var(--comfy-input-bg)";
-    audionoInput.style.color = "var(--fg-color)";
-    audionoInput.style.textAlign = "center";
-    audionoInput.style.flexShrink = "0";
-    audionoInput.style.marginTop = "2px";
-    audionoInput.value = defaultAudioNo;
-
-    // 5. 转场复选框（新增）
-    var transitionCheckbox = document.createElement("input");
-    transitionCheckbox.type = "checkbox";
-    transitionCheckbox.checked = defaultTransition === 1; // 1=启用（勾选），0=禁用（不勾选）
-    transitionCheckbox.style.width = "20px";
-    transitionCheckbox.style.height = "20px";
-    transitionCheckbox.style.marginTop = "6px";
-    transitionCheckbox.style.flexShrink = "0";
-    // 复选框样式优化（可选）
-    transitionCheckbox.style.cursor = "pointer";
-
-    // 转场标签（可选，提升可读性）
-    var transitionLabel = document.createElement("span");
-    transitionLabel.style.fontSize = "12px";
-    transitionLabel.style.color = "var(--fg-color)";
-    transitionLabel.style.marginLeft = "2px";
-    transitionLabel.style.marginTop = "4px";
-    transitionLabel.style.flexShrink = "0";
-
-    // 转场容器（包裹复选框+标签）
-    var transitionContainer = document.createElement("div");
-    transitionContainer.style.display = "flex";
-    transitionContainer.style.alignItems = "center";
-    transitionContainer.style.minWidth = "50px";
-    transitionContainer.style.justifyContent = "center";
-    transitionContainer.style.flexShrink = "0";
-    transitionContainer.appendChild(transitionCheckbox);
-    transitionContainer.appendChild(transitionLabel);
-
-    // 6. 操作按钮（上移/下移/删除）
+    // 3. 操作按钮（上移/下移/删除）
     var upBtn = document.createElement("button");
     upBtn.textContent = "↑";
     upBtn.title = "上移此行";
@@ -353,31 +259,21 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultTra
     delBtn.style.flexShrink = "0";
     delBtn.style.marginTop = "2px";
 
-    // 组装行元素
+    // 组装行元素（移除时长、音频索引、转场相关DOM）
     row.appendChild(lineNumLabel);
-    row.appendChild(durationInput);
     row.appendChild(textarea);
-    row.appendChild(audionoInput);
-    row.appendChild(transitionContainer); // 新增转场列
     row.appendChild(upBtn);
     row.appendChild(downBtn);
     row.appendChild(delBtn);
     node.scrollContainer.appendChild(row);
 
-    // 行数据（新增transition字段）
+    // 行数据（仅保留文本相关字段）
     var item = {
         textarea: textarea,
-        durationInput: durationInput,
-        audionoInput: audionoInput,
-        transitionCheckbox: transitionCheckbox,
-        transitionLabel: transitionLabel,
         upBtn: upBtn,
         downBtn: downBtn,
         row: row,
         value: defaultValue,
-        duration: defaultDuration,
-        audiono: defaultAudioNo,
-        transition: defaultTransition, // 转场值（1=启用，0=禁用）
         label: lineNumLabel
     };
     node.lines.push(item);
@@ -385,30 +281,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultTra
     // 文本变化监听
     textarea.addEventListener("input", function() {
         item.value = textarea.value;
-        updateHidden(node);
-    });
-
-    // 秒数变化监听
-    durationInput.addEventListener("input", function() {
-        var val = parseFloat(durationInput.value) || 5;
-        if (val < 0.1) val = 0.1;
-        durationInput.value = val;
-        item.duration = val;
-        updateHidden(node);
-    });
-    
-    // 音频索引变化监听
-    audionoInput.addEventListener("input", function() {
-        var val = parseInt(audionoInput.value) || 0;
-        if (val < 0) val = 0; // 恢复成 0，不是 1
-        audionoInput.value = val;
-        item.audiono = val;
-        updateHidden(node);
-    });
-
-    // 转场复选框变化监听（新增）
-    transitionCheckbox.addEventListener("change", function() {
-        item.transition = transitionCheckbox.checked ? 1 : 0;
         updateHidden(node);
     });
 
@@ -438,7 +310,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultTra
     updateHidden(node);
 }
 
-// 上移/下移行（无修改，复用原有逻辑）
+// 上移/下移行（逻辑不变）
 function moveLine(node, item, dir) {
     var index = -1;
     for (var i = 0; i < node.lines.length; i++) {
@@ -468,14 +340,14 @@ function moveLine(node, item, dir) {
     updateHidden(node);
 }
 
-// 刷新行号（无修改）
+// 刷新行号（逻辑不变）
 function refreshLineNumbers(node) {
     for (var i = 0; i < node.lines.length; i++) {
         node.lines[i].label.textContent = (i + 1) + ".";
     }
 }
 
-// 删除行（无修改）
+// 删除行（逻辑不变）
 function removeLine(node, item) {
     item.row.remove();
     var newLines = [];
@@ -489,18 +361,13 @@ function removeLine(node, item) {
     updateHidden(node);
 }
 
-// 更新隐藏数据（新增转场字段）
+// 更新隐藏数据（仅保留文本字段）
 function updateHidden(node) {
     if (!node.linesDataWidget) return;
 
     var values = [];
     for (var i = 0; i < node.lines.length; i++) {
-        values.push([
-            node.lines[i].duration,
-            node.lines[i].value,
-            node.lines[i].audiono,
-            node.lines[i].transition // 新增转场值
-        ]);
+        values.push(node.lines[i].value); // 仅保留文本
     }
     var data = JSON.stringify(values);
     node.linesDataWidget.value = data;

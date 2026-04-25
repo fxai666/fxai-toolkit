@@ -25,6 +25,7 @@ for pkg in required_packages:
 # 导入类（HTTP路由会在import时自动注册）
 from .fxai_audio_segments import FxAiAudioSegmenter
 from .fxai_multiline_text import FxAiMultiLineText
+from .fxai_multiline_text_load import FxAiMultiLineTextLoad
 from .fxai_image_manager import FxAiImageManager
 from .fxai_image_load import FxAiLoadImageByIndex
 from .fxai_prompt_optimization import FxAiPromptGenerator
@@ -40,11 +41,13 @@ from .fxai_scene_load import FxAiSceneLoad
 from .fxai_video_generator import FxAiVideoGenerator
 from .fxai_video_merger import FxAiVideoMerger
 from .fxai_video_preview import FxAiVideoPreview
+#from .fxai_ltx_collector import FxAiLTXCollector
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
     "FxAiAudioSegmenter": FxAiAudioSegmenter,
     "FxAiMultiLineText": FxAiMultiLineText,
+    "FxAiMultiLineTextLoad": FxAiMultiLineTextLoad,
 	"FxAiImageManager":FxAiImageManager,
     "FxAiLoadImageByIndex": FxAiLoadImageByIndex,
 	"FxAiPromptGenerator":FxAiPromptGenerator,
@@ -60,13 +63,15 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiVideoGenerator":FxAiVideoGenerator,
 	"FxAiVideoMerger":FxAiVideoMerger,
 	"FxAiVideoPreview":FxAiVideoPreview,
+	#"FxAiLTXCollector":FxAiLTXCollector,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FxAiAudioSegmenter": "凤希AI - 音频分段器",
-    "FxAiSceneManager": "凤希AI - 场景管理V2 - 进Q群与更多的群友学习：775649071",
+    "FxAiSceneManager": "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071",
     "FxAiSceneLoad": "凤希AI - 场景数据加载",
-    "FxAiMultiLineText": "凤希AI - 场景管理V1 - 进Q群与更多的群友学习：775649071",
+    "FxAiMultiLineText": "凤希AI - 场景生成 - 进Q群与更多的群友学习：775649071",
+    "FxAiMultiLineTextLoad": "凤希AI - 场景提示词加载",
     "FxAiImageManager": "凤希AI - 图像管理器 - 群友扫地僧友情开发",
     "FxAiLoadImageByIndex": "凤希AI - 图像管理器 - 图片加载",
 	"FxAiPromptGenerator":"凤希AI - 提示词优化 - 本地Ollama",
@@ -80,6 +85,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiVideoGenerator":"凤希AI - 视频生成",
 	"FxAiVideoMerger":"凤希AI - 视频合并",
 	"FxAiVideoPreview":"凤希AI - 视频预览",
+	#"FxAiLTXCollector":"凤希AI - LTX采集器",
 }
 
 WEB_DIRECTORY = "./js"
