@@ -17,7 +17,7 @@ class FxAiMultiLineTextLoad:
     RETURN_TYPES = ("STRING","INT")
     RETURN_NAMES = ("提示词", "行索引")
     FUNCTION = "get_scene_data"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/图片"
 
     # 修正：补充循环复用参数，修复变量作用域问题
     def get_scene_data(self, 提示词数据, 行索引, 循环复用, 刷新标记=0,通用提示词="",尾部通用提示词=""):

@@ -65,7 +65,7 @@ class FxAiImageDownscale:
     RETURN_TYPES = ("IMAGE", "INT", "INT")
     RETURN_NAMES = ("缩小后图片", "缩小后高度", "缩小后宽度")
     FUNCTION = "downscale_image"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/图片"
 
     def downscale_image(self, 图片=None, 缩小倍数=None):
         try:

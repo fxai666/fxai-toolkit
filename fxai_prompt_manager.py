@@ -119,7 +119,7 @@ class FxAiPromptManager:
     RETURN_TYPES = ("STRING", "INT")
     RETURN_NAMES = ("目录路径", "文件总数")
     FUNCTION = "run"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/提示词"
 
     # 运行函数：返回目录路径 + 该目录下txt文件的总数
     def run(self, 目录="",刷新标记=0):

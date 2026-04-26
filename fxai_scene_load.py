@@ -28,7 +28,7 @@ class FxAiSceneLoad:
     )
 
     FUNCTION = "get_scene_data"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/场景管理"
 
     def get_scene_data(self, 场景数据, 行索引,循环复用, 刷新标记=0,通用提示词="",尾部通用提示词="",默认时长=15):
         # 安全校验

@@ -195,7 +195,7 @@ class FxAiImageManager:
     RETURN_TYPES = ("STRING", "STRING", "INT", "IMAGE", "INT")
     RETURN_NAMES = ("文件列表", "文件夹路径", "图片总数", "图片", "刷新标记")
     FUNCTION = "run"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/图片"
 
     def save_tensor_image(self, image_tensor, save_dir):
         if image_tensor is None or not isinstance(image_tensor, torch.Tensor):

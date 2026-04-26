@@ -18,12 +18,11 @@ class FxAiSceneLoadV2:
     RETURN_NAMES = ("场景行索引","提示词","音频文件索引","音频开始(秒)","音频时长(秒)","图片索引","尾帧位置","启用转场")
 
     FUNCTION = "get_scene_data"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/场景管理"
 
     def get_scene_data(self, 场景数据, 行索引, 循环复用, 刷新标记=0, 通用提示词="", 尾部通用提示词=""):
 
         try:
-            # ====================== 循环复用逻辑
             if 循环复用 > 1:
                 行索引 = 行索引 % 循环复用
             elif 循环复用 == 1:
@@ -35,10 +34,8 @@ class FxAiSceneLoadV2:
             if 行索引 < 0 or total_lines == 0 or 行索引 >= total_lines:
                 # 主动抛出异常，附带信息
                 raise IndexError(
-                    f"行索引越界 或 场景数据为空\n"
                     f"• 当前行索引：{行索引}\n"
                     f"• 场景总行数：{total_lines}\n"
-                    f"• 循环复用模式：{循环复用}"
                 )
 
             # ====================== 正常读取数据
@@ -60,7 +57,7 @@ class FxAiSceneLoadV2:
 
         # ====================== 异常捕获 + 打印 + 返回默认值
         except Exception as e:
-            print(f"❌ [凤希AI场景加载异常] 已使用默认值继续流程。异常信息： \n{e}\n")
+            print(f"✅ [凤希AI场景] 已加载默认值。信息： \n{e}")
             
             提示词 = f"{通用提示词}{尾部通用提示词}"
             return (行索引, 提示词, 0, 0.0, 15, -1, -1, True)

@@ -66,7 +66,7 @@ class FxAiVideoMerger:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("视频本地路径",)
     FUNCTION = "run"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/视频"
 
     def run(self, 源视频文件夹路径, 名称前缀,文件数量=0):
         time_str = time.strftime("%Y%m%d_%H%M%S", time.localtime())

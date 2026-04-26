@@ -17,7 +17,7 @@ class FxAiMultiLineText:
     RETURN_TYPES = ("LIST", "INT", "INT")
     RETURN_NAMES = ("提示词数据", "总行数","循环初始值")
     FUNCTION = "execute"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/图片"
 
     def execute(self, lines_data,循环初始值=0,刷新标记=0):
         # 解析数据

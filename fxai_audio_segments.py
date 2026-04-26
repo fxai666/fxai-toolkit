@@ -313,7 +313,7 @@ class FxAiAudioSegmenter:
     RETURN_TYPES = ("AUDIO", "STRING", "INT", "INT", "INT", "FLOAT", "INT", "INT")
     RETURN_NAMES = ("音频", "分段列表", "循环数", "开始索引", "开始帧数", "开始秒数", "帧率", "最大长宽")
     FUNCTION = "select_segment"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/音频"
 
     @classmethod
     def VALIDATE_INPUTS(cls, 音频文件="", 关键帧JSON="[]", **_kwargs):

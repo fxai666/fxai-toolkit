@@ -168,7 +168,7 @@ class FxAiVideoGenerator:
     RETURN_TYPES = ("IMAGE","STRING", "STRING")
     RETURN_NAMES = ("图片序列", "视频文件路径", "保存目录")
     FUNCTION = "run"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/视频"
 
     def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频=""):
         if 图片序列 is None:

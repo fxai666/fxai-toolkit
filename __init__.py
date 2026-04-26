@@ -44,6 +44,7 @@ from .fxai_scene_load_v2 import FxAiSceneLoadV2
 from .fxai_video_generator import FxAiVideoGenerator
 from .fxai_video_merger import FxAiVideoMerger
 from .fxai_video_preview import FxAiVideoPreview
+from .fxai_video_manager import FxAiVideoManager
 #from .fxai_ltx_collector import FxAiLTXCollector
 
 # 统一注册
@@ -69,6 +70,7 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiVideoGenerator":FxAiVideoGenerator,
 	"FxAiVideoMerger":FxAiVideoMerger,
 	"FxAiVideoPreview":FxAiVideoPreview,
+	"FxAiVideoManager":FxAiVideoManager,
 	#"FxAiLTXCollector":FxAiLTXCollector,
 }
 
@@ -94,6 +96,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiVideoGenerator":"凤希AI - 视频生成",
 	"FxAiVideoMerger":"凤希AI - 视频合并",
 	"FxAiVideoPreview":"凤希AI - 视频预览",
+	"FxAiVideoManager":"凤希AI - 视频管理",
 	#"FxAiLTXCollector":"凤希AI - LTX采集器",
 }
 

@@ -41,7 +41,7 @@ if PromptServer:
 # 节点主体
 # ------------------------------
 class FxAiPromptGenerator:
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/提示词"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -105,10 +105,10 @@ class FxAiPromptGenerator:
                 "images": images,
                 "stream": False
             })
-            print("✅ 凤希AI提示词优化：{resp}")
+            print(f"✅ 凤希AI提示词优化：{resp}")
             if resp.status_code == 200:
                 res_text = resp.json().get("response", "").strip()
-                print("✅ 凤希AI提示词优化：{res_text}")
+                print(f"✅ 凤希AI提示词优化：{res_text}")
                 if res_text:
                     final_output = res_text
 

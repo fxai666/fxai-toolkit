@@ -19,7 +19,7 @@ class FxAiLoadPromptByIndex:
     RETURN_TYPES = ("STRING", "STRING", "INT")
     RETURN_NAMES = ("提示词内容", "当前提示词路径", "总提示词数量")
     FUNCTION = "load_prompt"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/提示词"
 
     def load_prompt(self, 提示词文件夹路径, 提示词索引, 刷新标记=0):
         # 1. 清理路径，去除首尾空格

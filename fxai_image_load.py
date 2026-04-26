@@ -29,7 +29,7 @@ class FxAiLoadImageByIndex:
     RETURN_TYPES = ("IMAGE", "MASK", "STRING", "INT")
     RETURN_NAMES = ("图片", "遮罩", "当前图片路径", "总图片数量")
     FUNCTION = "load_image"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/图片"
 
     def load_image(self, 图片文件夹路径, 图片索引, 刷新标记=0):
         # 1. 清理路径

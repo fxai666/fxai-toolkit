@@ -69,7 +69,7 @@ class FxAiLoadAudioByIndex:
     RETURN_TYPES = ("AUDIO", "INT", "STRING", "INT")
     RETURN_NAMES = ("音频", "采样率", "当前音频路径", "总音频数量")
     FUNCTION = "load_audio"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/音频"
 
     def load_audio(self, 音频文件夹路径, 音频索引, 刷新标记=0, 起始秒数=0.0, 截取时长秒数=0.0):
         folder_path = 音频文件夹路径.strip()

@@ -16,7 +16,7 @@ class FxAiSceneManagerV2:
     RETURN_TYPES = ("INT", "LIST")
     RETURN_NAMES = ("总行数", "场景数据")
     FUNCTION = "execute"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/场景管理"
 
     def execute(self, lines_data="[]", 刷新标记=0) -> tuple[int, List[Dict[str, Any]]]:
         try:

@@ -40,7 +40,7 @@ class FxAiVideoPreview:
     OUTPUT_NODE = True
     RETURN_TYPES = ()
     FUNCTION = "run"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/视频"
 
     def run(self, 视频文件路径):
         return {

@@ -28,9 +28,8 @@ def get_image_dir(subdir=""):
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
-# =============== 【已修改】直接用图片数量作为下一个编号 ===============
+# =============== 空文件夹返回 0，完全正常 ===============
 def get_next_number(target_dir):
-    # 直接获取当前有多少张图片 → 下一张就是这个数字
     files = list_images(target_dir)
     return len(files)
 
@@ -88,8 +87,14 @@ async def apply_changes(request):
 
         existing_files = list_images(target_dir)
         existing_set = set(existing_files)
+        
+        # =============== 【修复】空列表不执行删除，避免空文件夹删文件 ===============
+        if not ordered_filenames:
+            return web.json_response({"files": existing_files, "success": True, "msg": "无需修改"})
+        
         safe_ordered = [f for f in ordered_filenames if f in existing_set]
 
+        # 只删除不在新列表里的文件
         to_delete = existing_set - set(safe_ordered)
         for f in to_delete:
             fp = safe_path_join(target_dir, f)
@@ -129,26 +134,21 @@ async def upload_image_custom(request):
         if not image or not hasattr(image, 'file'):
             return web.json_response({"error": "未上传有效图片"}, status=400)
 
-        # 安全过滤文件名
         original_filename = re.sub(r'[\\/*?:"<>|]', "", image.filename)
         if not original_filename:
             return web.json_response({"error": "文件名为空"}, status=400)
 
         target_dir = get_image_dir(subdir)
-        
-        # =============== 【已修改】使用图片数量作为新编号 ===============
         next_num = get_next_number(target_dir)
         
-        # 保留原始后缀
         ext = original_filename.split('.')[-1].lower()
         if ext not in ['png', 'jpg', 'jpeg', 'webp']:
             ext = 'png'
         
-        # 三位数格式：000、001、002...
+        # =============== 空文件夹 → next_num=0 → 生成 000.png，完全正常 ===============
         new_filename = f"{next_num:03d}.{ext}"
         save_path = safe_path_join(target_dir, new_filename)
 
-        # 保存
         with open(save_path, "wb") as f:
             f.write(image.file.read())
 
@@ -182,20 +182,19 @@ class FxAiImageManagerV2:
     RETURN_TYPES = ("STRING", "INT", "IMAGE", "INT")
     RETURN_NAMES = ("文件夹路径", "图片总数", "图片", "刷新标记")
     FUNCTION = "run"
-    CATEGORY = "凤希AI"
+    CATEGORY = "凤希AI/图片"
 
     def save_tensor_image(self, image_tensor, save_dir):
         if image_tensor is None or not isinstance(image_tensor, torch.Tensor):
             return
         try:
             os.makedirs(save_dir, exist_ok=True)
-            # =============== 【已修改】使用数量作为起始编号 ===============
             start_num = get_next_number(save_dir)
             
             image_np = (image_tensor.cpu().numpy() * 255).astype(np.uint8)
             for i in range(image_np.shape[0]):
                 img = Image.fromarray(image_np[i])
-                # 三位数命名
+                # =============== 空文件夹 → start_num=0 → 000.png，正常 ===============
                 filename = f"{start_num + i:03d}.png"
                 save_path = os.path.join(save_dir, filename)
                 img.save(save_path, format="PNG")
