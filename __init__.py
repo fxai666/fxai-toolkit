@@ -27,6 +27,7 @@ from .fxai_audio_segments import FxAiAudioSegmenter
 from .fxai_multiline_text import FxAiMultiLineText
 from .fxai_multiline_text_load import FxAiMultiLineTextLoad
 from .fxai_image_manager import FxAiImageManager
+from .fxai_image_manager_v2 import FxAiImageManagerV2
 from .fxai_image_load import FxAiLoadImageByIndex
 from .fxai_prompt_optimization import FxAiPromptGenerator
 from .fxai_size_config import FxAiSizeConfig
@@ -37,7 +38,9 @@ from .fxai_prompt_manager import FxAiPromptManager
 from .fxai_resize_image_downscale import FxAiImageDownscale
 from .fxai_prompt_load import FxAiLoadPromptByIndex
 from .fxai_scene_manager import FxAiSceneManager
+from .fxai_scene_manager_v2 import FxAiSceneManagerV2
 from .fxai_scene_load import FxAiSceneLoad
+from .fxai_scene_load_v2 import FxAiSceneLoadV2
 from .fxai_video_generator import FxAiVideoGenerator
 from .fxai_video_merger import FxAiVideoMerger
 from .fxai_video_preview import FxAiVideoPreview
@@ -49,6 +52,7 @@ NODE_CLASS_MAPPINGS = {
     "FxAiMultiLineText": FxAiMultiLineText,
     "FxAiMultiLineTextLoad": FxAiMultiLineTextLoad,
 	"FxAiImageManager":FxAiImageManager,
+	"FxAiImageManagerV2":FxAiImageManagerV2,
     "FxAiLoadImageByIndex": FxAiLoadImageByIndex,
 	"FxAiPromptGenerator":FxAiPromptGenerator,
 	"FxAiSizeConfig":FxAiSizeConfig,
@@ -59,7 +63,9 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiImageDownscale":FxAiImageDownscale,
 	"FxAiLoadPromptByIndex":FxAiLoadPromptByIndex,
 	"FxAiSceneManager":FxAiSceneManager,
+	"FxAiSceneManagerV2":FxAiSceneManagerV2,
 	"FxAiSceneLoad":FxAiSceneLoad,
+	"FxAiSceneLoadV2":FxAiSceneLoadV2,
 	"FxAiVideoGenerator":FxAiVideoGenerator,
 	"FxAiVideoMerger":FxAiVideoMerger,
 	"FxAiVideoPreview":FxAiVideoPreview,
@@ -69,10 +75,13 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FxAiAudioSegmenter": "凤希AI - 音频分段器",
     "FxAiSceneManager": "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071",
-    "FxAiSceneLoad": "凤希AI - 场景数据加载",
+    "FxAiSceneManagerV2": "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071",
+    "FxAiSceneLoad": "凤希AI - 场景数据加载器",
+    "FxAiSceneLoadV2": "凤希AI - 场景数据加载器V2",
     "FxAiMultiLineText": "凤希AI - 场景生成 - 进Q群与更多的群友学习：775649071",
-    "FxAiMultiLineTextLoad": "凤希AI - 场景提示词加载",
-    "FxAiImageManager": "凤希AI - 图像管理器 - 群友扫地僧友情开发",
+    "FxAiMultiLineTextLoad": "凤希AI - 场景提示词加载器",
+    "FxAiImageManager": "凤希AI - 图像管理器 - 群友扫地僧友情参与开发",
+    "FxAiImageManagerV2": "凤希AI - 图像管理器V2",
     "FxAiLoadImageByIndex": "凤希AI - 图像管理器 - 图片加载",
 	"FxAiPromptGenerator":"凤希AI - 提示词优化 - 本地Ollama",
 	"FxAiSizeConfig":"凤希AI - 宽高设置",

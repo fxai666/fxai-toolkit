@@ -28,17 +28,11 @@ def get_image_dir(subdir=""):
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
-def get_last_number(target_dir):
-    used = set()
-    if os.path.isdir(target_dir):
-        for f in os.listdir(target_dir):
-            m = re.match(r'^(\d+)', f)
-            if m:
-                used.add(int(m.group(1)))
-    next_num = 0
-    while next_num in used:
-        next_num += 1
-    return next_num
+# =============== 【已修改】直接用图片数量作为下一个编号 ===============
+def get_next_number(target_dir):
+    # 直接获取当前有多少张图片 → 下一张就是这个数字
+    files = list_images(target_dir)
+    return len(files)
 
 def list_images(target_dir):
     if not os.path.isdir(target_dir):
@@ -63,7 +57,6 @@ def load_image(file_path):
     except:
         return None
 
-# ---------- HTTP 路由 ----------
 async def get_preview(request):
     subdir = request.query.get("subdir", "")
     filename = request.query.get("filename", "")
@@ -79,12 +72,6 @@ async def get_preview(request):
         "Content-Type": mimetypes.guess_type(safe_file)[0] or "image/png",
         "Cache-Control": "no-store, no-cache, must-revalidate"
     })
-
-async def get_next_number(request):
-    subdir = request.query.get("subdir", "")
-    target_dir = get_image_dir(subdir)
-    next_num = get_last_number(target_dir)
-    return web.json_response({"next_num": next_num})
 
 async def get_file_list(request):
     subdir = request.query.get("subdir", "")
@@ -149,14 +136,15 @@ async def upload_image_custom(request):
 
         target_dir = get_image_dir(subdir)
         
-        # ✅ 自动获取当前最大序号 + 1
-        next_num = get_last_number(target_dir)
+        # =============== 【已修改】使用图片数量作为新编号 ===============
+        next_num = get_next_number(target_dir)
         
-        # ✅ 保留原始后缀！！！
+        # 保留原始后缀
         ext = original_filename.split('.')[-1].lower()
         if ext not in ['png', 'jpg', 'jpeg', 'webp']:
             ext = 'png'
         
+        # 三位数格式：000、001、002...
         new_filename = f"{next_num:03d}.{ext}"
         save_path = safe_path_join(target_dir, new_filename)
 
@@ -170,16 +158,15 @@ async def upload_image_custom(request):
 
 # 注册路由
 try:
-    server.PromptServer.instance.routes.get("/fxai/image/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxai/image/next_number")(get_next_number)
-    server.PromptServer.instance.routes.get("/fxai/image/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxai/image/apply")(apply_changes)
-    server.PromptServer.instance.routes.post("/fxai/image/upload")(upload_image_custom)
+    server.PromptServer.instance.routes.get("/fxai/image/v2/preview")(get_preview)
+    server.PromptServer.instance.routes.get("/fxai/image/v2/list")(get_file_list)
+    server.PromptServer.instance.routes.post("/fxai/image/v2/apply")(apply_changes)
+    server.PromptServer.instance.routes.post("/fxai/image/v2/upload")(upload_image_custom)
     print("✅ 凤希AI图片资源管理器已就绪 Q群：775649071")
 except Exception as e:
     print(f"❌ 凤希AI图片资源管理器启动失败：{e}")
 
-class FxAiImageManager:
+class FxAiImageManagerV2:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -192,8 +179,8 @@ class FxAiImageManager:
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "INT", "IMAGE", "INT")
-    RETURN_NAMES = ("文件列表", "文件夹路径", "图片总数", "图片", "刷新标记")
+    RETURN_TYPES = ("STRING", "INT", "IMAGE", "INT")
+    RETURN_NAMES = ("文件夹路径", "图片总数", "图片", "刷新标记")
     FUNCTION = "run"
     CATEGORY = "凤希AI"
 
@@ -202,16 +189,19 @@ class FxAiImageManager:
             return
         try:
             os.makedirs(save_dir, exist_ok=True)
-            next_num = get_last_number(save_dir)
+            # =============== 【已修改】使用数量作为起始编号 ===============
+            start_num = get_next_number(save_dir)
+            
             image_np = (image_tensor.cpu().numpy() * 255).astype(np.uint8)
             for i in range(image_np.shape[0]):
                 img = Image.fromarray(image_np[i])
-                filename = f"{next_num + i:03d}.png"
+                # 三位数命名
+                filename = f"{start_num + i:03d}.png"
                 save_path = os.path.join(save_dir, filename)
                 img.save(save_path, format="PNG")
-                print(f"[凤希AI图片资源] 已保存：{save_path}")
+                print(f"[凤希AI图片资源管理] 已保存：{save_path}")
         except Exception as e:
-            print(f"[凤希AI图片资源] 保存失败：{e}")
+            print(f"[凤希AI图片资源管理] 保存失败：{e}")
 
     def run(self, 目录="", 图片=None, 刷新标记=0):
         target_dir = get_image_dir(目录)
@@ -220,7 +210,5 @@ class FxAiImageManager:
             self.save_tensor_image(图片, target_dir)
         
         files = list_images(target_dir)
-        total = len(files)
-        file_str = "\n".join(files) if files else "无图片，请先上传"
         
-        return (file_str, target_dir, total, 图片,刷新标记)
+        return (target_dir, len(files), 图片,刷新标记)

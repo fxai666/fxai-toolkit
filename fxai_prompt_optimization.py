@@ -105,9 +105,10 @@ class FxAiPromptGenerator:
                 "images": images,
                 "stream": False
             })
-
+            print("✅ 凤希AI提示词优化：{resp}")
             if resp.status_code == 200:
                 res_text = resp.json().get("response", "").strip()
+                print("✅ 凤希AI提示词优化：{res_text}")
                 if res_text:
                     final_output = res_text
 
@@ -118,6 +119,7 @@ class FxAiPromptGenerator:
                     pass
 
         except Exception as e:
+            print("✅ 凤希AI提示词优化失败：{e}")
             pass
 
         return (final_output, 分段时长)

@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-const TARGET_CLASS = "FxAiImageManager";
+const TARGET_CLASS = "FxAiImageManagerV2";
 
 let sortable = null;
 
@@ -9,32 +9,22 @@ let sortable = null;
 const updatedListBindFlag = new WeakMap();
 
 async function fetchFileList(subdir) {
-    const resp = await fetch(api.apiURL(`/fxai/image/list?subdir=${encodeURIComponent(subdir)}`));
+    const resp = await fetch(api.apiURL(`/fxai/image/v2/list?subdir=${encodeURIComponent(subdir)}`));
     if (!resp.ok) return [];
     const data = await resp.json();
     return data.files;
 }
 
-async function getNextNumber(subdir) {
-    const resp = await fetch(api.apiURL(`/fxai/image/next_number?subdir=${encodeURIComponent(subdir)}`));
-    if (!resp.ok) throw new Error("获取序号失败");
-    const data = await resp.json();
-    return data.next_num;
-}
-
 async function uploadFiles(files, subdir, onProgress) {
-    let nextNum = await getNextNumber(subdir);
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const ext = file.name.split('.').pop();
-        const newName = String(nextNum + i).padStart(3, '0') + '.' + ext;
 
         const formData = new FormData();
-        formData.append("image", file, newName); 
+        formData.append("image", file, file.name); 
         formData.append("subdir", subdir);
 
         try {
-            const response = await fetch(api.apiURL("/fxai/image/upload"), {
+            const response = await fetch(api.apiURL("/fxai/image/v2/upload"), {
                 method: "POST",
                 body: formData,
             });
@@ -45,13 +35,13 @@ async function uploadFiles(files, subdir, onProgress) {
             
             onProgress?.(i, 1);
         } catch (err) {
-            throw new Error(`文件 ${newName} 上传失败: ${err.message}`);
+            throw new Error(`文件 ${file.name} 上传失败: ${err.message}`);
         }
     }
 }
 
 async function applyChanges(subdir, orderedFilenames) {
-    const resp = await fetch(api.apiURL("/fxai/image/apply"), {
+    const resp = await fetch(api.apiURL("/fxai/image/v2/apply"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subdir, ordered_filenames: orderedFilenames })
@@ -185,7 +175,7 @@ function addUI(node) {
                 item.style.overflow = "hidden";
 
                 const img = document.createElement("img");
-                img.src = api.apiURL(`/fxai/image/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
+                img.src = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
                 img.style.width = "100%";
                 img.style.height = "100%";
                 img.style.objectFit = "cover";
@@ -310,7 +300,7 @@ function addUI(node) {
 }
 
 app.registerExtension({
-    name: "FxAiImageManager",
+    name: "FxAiImageManagerV2",
     async nodeCreated(node) {
         if (node.comfyClass === TARGET_CLASS) {
             // 修复：延长一点时间，确保节点完全初始化，避免重复执行 addUI
