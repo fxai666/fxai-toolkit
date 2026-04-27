@@ -21,7 +21,6 @@ class FxAiSceneLoadV2:
     CATEGORY = "凤希AI/场景管理"
 
     def get_scene_data(self, 场景数据, 行索引, 循环复用, 刷新标记=0, 通用提示词="", 尾部通用提示词=""):
-
         try:
             if 循环复用 > 1:
                 行索引 = 行索引 % 循环复用
@@ -52,6 +51,9 @@ class FxAiSceneLoadV2:
             if 图片索引 < 0:
                 图片索引 = 行索引
 
+            if 音频索引 < 0:
+                音频索引 = 行索引
+
             # 正常返回
             return (行索引, 提示词, 音频索引, 音频开始, 音频时长, 图片索引, 尾帧位置, 启用转场)
 
@@ -60,4 +62,4 @@ class FxAiSceneLoadV2:
             print(f"✅ [凤希AI场景] 已加载默认值。信息： \n{e}")
             
             提示词 = f"{通用提示词}{尾部通用提示词}"
-            return (行索引, 提示词, 0, 0.0, 15, -1, -1, True)
+            return (行索引, 提示词, 行索引, 0.0, 15, 行索引, -1, True)

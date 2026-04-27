@@ -32,37 +32,24 @@ class FxAiLoadImageByIndex:
     CATEGORY = "凤希AI/图片"
 
     def load_image(self, 图片文件夹路径, 图片索引, 刷新标记=0):
-        # 1. 清理路径
         folder_path = 图片文件夹路径.strip()
         
-        # 2. 检查文件夹是否存在
         if not os.path.isdir(folder_path):
             raise RuntimeError(f"文件夹不存在：{folder_path}")
         
-        # 3. 获取文件夹里所有图片（按文件名排序）
         image_files = []
-        for f in os.listdir(folder_path):
-            if f.lower().endswith(IMAGE_EXTENSIONS):
-                full_path = os.path.join(folder_path, f)
+        for filename in sorted(os.listdir(folder_path)):
+            if filename.lower().endswith(IMAGE_EXTENSIONS):
+                full_path = os.path.join(folder_path, filename)
                 image_files.append(full_path)
         
-        # 按文件名排序（保证每次顺序一致）
-        image_files.sort()
-        
-        # 4. 检查是否有图片
         total_images = len(image_files)
         if total_images == 0:
-            raise RuntimeError(f"文件夹中没有找到图片：{folder_path}")
+            raise RuntimeError(f"文件夹中没有找到图片：{folder_path}")           
         
-        # 5. 检查索引是否越界
-        if 图片索引 >= total_images:
-            raise RuntimeError(f"索引越界！共 {total_images} 张图，索引范围：0 ~ {total_images-1}")
-        
-        # 6. 加载选中的图片
-        target_path = image_files[图片索引]
+        target_path = image_files[图片索引 % total_images]
         image_tensor = load_single_image(target_path)
         
-        # 7. 生成遮罩
         h, w = image_tensor.shape[1], image_tensor.shape[2]
         mask_tensor = torch.ones((1, h, w), dtype=torch.float32)
         

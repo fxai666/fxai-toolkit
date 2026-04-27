@@ -13,12 +13,12 @@ class FxAiSceneManagerV2:
             }
         }
 
-    RETURN_TYPES = ("INT", "LIST")
-    RETURN_NAMES = ("总行数", "场景数据")
+    RETURN_TYPES = ("INT", "LIST", "LIST")
+    RETURN_NAMES = ("总行数", "场景数据", "分段时长")
     FUNCTION = "execute"
     CATEGORY = "凤希AI/场景管理"
 
-    def execute(self, lines_data="[]", 刷新标记=0) -> tuple[int, List[Dict[str, Any]]]:
+    def execute(self, lines_data="[]", 刷新标记=0) -> tuple[int, List[Dict[str, Any]], List[float]]:
         try:
             if isinstance(lines_data, str):
                 lines = json.loads(lines_data.strip())
@@ -31,14 +31,15 @@ class FxAiSceneManagerV2:
 
         total_count = len(lines)
         scene_data = []
+        segment_durations = []
 
         for idx, line in enumerate(lines):
             line_data = {
                 "序号": idx + 1,
-                "音频时长": 5.0,
+                "音频时长": 15.0,
                 "提示词文本": "",
                 "音频索引": 0,
-                "音频开始": 0.0,      # ✅ 新增：音频开始
+                "音频开始": 0.0,      
                 "图片索引": -1,
                 "尾帧位置": -1,
                 "转场": 1
@@ -46,15 +47,14 @@ class FxAiSceneManagerV2:
 
             if isinstance(line, list):
                 try:
-                    # 顺序完全对齐前端JS：音频时长、提示词、音频索引、音频开始、图片索引、尾帧位置、转场
                     if len(line) >= 1:
-                        line_data["音频时长"] = float(line[0]) if line[0] else 5.0
+                        line_data["音频时长"] = float(line[0]) if line[0] else 15.0
                     if len(line) >= 2:
                         line_data["提示词文本"] = line[1] if line[1] else ""
                     if len(line) >= 3:
                         line_data["音频索引"] = int(line[2]) if line[2] else 0
                     if len(line) >= 4:
-                        line_data["音频开始"] = float(line[3]) if line[3] else 0.0  # ✅ 解析音频开始
+                        line_data["音频开始"] = float(line[3]) if line[3] else 0.0
                     if len(line) >= 5:
                         line_data["图片索引"] = int(line[4]) if line[4] else -1
                     if len(line) >= 6:
@@ -67,5 +67,6 @@ class FxAiSceneManagerV2:
                 line_data["提示词文本"] = line
 
             scene_data.append(line_data)
+            segment_durations.append(line_data["音频时长"])
 
-        return (total_count, scene_data)
+        return (total_count, scene_data, segment_durations)

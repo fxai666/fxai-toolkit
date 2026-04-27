@@ -78,24 +78,16 @@ class FxAiLoadAudioByIndex:
             raise RuntimeError(f"文件夹不存在：{folder_path}")
         
         audio_files = []
-        for f in os.listdir(folder_path):
-            if f.lower().endswith(AUDIO_EXTENSIONS):
-                full_path = os.path.join(folder_path, f)
+        for filename in sorted(os.listdir(folder_path)):
+            if filename.lower().endswith(AUDIO_EXTENSIONS):
+                full_path = os.path.join(folder_path, filename)
                 audio_files.append(full_path)
         
-        audio_files.sort()
         total_audios = len(audio_files)
-        
         if total_audios == 0:
             raise RuntimeError(f"文件夹中没有找到音频：{folder_path}")
-        if 音频索引 >= total_audios:
-            raise RuntimeError(f"索引越界！共 {total_audios} 段音频，索引范围：0 ~ {total_audios-1}")
         
-        target_path = audio_files[音频索引]
-        if not os.path.exists(target_path):
-            raise RuntimeError(f"音频文件不存在：{target_path}")
-        if os.path.getsize(target_path) < 100:
-            raise RuntimeError(f"音频文件过小/为空：{target_path}")
+        target_path = audio_files[音频索引 % total_audios]
         
         audio_tensor, sample_rate = load_single_audio(
             target_path,

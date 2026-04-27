@@ -24,6 +24,8 @@ for pkg in required_packages:
 
 # 导入类（HTTP路由会在import时自动注册）
 from .fxai_audio_segments import FxAiAudioSegmenter
+from .fxai_audio_segments_v2 import FxAiAudioSegmenterV2
+from .fxai_audio_frame_load import FxAIAudioSegmentLoad
 from .fxai_multiline_text import FxAiMultiLineText
 from .fxai_multiline_text_load import FxAiMultiLineTextLoad
 from .fxai_image_manager import FxAiImageManager
@@ -45,11 +47,14 @@ from .fxai_video_generator import FxAiVideoGenerator
 from .fxai_video_merger import FxAiVideoMerger
 from .fxai_video_preview import FxAiVideoPreview
 from .fxai_video_manager import FxAiVideoManager
-#from .fxai_ltx_collector import FxAiLTXCollector
+from .fxai_generator_controller import FxAIGeneratorController
+from .fxai_frame_generator import FxAiFrameGenerator
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
     "FxAiAudioSegmenter": FxAiAudioSegmenter,
+    "FxAiAudioSegmenterV2": FxAiAudioSegmenterV2,
+    "FxAIAudioSegmentLoad": FxAIAudioSegmentLoad,
     "FxAiMultiLineText": FxAiMultiLineText,
     "FxAiMultiLineTextLoad": FxAiMultiLineTextLoad,
 	"FxAiImageManager":FxAiImageManager,
@@ -71,16 +76,19 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiVideoMerger":FxAiVideoMerger,
 	"FxAiVideoPreview":FxAiVideoPreview,
 	"FxAiVideoManager":FxAiVideoManager,
-	#"FxAiLTXCollector":FxAiLTXCollector,
+    "FxAIGeneratorController": FxAIGeneratorController,
+    "FxAiFrameGenerator": FxAiFrameGenerator,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FxAiAudioSegmenter": "凤希AI - 音频分段器",
+    "FxAiAudioSegmenterV2": "凤希AI - 音频分段器V2",
+    "FxAIAudioSegmentLoad": "凤希AI - 音频与帧数获取器",
     "FxAiSceneManager": "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071",
     "FxAiSceneManagerV2": "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071",
     "FxAiSceneLoad": "凤希AI - 场景数据加载器",
     "FxAiSceneLoadV2": "凤希AI - 场景数据加载器V2",
-    "FxAiMultiLineText": "凤希AI - 场景生成 - 进Q群与更多的群友学习：775649071",
+    "FxAiMultiLineText": "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071",
     "FxAiMultiLineTextLoad": "凤希AI - 场景提示词加载器",
     "FxAiImageManager": "凤希AI - 图像管理器 - 群友扫地僧友情参与开发",
     "FxAiImageManagerV2": "凤希AI - 图像管理器V2",
@@ -97,7 +105,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiVideoMerger":"凤希AI - 视频合并",
 	"FxAiVideoPreview":"凤希AI - 视频预览",
 	"FxAiVideoManager":"凤希AI - 视频管理",
-	#"FxAiLTXCollector":"凤希AI - LTX采集器",
+    "FxAIGeneratorController": "凤希AI - 生成控制器",
+    "FxAiFrameGenerator": "凤希AI - 首尾帧生成器",
 }
 
 WEB_DIRECTORY = "./js"
