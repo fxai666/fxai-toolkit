@@ -86,7 +86,6 @@ class FxAIAudioSegmentLoad:
         # --------------------------
         # ComfyUI 音频截取（兼容1/2/3维，100%保留你的计算逻辑）
         # --------------------------
-        print(f"原始音频{原始音频}")
         sample_rate = 原始音频["sample_rate"]
         waveform = 原始音频["waveform"]
 

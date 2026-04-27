@@ -24,44 +24,58 @@ def get_fixed_temp_audio_path():
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_merge_temp_audio.wav")
 
-# 音频张量转WAV，强制输出 双通道
 def audio_tensor_to_wav_ffmpeg(audio_dict):
+    print(f"audio_dict{audio_dict}")
     try:
         waveform = audio_dict["waveform"]
         sample_rate = audio_dict["sample_rate"]
 
         if waveform.ndim == 3 and waveform.shape[0] == 1:
-            waveform = waveform.squeeze(0)
+           waveform = waveform.squeeze(0)
 
         waveform_np = waveform.cpu().numpy().astype(np.float32)
 
-        # 强制转成双声道
         if waveform_np.ndim == 1:
-            # 单声道 → 复制成双通道
             audio_data = np.stack([waveform_np, waveform_np], axis=1)
         else:
-            # 多声道 → 取前两声道
-            audio_data = waveform_np[:2, :].T
+            channels, samples = waveform_np.shape
 
-        raw_pcm = np.ascontiguousarray(audio_data).tobytes()
+            if channels == 1:
+                mono = waveform_np[0]
+                audio_data = np.stack([mono, mono], axis=1)
+            else:
+                audio_data = waveform_np[:2].T
+
+        # ==============================================
+        # 尾数格式（完全正确）
+        # ==============================================
+        audio_data = np.ascontiguousarray(audio_data)
+        raw_pcm = audio_data.tobytes()
+
         temp_path = get_fixed_temp_audio_path()
 
         cmd = [
             'ffmpeg', '-y',
             '-f', 'f32le',
             '-ar', str(sample_rate),
-            '-ac', '2',  # 强制双通道
+            '-ac', '2',
             '-i', 'pipe:0',
             '-c:a', 'pcm_s16le',
             temp_path
         ]
 
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
         proc.stdin.write(raw_pcm)
         proc.stdin.close()
         proc.wait()
 
         return temp_path if proc.returncode == 0 else ""
+
     except Exception as e:
         print(f"[凤希AI音频转换失败] {e}")
         return ""
@@ -137,6 +151,7 @@ class FxAiVideoMerger:
             },
             "optional": {
                 "音频": ("AUDIO",),
+                "刷新标记": ("ANY",),
             }
         }
 
@@ -146,7 +161,7 @@ class FxAiVideoMerger:
     CATEGORY = "凤希AI/视频"
 
     # ✅ 修复：参数顺序必须和 INPUT_TYPES 完全一致
-    def run(self, 源视频文件夹路径, 文件数量=1, 名称前缀="fxai_", 音频=None):
+    def run(self, 源视频文件夹路径, 文件数量=1, 名称前缀="fxai_", 音频=None, 刷新标记=None):
         time_str = time.strftime("%Y%m%d_%H%M%S")
         final_name = f"{名称前缀}{time_str}"
         
