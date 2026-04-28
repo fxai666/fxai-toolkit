@@ -1,11 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-
 const TARGET_CLASS = "FxAiImageManagerV2";
-
 let sortable = null;
-
-// 新增：防止重复绑定的标记
 const updatedListBindFlag = new WeakMap();
 
 async function fetchFileList(subdir) {
@@ -18,17 +14,14 @@ async function fetchFileList(subdir) {
 async function uploadFiles(files, subdir, onProgress) {
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-
         const formData = new FormData();
         formData.append("image", file, file.name); 
         formData.append("subdir", subdir);
-
         try {
             const response = await fetch(api.apiURL("/fxai/image/v2/upload"), {
                 method: "POST",
                 body: formData,
             });
-
             if (!response.ok) {
                 throw new Error(`上传失败: ${response.status}`);
             }
@@ -45,10 +38,22 @@ async function applyChanges(subdir, orderedFilenames) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subdir, ordered_filenames: orderedFilenames })
-        });
+    });
     if (!resp.ok) throw new Error("应用更改失败");
     const data = await resp.json();
     return data.files;
+}
+
+// ====================== 【仅新增】删除接口调用 ======================
+async function deleteImage(subdir, filename) {
+    const resp = await fetch(api.apiURL(`/fxai/image/v2/delete?subdir=${encodeURIComponent(subdir)}&filename=${encodeURIComponent(filename)}`), {
+        method: "DELETE",
+    });
+    if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({ error: "删除失败" }));
+        throw new Error(errData.error || `删除失败: ${resp.status}`);
+    }
+    return await resp.json();
 }
 
 function preventDefaultDragDrop() {
@@ -61,7 +66,6 @@ function preventDefaultDragDrop() {
 function addUI(node) {
     if (node._uiAdded) return;
     node._uiAdded = true;
-
     preventDefaultDragDrop();
 
     const subdirWidget = node.widgets.find(w => w.name === "目录");
@@ -75,6 +79,7 @@ function addUI(node) {
     container.style.border = "1px solid #555";
     container.style.borderRadius = "4px";
     container.style.minWidth = "300px";
+
     var domWidget = node.addDOMWidget("image_ui", "image_ui", container);
     if (domWidget) {
         domWidget.computeSize = () => [790, 530];
@@ -103,7 +108,6 @@ function addUI(node) {
         dropArea.style.borderColor = "#777";
         const files = Array.from(e.dataTransfer.files);
         if (!files.length) return;
-
         const uploadBtn = btnDiv.querySelector('button:first-child');
         const originalText = uploadBtn.textContent;
         uploadBtn.textContent = "上传中...";
@@ -147,18 +151,14 @@ function addUI(node) {
     listDiv.style.border = "1px solid #666";
     container.appendChild(listDiv);
 
-    // 修复：把 updateList 定义为内部函数，确保作用域唯一
     async function updateList() {
-        // 1. 强制清空列表（增加兜底：移除所有子元素）
         while (listDiv.firstChild) {
             listDiv.removeChild(listDiv.firstChild);
         }
-        // 2. 确保 Sortable 彻底销毁
         if (sortable) {
             sortable.destroy();
-            sortable = null; // 重置实例
+            sortable = null;
         }
-
         try {
             const files = await fetchFileList(subdirWidget.value);
             for (const file of files) {
@@ -208,9 +208,17 @@ function addUI(node) {
                 delBtn.style.width = "20px";
                 delBtn.style.height = "20px";
                 delBtn.style.cursor = "pointer";
-                delBtn.onclick = (e) => {
+
+            // ====================== 【只改了这里】实时删除 ======================
+                delBtn.onclick = async (e) => {
                     e.stopPropagation();
-                    item.remove();
+                    const filename = item.dataset.filename;
+                    try {
+                        await deleteImage(subdirWidget.value, filename);
+                        await updateList(); // 删除后自动刷新+重排
+                    } catch (err) {
+                        alert("删除失败：" + err.message);
+                    }
                 };
 
                 item.appendChild(img);
@@ -218,8 +226,6 @@ function addUI(node) {
                 item.appendChild(delBtn);
                 listDiv.appendChild(item);
             }
-
-            // 重新初始化 Sortable
             if (window.Sortable) {
                 sortable = new Sortable(listDiv, {
                     animation: 150,
@@ -227,7 +233,6 @@ function addUI(node) {
                     ghostClass: "sortable-ghost"
                 });
             } else {
-                // 动态加载 Sortable 并初始化
                 const script = document.createElement("script");
                 script.src = "./Sortable.min.js";
                 script.onload = () => {
@@ -285,7 +290,6 @@ function addUI(node) {
         }
     };
 
-    // 修复：确保回调只绑定一次（核心！避免多次触发 updateList）
     if (!updatedListBindFlag.has(subdirWidget)) {
         const origCallback = subdirWidget.callback;
         subdirWidget.callback = function(v) {
@@ -295,7 +299,6 @@ function addUI(node) {
         updatedListBindFlag.set(subdirWidget, true);
     }
 
-    // 初始加载列表（增加防抖，避免重复执行）
     setTimeout(() => updateList(), 0);
 }
 
@@ -303,7 +306,6 @@ app.registerExtension({
     name: "FxAiImageManagerV2",
     async nodeCreated(node) {
         if (node.comfyClass === TARGET_CLASS) {
-            // 修复：延长一点时间，确保节点完全初始化，避免重复执行 addUI
             setTimeout(() => addUI(node), 200);
         }
 },

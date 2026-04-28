@@ -60,7 +60,7 @@ class FxAiSceneManagerV2:
                     if len(line) >= 6:
                         line_data["尾帧位置"] = int(line[5]) if line[5] else -1
                     if len(line) >= 7:
-                        line_data["转场"] = int(line[6]) if line[6] else 1
+                        line_data["转场"] = int(line[6]) if line[6] is not None else 1
                 except:
                     pass
             elif isinstance(line, str):

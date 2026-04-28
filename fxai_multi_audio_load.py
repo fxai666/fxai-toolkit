@@ -24,7 +24,7 @@ class FxAiMultiAudioLoad:
     RETURN_TYPES = ("AUDIO", "INT")
     RETURN_NAMES = ("音频", "编号")
     FUNCTION = "execute"
-    CATEGORY = "凤希AI/其他"
+    CATEGORY = "凤希AI/工具"
 
     def execute(self, 编号, 音频一, 音频二=None, 音频三=None, 音频四=None, 音频五=None, 音频六=None, 音频七=None):
         # 确保编号是有效整数

@@ -27,7 +27,7 @@ class FxAiFrameGenerator:
     FUNCTION = "generate_frames"
     CATEGORY = "凤希AI/图片"
 
-    # 直接加载完整路径（你要的最简逻辑）
+    # 直接加载完整路径
     def load_image(self, path):
         try:
             img = Image.open(path).convert("RGB")
@@ -36,14 +36,42 @@ class FxAiFrameGenerator:
         except:
             return None
 
-    # 缩放不变
+    # ✅ 新版：等比例缩放 + 居中裁剪（不变形，保留中间，裁剪多余部分）
     def resize_image(self, image_tensor, target_w, target_h):
         if image_tensor is None:
             return None
+        
+        # 转 PIL
         np_img = (image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8)
-        pil_img = Image.fromarray(np_img)
-        pil_img = pil_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-        np_out = np.array(pil_img).astype(np.float32) / 255.0
+        img = Image.fromarray(np_img)
+        original_w, original_h = img.size
+        target_ratio = target_w / target_h
+        original_ratio = original_w / original_h
+
+        # 等比例缩放，让一边填满，另一边超出（然后裁剪）
+        if original_ratio > target_ratio:
+            # 图片太宽：按高度填满，宽度超出 → 裁左右
+            scale = target_h / original_h
+            new_w = int(original_w * scale)
+            new_h = target_h
+        else:
+            # 图片太高：按宽度填满，高度超出 → 裁上下
+            scale = target_w / original_w
+            new_w = target_w
+            new_h = int(original_h * scale)
+
+        # 先等比例缩放
+        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+        # 居中裁剪到目标尺寸
+        left = (new_w - target_w) // 2
+        top = (new_h - target_h) // 2
+        right = left + target_w
+        bottom = top + target_h
+        img = img.crop((left, top, right, bottom))
+
+        # 转回张量
+        np_out = np.array(img).astype(np.float32) / 255.0
         return torch.from_numpy(np_out).unsqueeze(0)
 
     def generate_frames(self, 文件夹路径, 首帧索引, 尾帧索引, 启用转场, 输出宽度, 输出高度, 图片序列=None):
@@ -73,7 +101,7 @@ class FxAiFrameGenerator:
         if 尾帧 is None:
             尾帧 = 首帧
 
-        # 缩放
+        # 缩放（新版不变形！）
         首帧_final = self.resize_image(首帧, 输出宽度, 输出高度)
         尾帧_final = self.resize_image(尾帧, 输出宽度, 输出高度)
 

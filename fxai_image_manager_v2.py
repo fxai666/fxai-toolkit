@@ -156,12 +156,33 @@ async def upload_image_custom(request):
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
-# 注册路由
+# ====================== 【仅新增：实时删除接口】 ======================
+async def delete_image(request):
+    try:
+        subdir = request.query.get("subdir", "")
+        filename = request.query.get("filename", "")
+        if not filename:
+            return web.json_response({"error": "未提供文件名"}, status=400)
+        
+        target_dir = get_image_dir(subdir)
+        safe_file = safe_path_join(target_dir, filename)
+        
+        if not safe_file or not os.path.exists(safe_file):
+            return web.json_response({"error": "文件不存在"}, status=404)
+        
+        os.remove(safe_file)
+        new_files = list_images(target_dir)
+        return web.json_response({"success": True, "files": new_files})
+    except Exception as e:
+        return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
+
+# 注册路由（只加了最后一行删除路由，其他完全不动）
 try:
     server.PromptServer.instance.routes.get("/fxai/image/v2/preview")(get_preview)
     server.PromptServer.instance.routes.get("/fxai/image/v2/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxai/image/v2/apply")(apply_changes)
     server.PromptServer.instance.routes.post("/fxai/image/v2/upload")(upload_image_custom)
+    server.PromptServer.instance.routes.delete("/fxai/image/v2/delete")(delete_image)
     print("✅ 凤希AI图片资源管理器已就绪 Q群：775649071")
 except Exception as e:
     print(f"❌ 凤希AI图片资源管理器启动失败：{e}")

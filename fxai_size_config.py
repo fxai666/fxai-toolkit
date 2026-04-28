@@ -33,7 +33,7 @@ class FxAiSizeConfig:
     RETURN_TYPES = ("INT", "INT")
     RETURN_NAMES = ("最终宽度", "最终高度")
     FUNCTION = "process"
-    CATEGORY = "凤希AI/其他"
+    CATEGORY = "凤希AI/工具"
 
     def process(self, 宽度, 高度, 反转):
         if 反转:

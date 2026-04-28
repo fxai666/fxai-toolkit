@@ -49,6 +49,10 @@ from .fxai_video_preview import FxAiVideoPreview
 from .fxai_video_manager import FxAiVideoManager
 from .fxai_generator_controller import FxAIGeneratorController
 from .fxai_frame_generator import FxAiFrameGenerator
+from .fxai_multi_prompt_editor import FxAiMultiPromptEditor
+from .fxai_multi_prompt_loader import FxAiMultiPromptLoader
+from .fxai_image_size_config import FxAiImageSizeConfig
+from .fxai_int_to_float import FxAiIntToFloat
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
@@ -78,6 +82,10 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiVideoManager":FxAiVideoManager,
     "FxAIGeneratorController": FxAIGeneratorController,
     "FxAiFrameGenerator": FxAiFrameGenerator,
+    "FxAiMultiPromptEditor": FxAiMultiPromptEditor,
+    "FxAiMultiPromptLoader": FxAiMultiPromptLoader,
+    "FxAiImageSizeConfig": FxAiImageSizeConfig,
+    "FxAiIntToFloat": FxAiIntToFloat,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -107,6 +115,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiVideoManager":"凤希AI - 视频管理",
     "FxAIGeneratorController": "凤希AI - 生成控制器",
     "FxAiFrameGenerator": "凤希AI - 首尾帧生成器",
+    "FxAiMultiPromptEditor": "凤希AI - 分段场景 - 时间轴提示词管理器",
+    "FxAiMultiPromptLoader": "凤希AI - 分段场景 - 时间轴获取器",
+    "FxAiImageSizeConfig": "凤希AI - 设置宽高 - 按图片",
+    "FxAiIntToFloat": "凤希AI - 整数转小数",
 }
 
 WEB_DIRECTORY = "./js"

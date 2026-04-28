@@ -4,7 +4,7 @@ class FxAIGeneratorController:
     功能：仅计算 开始索引、循环次数
     输出：分段时长列表 + 开始索引 + 循环数 + 帧率 + 宽度 + 高度
     """
-    CATEGORY = "凤希AI/其他"
+    CATEGORY = "凤希AI/工具"
     FUNCTION = "process"
 
     # 返回值：增加了处理后的宽度、高度
