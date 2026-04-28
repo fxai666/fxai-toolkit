@@ -33,12 +33,9 @@ app.registerExtension({
             this.scrollContainer.style.boxSizing = "border-box";
 
             this.addDOMWidget("prompts_container", "container", this.scrollContainer);
-            createHeader(this); // 创建自定义表头
+            createHeader(this);
 
             this.addWidget("button", "➕ 添加新的分段场景控制提示词", null, () => addLine(this));
-
-            // 默认创建一行
-            //if (this.lines.length === 0) addLine(this);
 
             const FIXED_WIDTH = 700;
             this.size[0] = FIXED_WIDTH;
@@ -72,9 +69,18 @@ app.registerExtension({
             try {
                 var list = JSON.parse(data);
                 if (Array.isArray(list)) {
+                    // 清空现有行
                     while (this.lines.length > 0) removeLine(this, this.lines[0]);
+                    // 修复：遍历 list 数组，使用正确变量 item
                     for (var j = 0; j < list.length; j++) {
-                        addLine(this, item["提示词文本"] || "", Number(item["索引编号"]) || 0, Number(item["开始时间"]) || 0.0, Number(item["结束时间"]) || 0.0);
+                        const item = list[j];
+                        addLine(
+                            this, 
+                            item["提示词文本"] || "", 
+                            Number(item["索引编号"]) || 0, 
+                            Number(item["开始时间"]) || 0.0, 
+                            Number(item["结束时间"]) || 0.0
+                        );
                     }
                 }
             } catch (e) {
@@ -89,7 +95,6 @@ app.registerExtension({
             o.widgets_values = o.widgets_values || [];
 
             if (this.promptsDataWidget && this.lines) {
-                // 序列化为对象数组格式（新增，支持JSON对象数组）
                 var values = [];
                 for (var i = 0; i < this.lines.length; i++) {
                     values.push({
@@ -118,7 +123,6 @@ app.registerExtension({
     },
 });
 
-// 创建表头（移除权重列）
 function createHeader(node) {
     var header = document.createElement("div");
     header.style.display = "flex";
@@ -138,7 +142,7 @@ function createHeader(node) {
         { text: "开始时间", width: "80px" },
         { text: "结束时间", width: "80px" },
         { text: "提示词", flex: 1 },
-        { text: "操作", width: "90px" } // 移除权重列
+        { text: "操作", width: "90px" }
     ];
 
     labels.forEach(item => {
@@ -154,7 +158,6 @@ function createHeader(node) {
     node.scrollContainer.appendChild(header);
 }
 
-// 添加行（移除权重参数和输入框）
 function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     defaultValue = defaultValue || "";
     defaultIndex = defaultIndex ?? 0;
@@ -170,7 +173,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     row.style.marginBottom = "8px";
     row.style.boxSizing = "border-box";
 
-    // 1. 序号标签
     var lineNumLabel = document.createElement("span");
     lineNumLabel.textContent = (idx + 1) + ".";
     lineNumLabel.style.minWidth = "30px";
@@ -183,7 +185,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     lineNumLabel.style.marginTop = "6px";
     lineNumLabel.style.flexShrink = "0";
 
-    // 2. 索引编号输入框
     var indexInput = document.createElement("input");
     indexInput.type = "number";
     indexInput.min = "0";
@@ -201,7 +202,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     indexInput.style.marginTop = "2px";
     indexInput.value = defaultIndex;
 
-    // 3. 开始时间输入框
     var startInput = document.createElement("input");
     startInput.type = "number";
     startInput.min = "0";
@@ -219,7 +219,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     startInput.style.marginTop = "2px";
     startInput.value = defaultStart;
 
-    // 4. 结束时间输入框
     var endInput = document.createElement("input");
     endInput.type = "number";
     endInput.min = "0.1";
@@ -237,7 +236,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     endInput.style.marginTop = "2px";
     endInput.value = defaultEnd;
 
-    // 5. 提示词文本框
     var textarea = document.createElement("textarea");
     textarea.placeholder = "输入提示词...";
     textarea.style.flex = "1";
@@ -254,7 +252,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     textarea.style.boxSizing = "border-box";
     textarea.value = defaultValue;
 
-    // 6. 操作按钮（上移、下移、删除）
     var upBtn = document.createElement("button");
     upBtn.textContent = "↑";
     upBtn.title = "上移此行";
@@ -297,7 +294,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     delBtn.style.flexShrink = "0";
     delBtn.style.marginTop = "2px";
 
-    // 组装行元素（移除权重输入框）
     row.appendChild(lineNumLabel);
     row.appendChild(indexInput);
     row.appendChild(startInput);
@@ -308,7 +304,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     row.appendChild(delBtn);
     node.scrollContainer.appendChild(row);
 
-    // 行数据对象（移除weight相关）
     var item = {
         textarea: textarea,
         indexInput: indexInput,
@@ -325,7 +320,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     };
     node.lines.push(item);
 
-    // 绑定输入事件（移除权重相关）
     textarea.addEventListener("input", () => {
         item.value = textarea.value;
         updateHidden(node);
@@ -350,20 +344,18 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     endInput.addEventListener("input", () => {
         var val = parseFloat(endInput.value) || 0.0;
         if (val < 0.1) val = 0.1;
-        if (val < item.start) val = item.start + 0.1; // 结束时间不能小于开始时间
+        if (val < item.start) val = item.start + 0.1;
         endInput.value = val;
         item.end = val;
         updateHidden(node);
     });
 
-    // 绑定按钮事件
     upBtn.onclick = () => moveLine(node, item, -1);
     downBtn.onclick = () => moveLine(node, item, 1);
     delBtn.onclick = () => {
         removeLine(node, item);
     };
 
-    // 滚动到底部
     setTimeout(() => {
         node.scrollContainer.scrollTop = node.scrollContainer.scrollHeight;
     }, 10);
@@ -371,7 +363,6 @@ function addLine(node, defaultValue, defaultIndex, defaultStart, defaultEnd) {
     updateHidden(node);
 }
 
-// 移动行（逻辑不变）
 function moveLine(node, item, dir) {
     var index = node.lines.findIndex(l => l === item);
     if (index === -1) return;
@@ -379,9 +370,7 @@ function moveLine(node, item, dir) {
     var newIndex = index + dir;
     if (newIndex < 0 || newIndex >= node.lines.length) return;
 
-    // 交换数组元素
     [node.lines[index], node.lines[newIndex]] = [node.lines[newIndex], node.lines[index]];
-    // 交换DOM元素
     node.scrollContainer.insertBefore(
         node.lines[newIndex].row,
         dir === -1 ? node.lines[index].row : node.lines[index].row.nextSibling
@@ -391,14 +380,12 @@ function moveLine(node, item, dir) {
     updateHidden(node);
 }
 
-// 刷新序号（逻辑不变）
 function refreshLineNumbers(node) {
     node.lines.forEach((line, idx) => {
         line.label.textContent = (idx + 1) + ".";
     });
 }
 
-// 删除行（逻辑不变）
 function removeLine(node, item) {
     item.row.remove();
     node.lines = node.lines.filter(l => l !== item);
@@ -406,11 +393,9 @@ function removeLine(node, item) {
     updateHidden(node);
 }
 
-// 更新隐藏的数据源（序列化改为对象数组）
 function updateHidden(node) {
     if (!node.promptsDataWidget) return;
 
-    // 改为对象数组格式（支持JSON对象解析）
     var values = node.lines.map(line => ({
         "索引编号": line.index,
         "开始时间": line.start,
