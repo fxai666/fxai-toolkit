@@ -235,7 +235,7 @@ function addUI(node) {
             video.style.width = "100%";
             video.style.height = "140px";
             video.style.objectFit = "contain";
-            video.src = api.apiURL(`/fxai/video/loop/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
+            video.src = api.apiURL(`/fxai/video/loop/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}&t=${Date.now()}`);
         // 视频加载失败降级
             video.onerror = () => {
                 video.style.display = "none";
@@ -273,8 +273,23 @@ function addUI(node) {
             delBtn.style.cursor = "pointer";
             delBtn.onclick = (e) => {
                 e.stopPropagation();
-                if (confirm(`确定删除 ${file} 吗？`)) {
-                    item.remove();
+                try {
+                    // 调用删除接口
+                    const resp = await fetch(api.apiURL(`/fxai/video/delete?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`));
+                    if (!resp.ok) {
+                        throw new Error("删除请求失败");
+                    }
+                    const data = await resp.json();
+                    if (data.success) {
+                        // 删除成功后移除DOM元素并刷新列表
+                        item.remove();
+                        // 可选：刷新整个列表确保数据一致性
+                        await updateList();
+                    } else {
+                        alert("删除失败: " + data.error);
+                    }
+                } catch (err) {
+                    alert("删除出错: " + err.message);
                 }
             };
 

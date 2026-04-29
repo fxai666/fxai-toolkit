@@ -175,7 +175,7 @@ function addUI(node) {
                 item.style.overflow = "hidden";
 
                 const img = document.createElement("img");
-                img.src = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
+                img.src = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}&t=${Date.now()}`);
                 img.style.width = "100%";
                 img.style.height = "100%";
                 img.style.objectFit = "cover";

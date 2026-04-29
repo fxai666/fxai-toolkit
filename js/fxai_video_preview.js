@@ -26,7 +26,7 @@ app.registerExtension({
         // 接收后端传来的路径 → 自动播放
         node.onExecuted = function (output) {
             if (!output.path) return;
-            video.src = `/fxai/video/preview?path=${output.path.join("")}`;
+            video.src = `/fxai/video/preview?path=${output.path.join("")}&t=${Date.now()}`;
         };
     },
 });

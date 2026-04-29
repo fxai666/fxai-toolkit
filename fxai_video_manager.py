@@ -43,6 +43,36 @@ def list_videos(target_dir):
             files.append(f)
     return files
 
+# 新增：删除单个视频
+async def delete_single_video(request):
+    try:
+        # 获取请求参数
+        subdir = request.query.get("subdir", "")
+        filename = request.query.get("filename", "")
+        
+        if not filename:
+            return web.json_response({"error": "未提供文件名"}, status=400)
+        
+        # 安全路径校验
+        target_dir = get_video_dir(subdir)
+        safe_file = safe_path_join(target_dir, filename)
+        
+        if not safe_file or not os.path.exists(safe_file):
+            return web.json_response({"error": "文件未找到"}, status=404)
+        
+        # 直接删除文件
+        os.remove(safe_file)
+        
+        # 返回更新后的文件列表
+        new_files = list_videos(target_dir)
+        return web.json_response({
+            "success": True, 
+            "files": new_files,
+            "message": f"文件 {filename} 已删除"
+        })
+    except Exception as e:
+        return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
+
 # 清理文件名
 def sanitize_filename(filename):
     name = re.sub(r'[\\/*?:"<>|]', '', filename)
@@ -181,6 +211,7 @@ try:
     server.PromptServer.instance.routes.get("/fxai/video/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxai/video/apply")(apply_changes)
     server.PromptServer.instance.routes.post("/fxai/video/upload")(upload_video_custom)
+    server.PromptServer.instance.routes.get("/fxai/video/delete")(delete_single_video)
     print("✅ 凤希AI视频资源管理器已就绪")
 except Exception as e:
     print(f"❌ 视频管理器启动失败：{e}")

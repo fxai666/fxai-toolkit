@@ -400,7 +400,7 @@ function buildEditor(node) {
         }
 
         try {
-            const waveformUrl = api.apiURL(`/fxai/audio-waveform?audio_file=${encodeURIComponent(audioFile)}&bins=1400`);
+            const waveformUrl = api.apiURL(`/fxai/audio/segments/waveform?audio_file=${encodeURIComponent(audioFile)}&bins=1400`);
             const response = await fetch(waveformUrl);
             const payload = await response.json();
             if (!response.ok) {
@@ -409,7 +409,7 @@ function buildEditor(node) {
 
             state.peaks = Array.isArray(payload.peaks) ? payload.peaks : [];
             state.duration = Number(payload.duration) || 0;
-            const audioUrl = api.apiURL(`/fxai/audio-file?audio_file=${encodeURIComponent(audioFile)}`);
+            const audioUrl = api.apiURL(`/fxai/audio/segments/file?audio_file=${encodeURIComponent(audioFile)}`);
             audio.src = audioUrl;
             audio.load();
             const currentKeyframes = parseKeyframes(getWidget(node, "关键帧JSON")?.value);

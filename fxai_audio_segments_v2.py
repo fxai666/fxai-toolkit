@@ -358,7 +358,7 @@ async def simple_audio_waveform(request):
     bins = request.query.get("bins", "1400")
     try:
         data = _read_waveform_peaks(audio_file, bins=int(bins))
-        data["audio_url"] = f"/fxai/audio-file?audio_file={audio_file}"
+        data["audio_url"] = f"/fxai/audio/segments/file?audio_file={audio_file}"
         return web.json_response(data)
     except Exception as e:
         return web.json_response({"error": str(e)}, status=400)
@@ -366,5 +366,5 @@ async def simple_audio_waveform(request):
 
 _prompt_server_instance = getattr(server.PromptServer, "instance", None)
 if _prompt_server_instance is not None:
-    _prompt_server_instance.routes.get("/fxai/audio-file")(simple_audio_file)
-    _prompt_server_instance.routes.get("/fxai/audio-waveform")(simple_audio_waveform)
+    _prompt_server_instance.routes.get("/fxai/audio/segments/file")(simple_audio_file)
+    _prompt_server_instance.routes.get("/fxai/audio/segments/waveform")(simple_audio_waveform)
