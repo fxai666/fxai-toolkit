@@ -86,20 +86,9 @@ class FxAiFrameGenerator:
         if total == 0:
             return (None, None)
 
-        # 首帧
-        if 图片序列 is not None and 图片序列.shape[0] > 0:
-            首帧 = 图片序列[-1].unsqueeze(0)
-        else:
-            首帧 = self.load_image(image_files[首帧索引 % total])
+        首帧 = self.load_image(image_files[首帧索引 % total]) if (not 启用转场 or 图片序列 is None) else 图片序列[-1].unsqueeze(0)
+        尾帧 = self.load_image(image_files[尾帧索引 % total]) if 启用转场 else self.load_image(image_files[首帧索引 % total])
 
-        # 尾帧
-        if 启用转场:
-            尾帧 = self.load_image(image_files[尾帧索引 % total])
-        else:
-            尾帧 = 首帧
-
-        if 尾帧 is None:
-            尾帧 = 首帧
 
         # 最高画质处理
         首帧_final = self.resize_image(首帧, 输出宽度, 输出高度)

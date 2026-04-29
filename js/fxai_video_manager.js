@@ -271,19 +271,16 @@ function addUI(node) {
             delBtn.style.width = "20px";
             delBtn.style.height = "20px";
             delBtn.style.cursor = "pointer";
-            delBtn.onclick = (e) => {
+            delBtn.onclick = async (e) => {
                 e.stopPropagation();
                 try {
-                    // 调用删除接口
                     const resp = await fetch(api.apiURL(`/fxai/video/delete?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`));
                     if (!resp.ok) {
                         throw new Error("删除请求失败");
                     }
                     const data = await resp.json();
                     if (data.success) {
-                        // 删除成功后移除DOM元素并刷新列表
                         item.remove();
-                        // 可选：刷新整个列表确保数据一致性
                         await updateList();
                     } else {
                         alert("删除失败: " + data.error);
