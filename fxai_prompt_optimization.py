@@ -47,7 +47,7 @@ class FxAiPromptGenerator:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "是否开启提示词优化": ("BOOLEAN", {"default": True,"tooltip":"当关闭时，原样输出提示词"}),
+                "是否开启提示词优化": ("BOOLEAN", {"default": False,"tooltip":"当关闭时，原样输出提示词"}),
                 "API主机地址": ("STRING", {"default": "http://127.0.0.1:11434"}),
                 "模型选择": ([_DEFAULT_MODEL], {"default": _DEFAULT_MODEL}),
                 "推理后释放资源": ("BOOLEAN", {"default": True}),
