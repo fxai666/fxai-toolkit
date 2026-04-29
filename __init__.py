@@ -53,6 +53,7 @@ from .fxai_multi_prompt_editor import FxAiMultiPromptEditor
 from .fxai_multi_prompt_loader import FxAiMultiPromptLoader
 from .fxai_image_size_config import FxAiImageSizeConfig
 from .fxai_int_to_float import FxAiIntToFloat
+from .fxai_prompt_relay_encode import FxAiPromptRelayEncode
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
@@ -86,6 +87,7 @@ NODE_CLASS_MAPPINGS = {
     "FxAiMultiPromptLoader": FxAiMultiPromptLoader,
     "FxAiImageSizeConfig": FxAiImageSizeConfig,
     "FxAiIntToFloat": FxAiIntToFloat,
+    "FxAiPromptRelayEncode": FxAiPromptRelayEncode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -117,8 +119,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FxAiFrameGenerator": "凤希AI - 首尾帧生成器",
     "FxAiMultiPromptEditor": "凤希AI - 分段场景 - 时间轴提示词管理器",
     "FxAiMultiPromptLoader": "凤希AI - 分段场景 - 时间轴获取器",
-    "FxAiImageSizeConfig": "凤希AI - 设置宽高 - 按图片",
+    "FxAiImageSizeConfig": "凤希AI - 设置宽高 - 最大边长",
     "FxAiIntToFloat": "凤希AI - 整数转小数",
+    "FxAiPromptRelayEncode": "凤希AI - 时序提示词编码器",
 }
 
 WEB_DIRECTORY = "./js"
