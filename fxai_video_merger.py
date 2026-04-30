@@ -25,7 +25,6 @@ def get_fixed_temp_audio_path():
     return os.path.join(temp_dir, "fxai_merge_temp_audio.wav")
 
 def audio_tensor_to_wav_ffmpeg(audio_dict):
-    print(f"audio_dict{audio_dict}")
     try:
         waveform = audio_dict["waveform"]
         sample_rate = audio_dict["sample_rate"]
@@ -169,4 +168,5 @@ class FxAiVideoMerger:
             return ("",)
         
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
+        print(f"[凤希AI] 视频生成完毕。{audio_dict}")
         return (video_path or "",)
