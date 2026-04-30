@@ -168,5 +168,5 @@ class FxAiVideoMerger:
             return ("",)
         
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
-        print(f"[凤希AI] 视频生成完毕。{audio_dict}")
+        print(f"[凤希AI] 视频生成完毕。")
         return (video_path or "",)

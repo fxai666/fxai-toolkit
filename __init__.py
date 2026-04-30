@@ -44,6 +44,7 @@ from .fxai_scene_manager_v2 import FxAiSceneManagerV2
 from .fxai_scene_load import FxAiSceneLoad
 from .fxai_scene_load_v2 import FxAiSceneLoadV2
 from .fxai_video_generator import FxAiVideoGenerator
+from .fxai_video_generator_v2 import FxAiVideoGeneratorV2
 from .fxai_video_merger import FxAiVideoMerger
 from .fxai_video_preview import FxAiVideoPreview
 from .fxai_video_manager import FxAiVideoManager
@@ -78,6 +79,7 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiSceneLoad":FxAiSceneLoad,
 	"FxAiSceneLoadV2":FxAiSceneLoadV2,
 	"FxAiVideoGenerator":FxAiVideoGenerator,
+	"FxAiVideoGeneratorV2":FxAiVideoGeneratorV2,
 	"FxAiVideoMerger":FxAiVideoMerger,
 	"FxAiVideoPreview":FxAiVideoPreview,
 	"FxAiVideoManager":FxAiVideoManager,
@@ -112,6 +114,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiPromptManager":"凤希AI - 提示词管理",
 	"FxAiLoadPromptByIndex":"凤希AI - 提示词管理 - 提示词加载",
 	"FxAiVideoGenerator":"凤希AI - 视频生成",
+	"FxAiVideoGeneratorV2":"凤希AI - 视频生成V2",
 	"FxAiVideoMerger":"凤希AI - 视频合并",
 	"FxAiVideoPreview":"凤希AI - 视频预览",
 	"FxAiVideoManager":"凤希AI - 视频管理",

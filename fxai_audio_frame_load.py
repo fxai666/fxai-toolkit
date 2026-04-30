@@ -21,13 +21,11 @@ class FxAIAudioSegmentLoad:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                # 严格按你要求的顺序排列
                 "帧率": ("INT", {"default": 24, "min": 1}),
                 "当前索引": ("INT", {"default": 0, "min": 0}),
                 "帧数对齐基数": ("INT", {"default": 8, "min": 1}),
                 "过渡帧数": ("INT", {"default": 1, "min": 0}),
 
-                # 原始输入保持不动
                 "分段时长列表": ("LIST", {"forceInput": True}),
                 "原始音频": ("AUDIO", {"forceInput": True}),
             },
