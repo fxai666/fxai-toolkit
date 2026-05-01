@@ -6,6 +6,7 @@ from PIL import Image
 import folder_paths
 import subprocess
 import tempfile
+import io
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -41,57 +42,44 @@ def get_video_dir(subdir=""):
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
-# 全局固定的帧目录（永远在这里）
-def get_global_frame_dir():
-    comfy_root = folder_paths.base_path
-    frame_dir = os.path.join(comfy_root, "fxai/video/frame")
-    os.makedirs(frame_dir, exist_ok=True)
-    return frame_dir
-
-# ===================== 固定临时音频（覆盖写入，不删除） =====================
+# 获取全局临时音频路径
 def get_fixed_temp_audio_path():
     comfy_root = folder_paths.base_path
     temp_dir = os.path.join(comfy_root, "fxai/video/temp")
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
 
+# 音频张量转WAV（不变）
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     try:
-        waveform = audio_dict["waveform"]  # [1, channels, samples] 或 [channels, samples]
+        waveform = audio_dict["waveform"]
         sample_rate = audio_dict["sample_rate"]
         
-        # 去掉batch维度
         if waveform.ndim == 3 and waveform.shape[0] == 1:
-            waveform = waveform.squeeze(0)  # [channels, samples]
+            waveform = waveform.squeeze(0)
         
         waveform_np = waveform.cpu().numpy()
         
-        # 判断声道数
         if waveform_np.ndim == 1:
             channels = 1
-            # 单声道：直接使用
             audio_data = waveform_np.astype(np.float32)
         else:
             channels = waveform_np.shape[0]
-            # 双声道或更多：需要转为交错格式 (interleaved)
-            # 从 [channels, samples] -> [samples, channels] -> 展平
             audio_data = np.ascontiguousarray(waveform_np.T).astype(np.float32)
         
         raw_pcm = audio_data.tobytes()
         temp_path = get_fixed_temp_audio_path()
         
-        # FFmpeg 命令
         cmd = [
             'ffmpeg', '-y',
-            '-f', 'f32le',           # 32位浮点PCM
-            '-ar', str(sample_rate), # 采样率
-            '-ac', str(channels),    # 声道数
-            '-i', 'pipe:0',          # 从stdin读取
-            '-c:a', 'pcm_s16le',     # 输出16位PCM WAV
+            '-f', 'f32le',
+            '-ar', str(sample_rate),
+            '-ac', str(channels),
+            '-i', 'pipe:0',
+            '-c:a', 'pcm_s16le',
             temp_path
         ]
         
-        # 使用列表形式避免shell注入，并且更可靠
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
@@ -112,36 +100,67 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         traceback.print_exc()
         return ""
 
-# 图片+音频合成视频
+# 视频合成：保留原来 img_np[:-1] 减一逻辑 完全不变
 def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
     num = custom_num if custom_num >= 0 else get_last_number(save_dir)
     filename = f"{num:03d}.mp4"
     save_path = safe_path_join(save_dir, filename)
 
-    temp_frames = get_global_frame_dir()
-
-    # 覆盖写入帧
+    # 原样保留：转numpy + 移除最后一帧 逻辑不变
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
-    
-    # ===================== ✅ 关键修改：去掉最后一帧 =====================
-    img_np = img_np[:-1]  # 移除最后一张图片，留给下一个循环作为首帧
-    # ==================================================================
-
-    for i in range(img_np.shape[0]):
-        Image.fromarray(img_np[i]).save(os.path.join(temp_frames, f"{i:04d}.png"))
+    img_np = img_np[:-1]  
 
     try:
-        # ✅ 使用新版 FFmpeg 音频处理
+        # 音频处理（不变）
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
-        # FFmpeg 合成
+        # 内存流合成视频
         if audio and os.path.exists(audio):
-            cmd = f'ffmpeg -y -framerate {fps} -i "{temp_frames}/%04d.png" -i "{audio}" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "{save_path}"'
+            cmd = [
+                'ffmpeg', '-y',
+                '-f', 'image2pipe',
+                '-vcodec', 'png',
+                '-r', str(fps),
+                '-i', '-',
+                '-i', audio,
+                '-c:v', 'libx264',
+                '-pix_fmt', 'yuv420p',
+                '-c:a', 'aac',
+                '-shortest',
+                save_path
+            ]
         else:
-            cmd = f'ffmpeg -y -framerate {fps} -i "{temp_frames}/%04d.png" -c:v libx264 -pix_fmt yuv420p "{save_path}"'
+            cmd = [
+                'ffmpeg', '-y',
+                '-f', 'image2pipe',
+                '-vcodec', 'png',
+                '-r', str(fps),
+                '-i', '-',
+                '-c:v', 'libx264',
+                '-pix_fmt', 'yuv420p',
+                save_path
+            ]
 
-        subprocess.run(cmd, shell=True, check=True, capture_output=True)
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+        for img in img_np:
+            img_pil = Image.fromarray(img)
+            img_byte_arr = io.BytesIO()
+            img_pil.save(img_byte_arr, format='PNG')
+            proc.stdin.write(img_byte_arr.getvalue())
+
+        proc.stdin.close()
+        proc.wait()
+
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
         return ""
@@ -149,7 +168,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
     print(f"[凤希AI视频] 成功保存：{save_path}")
     return save_path
 
-# 节点主体
 class FxAiVideoGenerator:
     @classmethod
     def INPUT_TYPES(cls):
@@ -182,4 +200,5 @@ class FxAiVideoGenerator:
             custom_num=视频序号,
             audio=音频
         )
+        
         return (图片序列, video_path, target_dir)

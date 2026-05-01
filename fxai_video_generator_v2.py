@@ -184,7 +184,7 @@ class FxAiVideoGeneratorV2:
         }
 
     RETURN_TYPES = ("IMAGE","STRING", "STRING")
-    RETURN_NAMES = ("图片序列", "视频文件路径", "保存目录")
+    RETURN_NAMES = ("最后一帧", "视频文件路径", "保存目录")
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
 
