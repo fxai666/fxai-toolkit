@@ -55,6 +55,8 @@ from .fxai_multi_prompt_loader import FxAiMultiPromptLoader
 from .fxai_image_size_config import FxAiImageSizeConfig
 from .fxai_int_to_float import FxAiIntToFloat
 from .fxai_prompt_relay_encode import FxAiPromptRelayEncode
+from .fxai_latent_clear_replace import FxAiLatentClearReplace
+from .fxai_latent_frame_to_image import FxAiLatentFrameToImage
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
@@ -90,6 +92,8 @@ NODE_CLASS_MAPPINGS = {
     "FxAiImageSizeConfig": FxAiImageSizeConfig,
     "FxAiIntToFloat": FxAiIntToFloat,
     "FxAiPromptRelayEncode": FxAiPromptRelayEncode,
+    "FxAiLatentClearReplace": FxAiLatentClearReplace,
+    "FxAiLatentFrameToImage": FxAiLatentFrameToImage,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -125,6 +129,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FxAiImageSizeConfig": "凤希AI - 设置宽高 - 最大边长",
     "FxAiIntToFloat": "凤希AI - 整数转小数",
     "FxAiPromptRelayEncode": "凤希AI - 时序提示词编码器",
+    "FxAiLatentClearReplace": "凤希AI - 潜空间清除与替换",
+    "FxAiLatentFrameToImage": "凤希AI - 潜空间获取指定索引图片",
 }
 
 WEB_DIRECTORY = "./js"
