@@ -8,7 +8,7 @@ class FxAIGeneratorController:
     FUNCTION = "process"
 
     # 返回值：增加了处理后的宽度、高度
-    RETURN_TYPES = ("LIST", "INT", "INT", "INT", "INT", "INT", "INT","INT")
+    RETURN_TYPES = ("LIST", "INT", "INT", "INT", "INT", "INT", "INT","INT", "INT","INT")
     RETURN_NAMES = (
         "分段时长列表",
         "开始索引",
@@ -17,7 +17,9 @@ class FxAIGeneratorController:
         "实际宽度",
         "实际高度",
         "分段数量",
-        "过渡帧数"
+        "过渡帧数",
+        "实际半宽",
+        "实际半高",
     )
 
     @classmethod
@@ -35,7 +37,7 @@ class FxAIGeneratorController:
             "optional": {
                 "场景分段时长": ("LIST", {"forceInput": True}),
                 "音频分段时长": ("LIST", {"forceInput": True}),
-                "过渡帧数": ("INT", {"default": 9, "min": 1}),
+                "过渡帧数": ("INT", {"default": 9, "min": 1,"step":8}),
             }
         }
 
@@ -65,7 +67,7 @@ class FxAIGeneratorController:
 
         # ===================== 核心新增功能 =====================
         # 宽/高向下取最接近 能被长宽对齐基数整除 的值
-        if 长宽对齐基数 >= 1:
+        if 长宽对齐基数 > 1:
             最终宽度 = 宽度 - (宽度 % 长宽对齐基数)
             最终高度 = 高度 - (高度 % 长宽对齐基数)
         else:
@@ -81,5 +83,7 @@ class FxAIGeneratorController:
             最终宽度,
             最终高度,
 			分段数量,
-			过渡帧数
+			过渡帧数,
+            最终宽度 // 2,
+            最终高度 // 2,
         )

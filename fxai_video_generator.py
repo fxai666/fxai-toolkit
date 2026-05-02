@@ -7,6 +7,7 @@ import folder_paths
 import subprocess
 import tempfile
 import io
+import gc
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -100,45 +101,66 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         traceback.print_exc()
         return ""
 
-# 视频合成：保留原来 img_np[:-1] 减一逻辑 完全不变
+# 视频合成：使用rawvideo管道 + 分批写入（最快+最高质量+低内存）
 def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     num = custom_num if custom_num >= 0 else get_last_number(save_dir)
     filename = f"{num:03d}.mp4"
     save_path = safe_path_join(save_dir, filename)
 
-    # 原样保留：转numpy + 移除最后一帧 逻辑不变
+    # 转numpy + 移除最后一帧
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
-    img_np = img_np[:-1]  
+    img_np = img_np[:-1]
+
+    if len(img_np) == 0:
+        print("[凤希AI视频合成失败] 没有有效帧")
+        return ""
 
     try:
-        # 音频处理（不变）
+        height, width = img_np[0].shape[0], img_np[0].shape[1]
+        
+        # 音频处理
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
-        # 内存流合成视频
+        # 构建ffmpeg命令
         if audio and os.path.exists(audio):
             cmd = [
                 'ffmpeg', '-y',
-                '-f', 'image2pipe',
-                '-vcodec', 'png',
+                '-f', 'rawvideo',
+                '-vcodec', 'rawvideo',
+                '-s', f'{width}x{height}',
+                '-pix_fmt', 'rgb24',
                 '-r', str(fps),
                 '-i', '-',
                 '-i', audio,
                 '-c:v', 'libx264',
+                '-preset', 'slow',
+                '-crf', '17',
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
+                '-b:a', '192k',
                 '-shortest',
+                '-movflags', '+faststart',
                 save_path
             ]
         else:
             cmd = [
                 'ffmpeg', '-y',
-                '-f', 'image2pipe',
-                '-vcodec', 'png',
+                '-f', 'rawvideo',
+                '-vcodec', 'rawvideo',
+                '-s', f'{width}x{height}',
+                '-pix_fmt', 'rgb24',
                 '-r', str(fps),
                 '-i', '-',
                 '-c:v', 'libx264',
+                '-preset', 'slow',
+                '-crf', '17',
                 '-pix_fmt', 'yuv420p',
+                '-movflags', '+faststart',
                 save_path
             ]
 
@@ -146,15 +168,18 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            bufsize=1024*1024*10  # 10MB缓冲区
         )
 
-        for img in img_np:
-            img_pil = Image.fromarray(img)
-            img_byte_arr = io.BytesIO()
-            img_pil.save(img_byte_arr, format='PNG')
-            proc.stdin.write(img_byte_arr.getvalue())
-
+        # 分批写入，避免内存峰值过高（每批20帧）
+        batch_size = 20
+        for i in range(0, len(img_np), batch_size):
+            batch = img_np[i:i+batch_size]
+            batch_data = b''.join([img.tobytes() for img in batch])
+            proc.stdin.write(batch_data)
+            # batch_data 在此释放，batch 在下一轮覆盖
+        
         proc.stdin.close()
         proc.wait()
 
@@ -163,6 +188,8 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
 
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
+        import traceback
+        traceback.print_exc()
         return ""
 
     print(f"[凤希AI视频] 成功保存：{save_path}")
