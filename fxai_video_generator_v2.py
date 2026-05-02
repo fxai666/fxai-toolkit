@@ -101,14 +101,18 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         return ""
 
 # 视频合成：保留原来 img_np[:-1] 减一逻辑 完全不变
-def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
+def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
     num = custom_num if custom_num >= 0 else get_last_number(save_dir)
     filename = f"{num:03d}.mp4"
     save_path = safe_path_join(save_dir, filename)
 
     # 原样保留：转numpy + 移除最后一帧 逻辑不变
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
-    img_np = img_np[:-1]  
+    # ============== 核心修改1 ==============
+    # 原：img_np = img_np[:-1]
+    # 新：总长度 - 过渡帧数，支持任意过渡帧数
+    total_len = img_np.shape[0]
+    img_np = img_np[: total_len - transition_frames]  
 
     try:
         # 音频处理（不变）
@@ -180,26 +184,39 @@ class FxAiVideoGeneratorV2:
             },
             "optional": {
                 "音频": ("AUDIO",),
+                "过渡帧数": ("INT", {"default": 1, "min": 1}),
             }
         }
 
-    RETURN_TYPES = ("IMAGE","STRING", "STRING")
-    RETURN_NAMES = ("最后一帧", "视频文件路径", "保存目录")
+    RETURN_TYPES = ("IMAGE","STRING", "STRING","INT")
+    RETURN_NAMES = ("过渡帧", "视频文件路径", "保存目录","实际帧数")
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
 
-    def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频=""):
+    def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频="", 过渡帧数=1):
         if 图片序列 is None:
-            return (图片序列, "", "")
+            return (图片序列, "", "", 0)
         
         target_dir = get_video_dir(目录)
+        
+        # ============== 核心修改2 ==============
+        # 1. 计算实际生成帧数 = 总长度 - 过渡帧数
+        total_frames = len(图片序列)
+        actual_frames = total_frames - 过渡帧数
+        
+        # 2. 提取过渡帧：取倒数 N 帧
+        transition_frames = 图片序列[-过渡帧数:]
+        
+        # 3. 生成视频
         video_path = save_video(
             images=图片序列,
             save_dir=target_dir,
             fps=帧率FPS,
             custom_num=视频序号,
-            audio=音频
+            audio=音频,
+            transition_frames=过渡帧数
         )
         
-        last_frame = 图片序列[-1:]
-        return (last_frame, video_path, target_dir)
+        # ============== 核心修改3 ==============
+        # 返回：过渡帧 + 视频路径 + 目录 + 实际生成帧数
+        return (transition_frames, video_path, target_dir, actual_frames)

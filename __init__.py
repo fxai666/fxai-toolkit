@@ -50,13 +50,15 @@ from .fxai_video_preview import FxAiVideoPreview
 from .fxai_video_manager import FxAiVideoManager
 from .fxai_generator_controller import FxAIGeneratorController
 from .fxai_frame_generator import FxAiFrameGenerator
+from .fxai_frame_generator_v2 import FxAiFrameGeneratorV2
 from .fxai_multi_prompt_editor import FxAiMultiPromptEditor
 from .fxai_multi_prompt_loader import FxAiMultiPromptLoader
 from .fxai_image_size_config import FxAiImageSizeConfig
 from .fxai_int_to_float import FxAiIntToFloat
 from .fxai_prompt_relay_encode import FxAiPromptRelayEncode
 from .fxai_latent_clear_replace import FxAiLatentClearReplace
-from .fxai_latent_frame_to_image import FxAiLatentFrameToImage
+from .fxai_latent_get_frames import FxAiLatentGetFrames
+from .fxai_latent_get_frame_count import FxAiLatentGetFrameCount
 
 # 统一注册
 NODE_CLASS_MAPPINGS = {
@@ -87,13 +89,15 @@ NODE_CLASS_MAPPINGS = {
 	"FxAiVideoManager":FxAiVideoManager,
     "FxAIGeneratorController": FxAIGeneratorController,
     "FxAiFrameGenerator": FxAiFrameGenerator,
+    "FxAiFrameGeneratorV2": FxAiFrameGeneratorV2,
     "FxAiMultiPromptEditor": FxAiMultiPromptEditor,
     "FxAiMultiPromptLoader": FxAiMultiPromptLoader,
     "FxAiImageSizeConfig": FxAiImageSizeConfig,
     "FxAiIntToFloat": FxAiIntToFloat,
     "FxAiPromptRelayEncode": FxAiPromptRelayEncode,
     "FxAiLatentClearReplace": FxAiLatentClearReplace,
-    "FxAiLatentFrameToImage": FxAiLatentFrameToImage,
+    "FxAiLatentGetFrames": FxAiLatentGetFrames,
+    "FxAiLatentGetFrameCount": FxAiLatentGetFrameCount,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -124,13 +128,15 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 	"FxAiVideoManager":"凤希AI - 视频管理",
     "FxAIGeneratorController": "凤希AI - 生成控制器",
     "FxAiFrameGenerator": "凤希AI - 首尾帧生成器",
+    "FxAiFrameGeneratorV2": "凤希AI - 首尾帧生成器V2",
     "FxAiMultiPromptEditor": "凤希AI - 分段场景 - 时间轴提示词管理器",
     "FxAiMultiPromptLoader": "凤希AI - 分段场景 - 时间轴获取器",
     "FxAiImageSizeConfig": "凤希AI - 设置宽高 - 最大边长",
     "FxAiIntToFloat": "凤希AI - 整数转小数",
     "FxAiPromptRelayEncode": "凤希AI - 时序提示词编码器",
     "FxAiLatentClearReplace": "凤希AI - 潜空间清除与替换",
-    "FxAiLatentFrameToImage": "凤希AI - 潜空间获取指定索引图片",
+    "FxAiLatentGetFrames": "凤希AI - 潜空间获取",
+    "FxAiLatentGetFrameCount": "凤希AI - 潜空间总数",
 }
 
 WEB_DIRECTORY = "./js"

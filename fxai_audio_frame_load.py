@@ -94,7 +94,7 @@ class FxAIAudioSegmentLoad:
 
         # ========== 100% 保留你原来的计算逻辑 ==========
         start_sample = int(实际开始秒 * sample_rate)
-        end_sample = start_sample + int(分段时长[当前索引] * sample_rate)
+        end_sample = start_sample + int((分段时长[当前索引] + 0.5) * sample_rate)
 
         # ========== 安全边界（修复空音频问题） ==========
         start_sample = max(0, min(start_sample, total_samples))

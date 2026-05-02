@@ -1,4 +1,5 @@
 import torch
+import copy
 
 class FxAiLatentClearReplace:
     @classmethod
@@ -6,10 +7,8 @@ class FxAiLatentClearReplace:
         return {
             "required": {
                 "潜空间序列": ("LATENT",),
-                "帧索引": ("INT", {"default": 0, "min": -1, "max": 9999}),
-            },
-            "optional": {
-                "新图片": ("IMAGE",),
+                "letter": ("LATENT",),      # 同格式 LTXV 潜空间
+                "帧索引": ("INT", {"default": 0}),
             }
         }
 
@@ -17,27 +16,23 @@ class FxAiLatentClearReplace:
     FUNCTION = "run"
     CATEGORY = "凤希AI/工具"
 
-    def run(self, 潜空间序列, 帧索引, 新图片=None):
-        # 复制数据
-        samples = 潜空间序列["samples"].clone()
+    def run(self, 潜空间序列, letter, 帧索引):
+        out = copy.deepcopy(潜空间序列)
+        latent = out["samples"]
+        B, C, total_frames, H, W = latent.shape
 
-        # ==============================================
-        # ✅ 精准适配你的 5 维数据: [1, 总帧数, C, H, W]
-        # ==============================================
-        _, 总帧数, C, H, W = samples.shape
+        # 安全索引
+        if 帧索引 < 0:
+            idx = total_frames + 帧索引
+        else:
+            idx = 帧索引
+        idx = max(0, min(idx, total_frames - 1))
 
-        # 索引处理
-        if 帧索引 == -1:
-            帧索引 = 总帧数 - 1
-        帧索引 = max(0, min(帧索引, 总帧数 - 1))
+        # 取 letter 的第一帧
+        letter_data = letter["samples"]
+        source = letter_data[:, :, :1, :, :]
 
-        # 清空指定帧
-        samples[:, 帧索引:帧索引+1] = 0.0
+        # 直接替换（同格式才能成功！）
+        latent[:, :, idx:idx+1, :, :] = source
 
-        # 替换图片（不做任何缩放！）
-        if 新图片 is not None:
-            img = 新图片 * 2.0 - 1.0
-            img_latent = img.permute(0, 3, 1, 2).unsqueeze(0)  # 转成 5 维匹配
-            samples[:, 帧索引:帧索引+1] = img_latent
-
-        return ({"samples": samples},)
+        return (out,)
