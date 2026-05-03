@@ -19,7 +19,7 @@ class FxAiFrameGeneratorV2:
             },
             "optional": {
                 "图片序列": ("IMAGE", {"forceInput": True}),
-                "过渡帧数": ("INT", {"default": 9, "min": 1}),  # 新增参数
+                "过渡帧数": ("INT", {"default": 9, "min": 0}),  # 新增参数
             },
         }
 
@@ -78,7 +78,7 @@ class FxAiFrameGeneratorV2:
         return torch.from_numpy(np_out).unsqueeze(0)
 
     # 函数参数新增 过渡帧数
-    def generate_frames(self, 文件夹路径, 首帧索引, 尾帧索引, 启用转场, 输出宽度, 输出高度, 图片序列=None, 过渡帧数=9):
+    def generate_frames(self, 文件夹路径, 首帧索引, 尾帧索引, 启用转场, 输出宽度, 输出高度, 图片序列=None, 过渡帧数=0):
         image_files = []
         for filename in sorted(os.listdir(文件夹路径)):
             if filename.lower().endswith(IMAGE_EXTENSIONS):
@@ -88,7 +88,6 @@ class FxAiFrameGeneratorV2:
         if total == 0:
             return (None, None,None)
 
-        # 用变量替换固定值 -9
         首帧 = self.load_image(image_files[首帧索引 % total]) if (not 启用转场 or 图片序列 is None) else 图片序列[-过渡帧数:]
         尾帧 = self.load_image(image_files[尾帧索引 % total]) if 启用转场 else self.load_image(image_files[首帧索引 % total])
 

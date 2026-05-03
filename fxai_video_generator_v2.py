@@ -208,6 +208,7 @@ class FxAiVideoGeneratorV2:
             "optional": {
                 "音频": ("AUDIO",),
                 "过渡帧数": ("INT", {"default": 1, "min": 1}),
+                "过渡帧引导": ("IMAGE",),
             }
         }
 
@@ -216,21 +217,24 @@ class FxAiVideoGeneratorV2:
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
 
-    def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频="", 过渡帧数=1):
+    def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频="", 过渡帧数=1, 过渡帧引导=None):
         if 图片序列 is None:
             return (图片序列, "", "", 0)
         
         target_dir = get_video_dir(目录)
         
-        # ============== 核心修改2 ==============
-        # 1. 计算实际生成帧数 = 总长度 - 过渡帧数
         total_frames = len(图片序列)
         actual_frames = total_frames - 过渡帧数
         
-        # 2. 提取过渡帧：取倒数 N 帧
+        # 取出原过渡帧
         transition_frames = 图片序列[-过渡帧数:]
         
-        # 3. 生成视频
+        # 核心逻辑：如果有过渡帧引导，拼接到过渡帧最后面
+        if 过渡帧引导 is not None and len(过渡帧引导) > 0:
+            # 取第一张引导图（防止输入序列），拼接在过渡帧末尾
+            guide_frame = 过渡帧引导[0:1]  # 保持维度一致
+            transition_frames = torch.cat([transition_frames, guide_frame], dim=0)
+        
         video_path = save_video(
             images=图片序列,
             save_dir=target_dir,
@@ -240,6 +244,5 @@ class FxAiVideoGeneratorV2:
             transition_frames=过渡帧数
         )
         
-        # ============== 核心修改3 ==============
-        # 返回：过渡帧 + 视频路径 + 目录 + 实际生成帧数
+        # 返回拼接后的完整过渡帧
         return (transition_frames, video_path, target_dir, actual_frames)
