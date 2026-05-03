@@ -296,10 +296,6 @@ function addLine(node, defaultValue) {
 
     // 删除按钮
     delBtn.onclick = function() {
-        if (node.lines.length <= 1) {
-            alert("至少保留一行文本");
-            return;
-        }
         removeLine(node, item);
     };
 
