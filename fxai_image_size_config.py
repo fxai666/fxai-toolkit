@@ -14,24 +14,33 @@ def resize_image_final(image, target_max, base=32):
     sw, sh = int(round(w * scale)), int(round(h * scale))
 
     # ==============================
-    # 🔴 核心替换：最高质量无损缩放
+    # 🔴 核心判断：缩放后的尺寸 不能小于 原始尺寸
+    # ==============================
+    if sw < w or sh < h:
+        raise RuntimeError(
+            f"错误：等比缩放后的尺寸小于原始图片尺寸，禁止执行缩放！\n"
+            f"原始宽：{w}，缩放后宽：{sw}\n"
+            f"原始高：{h}，缩放后高：{sh}"
+        )
+
+    # ==============================
+    # 最高画质缩放（无损、清晰）
     # ==============================
     # 张量 → PIL
     img_np = (image[0].cpu().numpy() * 255).astype(np.uint8)
     img = Image.fromarray(img_np)
     
-    # 最高画质缩放（无损、清晰）
     img = img.resize((sw, sh), Image.Resampling.LANCZOS)
     
     # PIL → 张量
     scaled_img_np = np.array(img).astype(np.float32) / 255.0
     scaled_img = torch.from_numpy(scaled_img_np).unsqueeze(0).to(image.device)
 
-    # 2. 对齐基数（你原来逻辑不变）
+    # 2. 对齐基数
     fw = (sw // base) * base
     fh = (sh // base) * base
 
-    # 3. 居中裁剪（你原来逻辑不变）
+    # 3. 居中裁剪
     dw = sw - fw
     dh = sh - fh
     left = dw // 2
@@ -41,7 +50,7 @@ def resize_image_final(image, target_max, base=32):
     return cropped, fw, fh
 
 # ==============================
-# 你原来的节点完全不动
+# 节点主类
 # ==============================
 class FxAiImageSizeConfig:
     @classmethod
