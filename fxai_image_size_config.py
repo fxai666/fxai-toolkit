@@ -54,17 +54,17 @@ class FxAiImageSizeConfig:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "INT", "INT")
-    RETURN_NAMES = ("输出图片", "宽度", "高度")
+    RETURN_TYPES = ("IMAGE", "INT", "INT","INT")
+    RETURN_NAMES = ("输出图片", "宽度", "高度","基数")
     FUNCTION = "process"
     CATEGORY = "凤希AI/图片"
 
     def process(self, 图片, 最大边长, 对齐基数):
         try:
             if 图片 is None or 图片.numel() == 0:
-                return (None, 0, 0)
+                return (None, 0, 0,1)
             
             out_img, w, h = resize_image_final(图片, 最大边长, 对齐基数)
-            return (out_img, w, h)
+            return (out_img, w, h,对齐基数)
         except Exception as e:
             raise RuntimeError(f"处理失败：{str(e)}")
