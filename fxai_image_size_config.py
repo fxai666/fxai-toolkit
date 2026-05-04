@@ -14,11 +14,11 @@ def resize_image_final(image, target_max, base=32):
     sw, sh = int(round(w * scale)), int(round(h * scale))
 
     # ==============================
-    # 🔴 核心判断：缩放后的尺寸 不能小于 原始尺寸
+    # 🔴 核心判断：缩放后的尺寸 不能大于 原始尺寸
     # ==============================
-    if sw < w or sh < h:
+    if sw > w or sh > h:
         raise RuntimeError(
-            f"错误：等比缩放后的尺寸小于原始图片尺寸，禁止执行缩放！\n"
+            f"错误：等比缩放后的尺寸大于原始图片尺寸，禁止执行缩放！\n"
             f"原始宽：{w}，缩放后宽：{sw}\n"
             f"原始高：{h}，缩放后高：{sh}"
         )
