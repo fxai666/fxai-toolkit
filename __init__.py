@@ -22,123 +22,83 @@ required_packages = ["pydub"]
 for pkg in required_packages:
     install_package(pkg)
 
-# 导入类（HTTP路由会在import时自动注册）
-from .fxai_audio_segments import FxAiAudioSegmenter
-from .fxai_audio_segments_v2 import FxAiAudioSegmenterV2
-from .fxai_audio_frame_load import FxAIAudioSegmentLoad
-from .fxai_multiline_text import FxAiMultiLineText
-from .fxai_multiline_text_load import FxAiMultiLineTextLoad
-from .fxai_image_manager import FxAiImageManager
-from .fxai_image_manager_v2 import FxAiImageManagerV2
-from .fxai_image_load import FxAiLoadImageByIndex
-from .fxai_prompt_optimization import FxAiPromptGenerator
-from .fxai_size_config import FxAiSizeConfig
-from .fxai_multi_audio_load import FxAiMultiAudioLoad
-from .fxai_audio_manager import FxAiAudioManager
-from .fxai_audio_load import FxAiLoadAudioByIndex
-from .fxai_prompt_manager import FxAiPromptManager
-from .fxai_resize_image_downscale import FxAiImageDownscale
-from .fxai_prompt_load import FxAiLoadPromptByIndex
-from .fxai_scene_manager import FxAiSceneManager
-from .fxai_scene_manager_v2 import FxAiSceneManagerV2
-from .fxai_scene_load import FxAiSceneLoad
-from .fxai_scene_load_v2 import FxAiSceneLoadV2
-from .fxai_video_generator import FxAiVideoGenerator
-from .fxai_video_generator_v2 import FxAiVideoGeneratorV2
-from .fxai_video_merger import FxAiVideoMerger
-from .fxai_video_preview import FxAiVideoPreview
-from .fxai_video_manager import FxAiVideoManager
-from .fxai_generator_controller import FxAIGeneratorController
-from .fxai_frame_generator import FxAiFrameGenerator
-from .fxai_frame_generator_v2 import FxAiFrameGeneratorV2
-from .fxai_multi_prompt_editor import FxAiMultiPromptEditor
-from .fxai_multi_prompt_loader import FxAiMultiPromptLoader
-from .fxai_image_size_config import FxAiImageSizeConfig
-from .fxai_int_to_float import FxAiIntToFloat
-from .fxai_prompt_relay_encode import FxAiPromptRelayEncode
-from .fxai_latent_clear_replace import FxAiLatentClearReplace
-from .fxai_latent_get_frames import FxAiLatentGetFrames
-from .fxai_latent_get_frame_count import FxAiLatentGetFrameCount
+# ==============================================
+# 【节点注册配置区】以后只需要在这里加一行即可
+# 格式：(节点类名, 模块文件名, 界面显示名称)
+# ==============================================
+NODE_REGISTRY = [
+    # 音频类
+    ("FxAiAudioSegmenter",        "fxai_audio_segments",        "凤希AI - 音频分段器"),
+    ("FxAiAudioSegmenterV2",      "fxai_audio_segments_v2",     "凤希AI - 音频分段器V2"),
+    ("FxAIAudioSegmentLoad",      "fxai_audio_frame_load",      "凤希AI - 音频与帧数获取器"),
+    ("FxAiMultiAudioLoad",        "fxai_multi_audio_load",      "凤希AI - 多音频加载"),
+    ("FxAiAudioManager",          "fxai_audio_manager",         "凤希AI - 音频管理器"),
+    ("FxAiLoadAudioByIndex",      "fxai_audio_load",            "凤希AI - 音频管理器 - 音频加载"),
 
-# 统一注册
-NODE_CLASS_MAPPINGS = {
-    "FxAiAudioSegmenter": FxAiAudioSegmenter,
-    "FxAiAudioSegmenterV2": FxAiAudioSegmenterV2,
-    "FxAIAudioSegmentLoad": FxAIAudioSegmentLoad,
-    "FxAiMultiLineText": FxAiMultiLineText,
-    "FxAiMultiLineTextLoad": FxAiMultiLineTextLoad,
-	"FxAiImageManager":FxAiImageManager,
-	"FxAiImageManagerV2":FxAiImageManagerV2,
-    "FxAiLoadImageByIndex": FxAiLoadImageByIndex,
-	"FxAiPromptGenerator":FxAiPromptGenerator,
-	"FxAiSizeConfig":FxAiSizeConfig,
-	"FxAiMultiAudioLoad":FxAiMultiAudioLoad,
-	"FxAiAudioManager":FxAiAudioManager,
-	"FxAiLoadAudioByIndex":FxAiLoadAudioByIndex,
-	"FxAiPromptManager":FxAiPromptManager,
-	"FxAiImageDownscale":FxAiImageDownscale,
-	"FxAiLoadPromptByIndex":FxAiLoadPromptByIndex,
-	"FxAiSceneManager":FxAiSceneManager,
-	"FxAiSceneManagerV2":FxAiSceneManagerV2,
-	"FxAiSceneLoad":FxAiSceneLoad,
-	"FxAiSceneLoadV2":FxAiSceneLoadV2,
-	"FxAiVideoGenerator":FxAiVideoGenerator,
-	"FxAiVideoGeneratorV2":FxAiVideoGeneratorV2,
-	"FxAiVideoMerger":FxAiVideoMerger,
-	"FxAiVideoPreview":FxAiVideoPreview,
-	"FxAiVideoManager":FxAiVideoManager,
-    "FxAIGeneratorController": FxAIGeneratorController,
-    "FxAiFrameGenerator": FxAiFrameGenerator,
-    "FxAiFrameGeneratorV2": FxAiFrameGeneratorV2,
-    "FxAiMultiPromptEditor": FxAiMultiPromptEditor,
-    "FxAiMultiPromptLoader": FxAiMultiPromptLoader,
-    "FxAiImageSizeConfig": FxAiImageSizeConfig,
-    "FxAiIntToFloat": FxAiIntToFloat,
-    "FxAiPromptRelayEncode": FxAiPromptRelayEncode,
-    "FxAiLatentClearReplace": FxAiLatentClearReplace,
-    "FxAiLatentGetFrames": FxAiLatentGetFrames,
-    "FxAiLatentGetFrameCount": FxAiLatentGetFrameCount,
-}
+    # 场景/文本类
+    ("FxAiMultiLineText",         "fxai_multiline_text",       "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
+    ("FxAiMultiLineTextLoad",     "fxai_multiline_text_load",   "凤希AI - 场景提示词加载器"),
+    ("FxAiSceneManager",          "fxai_scene_manager",         "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071"),
+    ("FxAiSceneManagerV2",        "fxai_scene_manager_v2",      "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071"),
+    ("FxAiSceneLoad",             "fxai_scene_load",            "凤希AI - 场景数据加载器"),
+    ("FxAiSceneLoadV2",           "fxai_scene_load_v2",         "凤希AI - 场景数据加载器V2"),
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "FxAiAudioSegmenter": "凤希AI - 音频分段器",
-    "FxAiAudioSegmenterV2": "凤希AI - 音频分段器V2",
-    "FxAIAudioSegmentLoad": "凤希AI - 音频与帧数获取器",
-    "FxAiSceneManager": "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071",
-    "FxAiSceneManagerV2": "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071",
-    "FxAiSceneLoad": "凤希AI - 场景数据加载器",
-    "FxAiSceneLoadV2": "凤希AI - 场景数据加载器V2",
-    "FxAiMultiLineText": "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071",
-    "FxAiMultiLineTextLoad": "凤希AI - 场景提示词加载器",
-    "FxAiImageManager": "凤希AI - 图像管理器 - 群友扫地僧友情参与开发",
-    "FxAiImageManagerV2": "凤希AI - 图像管理器V2",
-    "FxAiLoadImageByIndex": "凤希AI - 图像管理器 - 图片加载",
-	"FxAiPromptGenerator":"凤希AI - 提示词优化 - 本地Ollama",
-	"FxAiSizeConfig":"凤希AI - 宽高设置",
-	"FxAiMultiAudioLoad":"凤希AI - 多音频加载",
-	"FxAiAudioManager":"凤希AI - 音频管理器",
-	"FxAiLoadAudioByIndex":"凤希AI - 音频管理器 - 音频加载",
-	"FxAiImageDownscale":"凤希AI - 图片缩小 - 按倍数",
-	"FxAiPromptManager":"凤希AI - 提示词管理",
-	"FxAiLoadPromptByIndex":"凤希AI - 提示词管理 - 提示词加载",
-	"FxAiVideoGenerator":"凤希AI - 视频生成",
-	"FxAiVideoGeneratorV2":"凤希AI - 视频生成V2",
-	"FxAiVideoMerger":"凤希AI - 视频合并",
-	"FxAiVideoPreview":"凤希AI - 视频预览",
-	"FxAiVideoManager":"凤希AI - 视频管理",
-    "FxAIGeneratorController": "凤希AI - 生成控制器",
-    "FxAiFrameGenerator": "凤希AI - 首尾帧生成器",
-    "FxAiFrameGeneratorV2": "凤希AI - 首尾帧生成器V2",
-    "FxAiMultiPromptEditor": "凤希AI - 分段场景 - 时间轴提示词管理器",
-    "FxAiMultiPromptLoader": "凤希AI - 分段场景 - 时间轴获取器",
-    "FxAiImageSizeConfig": "凤希AI - 设置宽高 - 最大边长",
-    "FxAiIntToFloat": "凤希AI - 整数转小数",
-    "FxAiPromptRelayEncode": "凤希AI - 时序提示词编码器",
-    "FxAiLatentClearReplace": "凤希AI - 潜空间清除与替换",
-    "FxAiLatentGetFrames": "凤希AI - 潜空间获取",
-    "FxAiLatentGetFrameCount": "凤希AI - 潜空间总数",
-}
+    # 图像类
+    ("FxAiImageManager",          "fxai_image_manager",         "凤希AI - 图像管理器 - 群友扫地僧友情参与开发"),
+    ("FxAiImageManagerV2",        "fxai_image_manager_v2",      "凤希AI - 图像管理器V2"),
+    ("FxAiLoadImageByIndex",      "fxai_image_load",            "凤希AI - 图像管理器 - 图片加载"),
+    ("FxAiImageBatchLoad",        "fxai_image_batch_load",      "凤希AI - 图像管理器 - 批量获取"),
+    ("FxAiImageGetSingle",        "fxai_image_get_single",      "凤希AI - 图像管理器 - 获取批量单图"),
+    ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
 
+    # 提示词类
+    ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),
+    ("FxAiPromptManager",         "fxai_prompt_manager",       "凤希AI - 提示词管理"),
+    ("FxAiLoadPromptByIndex",     "fxai_prompt_load",          "凤希AI - 提示词管理 - 提示词加载"),
+    ("FxAiMultiPromptEditor",     "fxai_multi_prompt_editor",  "凤希AI - 分段场景 - 时间轴提示词管理器"),
+    ("FxAiMultiPromptLoader",     "fxai_multi_prompt_loader",  "凤希AI - 分段场景 - 时间轴获取器"),
+    ("FxAiPromptRelayEncode",     "fxai_prompt_relay_encode",  "凤希AI - 时序提示词编码器"),
+
+    # 视频类
+    ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
+    ("FxAiVideoGeneratorV2",      "fxai_video_generator_v2",    "凤希AI - 视频生成V2"),
+    ("FxAiVideoMerger",           "fxai_video_merger",          "凤希AI - 视频合并"),
+    ("FxAiVideoPreview",          "fxai_video_preview",         "凤希AI - 视频预览"),
+    ("FxAiVideoManager",          "fxai_video_manager",         "凤希AI - 视频管理"),
+    ("FxAiVideoLoad",             "fxai_video_load",            "凤希AI - 视频加载"),
+    ("FxAiVideoToVR",             "fxai_video_tovr",            "凤希AI - 视频转VR"),
+
+    # 控制/工具类
+    ("FxAiSizeConfig",            "fxai_size_config",           "凤希AI - 宽高设置"),
+    ("FxAiImageSizeConfig",       "fxai_image_size_config",     "凤希AI - 设置宽高 - 最大边长"),
+    ("FxAiIntToFloat",            "fxai_int_to_float",          "凤希AI - 整数转小数"),
+    ("FxAIGeneratorController",   "fxai_generator_controller",  "凤希AI - 生成控制器"),
+    ("FxAiFrameGenerator",        "fxai_frame_generator",       "凤希AI - 首尾帧生成器"),
+    ("FxAiFrameGeneratorV2",      "fxai_frame_generator_v2",    "凤希AI - 首尾帧生成器V2"),
+
+    # 潜空间类
+    ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),
+    ("FxAiLatentGetFrames",       "fxai_latent_get_frames",     "凤希AI - 潜空间获取"),
+    ("FxAiLatentGetFrameCount",   "fxai_latent_get_frame_count","凤希AI - 潜空间总数"),
+]
+
+# ==============================================
+# 【自动循环注册引擎】无需修改
+# ==============================================
+NODE_CLASS_MAPPINGS = {}
+NODE_DISPLAY_NAME_MAPPINGS = {}
+
+for class_name, module_name, display_name in NODE_REGISTRY:
+    # 动态导入模块
+    module = importlib.import_module(f'.{module_name}', __name__)
+    # 获取类
+    node_class = getattr(module, class_name)
+    # 注册到字典
+    NODE_CLASS_MAPPINGS[class_name] = node_class
+    NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
+
+# Web 扩展目录
 WEB_DIRECTORY = "./js"
 
+# 导出
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

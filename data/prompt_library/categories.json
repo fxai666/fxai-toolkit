@@ -1,0 +1,12 @@
+[
+    {"id": "subject", "name_cn": "主体", "name_en": "Subject", "file": "subject.csv"},
+	{"id": "expression", "name_cn": "表情", "name_en": "Expression", "file": "expression.csv"}
+    {"id": "action", "name_cn": "动作", "name_en": "Action", "file": "action.csv"},
+    {"id": "environment", "name_cn": "场景", "name_en": "Environment", "file": "environment.csv"},
+    {"id": "composition", "name_cn": "构图", "name_en": "Composition", "file": "composition.csv"},
+    {"id": "angle", "name_cn": "视角", "name_en": "Angle", "file": "angle.csv"},
+    {"id": "lighting", "name_cn": "光线", "name_en": "Lighting", "file": "lighting.csv"},
+    {"id": "color", "name_cn": "色彩", "name_en": "Color", "file": "color.csv"},
+    {"id": "style", "name_cn": "风格", "name_en": "Style", "file": "style.csv"},
+    {"id": "quality", "name_cn": "质量", "name_en": "Quality", "file": "quality.csv"}
+]
