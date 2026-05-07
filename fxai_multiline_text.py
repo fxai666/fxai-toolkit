@@ -38,15 +38,11 @@ class FxAiMultiLineText:
         start_idx = min(开始序号, total_lines)
         
         # ===================== 核心逻辑修改 =====================
-        # 规则1：结束序号 <= 开始序号 → 循环次数 = 总行数 - 开始序号
-        if 结束序号 < 开始序号:
-            loop_count = total_lines - start_idx
-        # 规则2：结束序号 > 开始序号 → 循环次数 = 结束序号 - 开始序号
+        if 结束序号 >= 开始序号:
+            loop_count = max(1,结束序号) - 开始序号
         else:
-            loop_count = 结束序号 - 开始序号
+            loop_count = total_lines - start_idx
         
-        # 循环次数不能为负数
-        loop_count = max(1, loop_count)
         # ======================================================
 
         # 始终返回 完整原始数据列表，不截取

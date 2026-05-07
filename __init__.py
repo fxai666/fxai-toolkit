@@ -18,12 +18,19 @@ def install_package(package):
             print(f"[凤希AI音频分段器] 安装 {package} 失败: {e}")
             return False
 
-required_packages = ["pydub"]
+required_packages = ["pydub","soundfile","ffmpeg-python"]
 for pkg in required_packages:
     install_package(pkg)
 
 # ==============================================
-# 【节点注册配置区】以后只需要在这里加一行即可
+# 【关键修复】把当前目录加入搜索路径，解决找不到模块问题
+# ==============================================
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# ==============================================
+# 【节点注册配置区】
 # 格式：(节点类名, 模块文件名, 界面显示名称)
 # ==============================================
 NODE_REGISTRY = [
@@ -36,7 +43,7 @@ NODE_REGISTRY = [
     ("FxAiLoadAudioByIndex",      "fxai_audio_load",            "凤希AI - 音频管理器 - 音频加载"),
 
     # 场景/文本类
-    ("FxAiMultiLineText",         "fxai_multiline_text",       "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
+    ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
     ("FxAiMultiLineTextLoad",     "fxai_multiline_text_load",   "凤希AI - 场景提示词加载器"),
     ("FxAiSceneManager",          "fxai_scene_manager",         "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071"),
     ("FxAiSceneManagerV2",        "fxai_scene_manager_v2",      "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071"),
@@ -53,11 +60,11 @@ NODE_REGISTRY = [
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),
-    ("FxAiPromptManager",         "fxai_prompt_manager",       "凤希AI - 提示词管理"),
-    ("FxAiLoadPromptByIndex",     "fxai_prompt_load",          "凤希AI - 提示词管理 - 提示词加载"),
-    ("FxAiMultiPromptEditor",     "fxai_multi_prompt_editor",  "凤希AI - 分段场景 - 时间轴提示词管理器"),
-    ("FxAiMultiPromptLoader",     "fxai_multi_prompt_loader",  "凤希AI - 分段场景 - 时间轴获取器"),
-    ("FxAiPromptRelayEncode",     "fxai_prompt_relay_encode",  "凤希AI - 时序提示词编码器"),
+    ("FxAiPromptManager",         "fxai_prompt_manager",        "凤希AI - 提示词管理"),
+    ("FxAiLoadPromptByIndex",     "fxai_prompt_load",           "凤希AI - 提示词管理 - 提示词加载"),
+    ("FxAiMultiPromptEditor",     "fxai_multi_prompt_editor",   "凤希AI - 分段场景 - 时间轴提示词管理器"),
+    ("FxAiMultiPromptLoader",     "fxai_multi_prompt_loader",   "凤希AI - 分段场景 - 时间轴获取器"),
+    ("FxAiPromptRelayEncode",     "fxai_prompt_relay_encode",   "凤希AI - 时序提示词编码器"),
 
     # 视频类
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
@@ -83,21 +90,21 @@ NODE_REGISTRY = [
 ]
 
 # ==============================================
-# 【自动循环注册引擎】无需修改
+# 【自动注册引擎】带错误捕获，绝对不报错
 # ==============================================
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
 for class_name, module_name, display_name in NODE_REGISTRY:
-    # 动态导入模块
-    module = importlib.import_module(f'.{module_name}', __name__)
-    # 获取类
-    node_class = getattr(module, class_name)
-    # 注册到字典
-    NODE_CLASS_MAPPINGS[class_name] = node_class
-    NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
+    try:
+        module = importlib.import_module(module_name)
+        node_class = getattr(module, class_name)
+        NODE_CLASS_MAPPINGS[class_name] = node_class
+        NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
+    except Exception as e:
+        print(f"[凤希AI] 节点加载失败: {class_name} → {str(e)}")
 
-# Web 扩展目录
+# Web 扩展
 WEB_DIRECTORY = "./js"
 
 # 导出
