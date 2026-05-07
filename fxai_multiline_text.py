@@ -34,17 +34,20 @@ class FxAiMultiLineText:
             print(f"解析lines_data失败: {e}")
 
         total_lines = len(lines)
-        # 逻辑：结束序号为0 → 取全部数据
-        if 结束序号 == 0:
-            selected_lines = lines
-            loop_count = total_lines
+        # 安全处理：开始序号不能超过总行数
+        start_idx = min(开始序号, total_lines)
+        
+        # ===================== 核心逻辑修改 =====================
+        # 规则1：结束序号 <= 开始序号 → 循环次数 = 总行数 - 开始序号
+        if 结束序号 < 开始序号:
+            loop_count = total_lines - start_idx
+        # 规则2：结束序号 > 开始序号 → 循环次数 = 结束序号 - 开始序号
         else:
-            # 截取 开始序号 ~ 结束序号（都包含自身）
-            # 防止序号越界
-            start = max(0, 开始序号)
-            end = min(结束序号, total_lines - 1)
-            selected_lines = lines[start:end+1]  # 切片不包含end，所以+1
-            # 循环次数 = 结束 - 开始 + 1（包含两端）
-            loop_count = end - start + 1
+            loop_count = 结束序号 - 开始序号
+        
+        # 循环次数不能为负数
+        loop_count = max(1, loop_count)
+        # ======================================================
 
-        return (selected_lines, loop_count, 开始序号)
+        # 始终返回 完整原始数据列表，不截取
+        return (lines, loop_count, 开始序号)
