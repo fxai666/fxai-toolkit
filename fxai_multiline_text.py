@@ -42,4 +42,4 @@ class FxAiMultiLineText:
             loop_count = 1
 
         loop_count = max(loop_count, 0)
-        return (lines, loop_count, start_idx)
+        return (lines, loop_count, max(start_idx - 1,0))
