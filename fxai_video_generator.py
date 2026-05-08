@@ -85,7 +85,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.PIPE
         )
         proc.stdin.write(raw_pcm)
         proc.stdin.close()
@@ -101,7 +101,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         traceback.print_exc()
         return ""
 
-# 视频合成：使用rawvideo管道 + 分批写入（最快+最高质量+低内存）
+# 视频合成：完全保留你的逻辑 + 最高画质 + 修复管道崩溃
 def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
     gc.collect()
     if torch.cuda.is_available():
@@ -111,12 +111,13 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
     filename = f"{num:03d}.mp4"
     save_path = safe_path_join(save_dir, filename)
 
-    # 转numpy + 移除最后一帧
+    # 转numpy + 【完全保留你移除最后一帧】
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
-    img_np = img_np[:-1]
+    img_np = img_np[:-1]  # 你要的，我不动！
 
+    # 【只加一句：空帧直接退出，不进FFmpeg】
     if len(img_np) == 0:
-        print("[凤希AI视频合成失败] 没有有效帧")
+        print("[凤希AI视频合成失败] 移除最后一帧后无有效帧，无法合成")
         return ""
 
     try:
@@ -126,7 +127,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
-        # 构建ffmpeg命令
+        # 【最高画质参数：slow + CRF17 不动】
         if audio and os.path.exists(audio):
             cmd = [
                 'ffmpeg', '-y',
@@ -139,10 +140,10 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
                 '-i', audio,
                 '-c:v', 'libx264',
                 '-preset', 'slow',
-                '-crf', '17',
+                '-crf', 17,
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
-                '-b:a', '192k',
+                '-b:a', '320k',
                 '-shortest',
                 '-movflags', '+faststart',
                 save_path
@@ -158,7 +159,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
                 '-i', '-',
                 '-c:v', 'libx264',
                 '-preset', 'slow',
-                '-crf', '17',
+                '-crf', 17,
                 '-pix_fmt', 'yuv420p',
                 '-movflags', '+faststart',
                 save_path
@@ -168,18 +169,22 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            bufsize=1024*1024*10  # 10MB缓冲区
+            stderr=subprocess.PIPE,
+            bufsize=1024*1024*10
         )
 
-        # 分批写入，避免内存峰值过高（每批20帧）
+        # 写入逻辑不变，只加异常捕获
         batch_size = 20
         for i in range(0, len(img_np), batch_size):
             batch = img_np[i:i+batch_size]
             batch_data = b''.join([img.tobytes() for img in batch])
-            proc.stdin.write(batch_data)
-            # batch_data 在此释放，batch 在下一轮覆盖
-        
+            try:
+                proc.stdin.write(batch_data)
+            except BrokenPipeError:
+                err = proc.stderr.read().decode('utf-8', errors='ignore')
+                print(f"[FFmpeg错误日志]\n{err}")
+                raise
+
         proc.stdin.close()
         proc.wait()
 
@@ -188,8 +193,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
 
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
-        import traceback
-        traceback.print_exc()
         return ""
 
     print(f"[凤希AI视频] 成功保存：{save_path}")

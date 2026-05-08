@@ -103,12 +103,11 @@ class FxAiPromptGenerator:
                 "system": 系统提示词,
                 "prompt": 用户提示词,
                 "images": images,
-                "stream": False
+                "stream": False,
+				"think":False
             })
-            print(f"✅ 凤希AI提示词优化：{resp}")
             if resp.status_code == 200:
                 res_text = resp.json().get("response", "").strip()
-                print(f"✅ 凤希AI提示词优化：{res_text}")
                 if res_text:
                     final_output = res_text
 
