@@ -11,9 +11,6 @@ try:
 except:
     PromptServer = None
 
-# 默认空提示
-_DEFAULT_MODEL = "huihui_ai/qwen3.5-abliterated:9b"
-
 # ------------------------------
 # 异步接口
 # ------------------------------
@@ -26,10 +23,10 @@ async def api_get_ollama_models(request):
                 if resp.status == 200:
                     data = await resp.json()
                     models = [m["name"] for m in data.get("models", [])]
-                    return web.json_response({"models": models if models else [_DEFAULT_MODEL]})
+                    return web.json_response({"models": models if models else []})
     except:
         pass
-    return web.json_response({"models": [_DEFAULT_MODEL]})
+    return web.json_response({"models": []})
 
 if PromptServer:
     try:
@@ -49,7 +46,7 @@ class FxAiPromptGenerator:
             "required": {
                 "是否开启提示词优化": ("BOOLEAN", {"default": False,"tooltip":"当关闭时，原样输出提示词"}),
                 "API主机地址": ("STRING", {"default": "http://127.0.0.1:11434"}),
-                "模型选择": ([_DEFAULT_MODEL], {"default": _DEFAULT_MODEL}),
+                "模型选择": ([], {"default": ""}),
                 "推理后释放资源": ("BOOLEAN", {"default": True}),
                 "系统提示词": ("STRING", {
                     "multiline": True
@@ -80,7 +77,7 @@ class FxAiPromptGenerator:
            return (用户提示词, 分段时长)
 
         if 模型选择 == "":
-            return ("⚠️ 请先点击【刷新模型】加载 Ollama 模型",)
+            return ("⚠️ 请先点击【刷新模型】加载 Ollama 模型", 分段时长)
 
         images = []
         if 图片一 is not None:
@@ -95,7 +92,7 @@ class FxAiPromptGenerator:
 
         try:
             if 分段时长 > 0:
-                系统提示词 = f"请您根据要求生成一段总长度{分段时长}秒的视频脚本；{系统提示词}"
+                系统提示词 = f"待生成的视频长度信息：{分段时长}秒；{系统提示词}"
 
             # 模型参数使用 模型选择
             resp = requests.post(f"{API主机地址}/api/generate", json={

@@ -114,4 +114,4 @@ class FxAiImageBatchLoad:
             raise RuntimeError("没有成功加载任何图片")
         
         # 唯一修复：包一层 tuple 禁止ComfyUI自动合并
-        return ((images,), (masks,), total_images)
+        return ((images,), (masks,), len(images))

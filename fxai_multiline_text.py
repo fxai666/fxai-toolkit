@@ -15,7 +15,7 @@ class FxAiMultiLineText:
         }
 
     RETURN_TYPES = ("LIST", "INT", "INT")
-    RETURN_NAMES = ("提示词数据", "循环次数", "开始序号")
+    RETURN_NAMES = ("提示词数据", "循环次数", "开始索引")
     FUNCTION = "execute"
     CATEGORY = "凤希AI/图片"
 

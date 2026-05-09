@@ -51,7 +51,4 @@ class FxAiImageGetSingle:
         height = selected_img.shape[1]
         width = selected_img.shape[2]
 
-        print(f"✅ 输入类型: {'列表' if isinstance(图片列表, list) else '张量'}")
-        print(f"✅ 选取索引: {idx} | 输出形状: {selected_img.shape}")
-
         return (selected_img, selected_mask, width, height)
