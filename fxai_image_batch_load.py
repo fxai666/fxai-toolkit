@@ -69,6 +69,7 @@ class FxAiImageBatchLoad:
             if ':' in s:  # 支持范围格式如 "0:5"
                 try:
                     start, end = map(int, s.split(':'))
+                    end = end + 1
                     if start < 0:
                         start = 0
                     if end > total_images:

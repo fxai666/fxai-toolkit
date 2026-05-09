@@ -78,6 +78,7 @@ async def get_file_list(request):
     files = list_images(target_dir)
     return web.json_response({"files": files, "total": len(files)})
 
+# ===================== 【唯一修改的地方：仅这里！】 =====================
 async def apply_changes(request):
     try:
         data = await request.json()
@@ -85,45 +86,35 @@ async def apply_changes(request):
         ordered_filenames = data.get("ordered_filenames", [])
         target_dir = get_image_dir(subdir)
 
-        existing_files = list_images(target_dir)
-        existing_set = set(existing_files)
-        
-        # =============== 【修复】空列表不执行删除，避免空文件夹删文件 ===============
         if not ordered_filenames:
-            return web.json_response({"files": existing_files, "success": True, "msg": "无需修改"})
-        
-        safe_ordered = [f for f in ordered_filenames if f in existing_set]
+            return web.json_response({"files": list_images(target_dir), "success": True, "msg": "无需修改"})
 
-        # 只删除不在新列表里的文件
-        to_delete = existing_set - set(safe_ordered)
-        for f in to_delete:
-            fp = safe_path_join(target_dir, f)
-            if fp:
-                os.remove(fp)
-
-        temp_map = []
-        for idx, old_name in enumerate(safe_ordered):
-            old_fp = safe_path_join(target_dir, old_name)
-            if not old_fp or not os.path.exists(old_fp):
+        # 第一步：直接加序号前缀，绝对不重名
+        for idx, old_name in enumerate(ordered_filenames):
+            old_path = safe_path_join(target_dir, old_name)
+            if not old_path or not os.path.exists(old_path):
                 continue
-            
-            ext = old_name.split('.')[-1].lower()
-            new_name = f"{idx:03d}.{ext}"
-            temp_name = f"_tmp_{idx}_{os.urandom(4).hex()}_{old_name}"
-            temp_fp = safe_path_join(target_dir, temp_name)
-            
-            os.rename(old_fp, temp_fp)
-            temp_map.append((temp_fp, new_name))
+            temp_name = f"{idx:03d}_{old_name}"
+            temp_path = safe_path_join(target_dir, temp_name)
+            os.rename(old_path, temp_path)
 
-        for temp_fp, new_name in temp_map:
-            final_fp = safe_path_join(target_dir, new_name)
-            if temp_fp and final_fp:
-                os.rename(temp_fp, final_fp)
+        # 第二步：精简成 000.png
+        for idx, old_name in enumerate(ordered_filenames):
+            temp_name = f"{idx:03d}_{old_name}"
+            temp_path = safe_path_join(target_dir, temp_name)
+            if not temp_path or not os.path.exists(temp_path):
+                continue
+            # 直接取后缀，不解析、不复杂处理
+            ext = old_name.split(".")[-1]
+            final_name = f"{idx:03d}.{ext}"
+            final_path = safe_path_join(target_dir, final_name)
+            os.rename(temp_path, final_path)
 
         new_files = list_images(target_dir)
         return web.json_response({"files": new_files, "success": True})
     except Exception as e:
         return web.json_response({"error": f"应用失败：{str(e)}"}, status=500)
+# ===================== 【修改结束】 =====================
 
 async def upload_image_custom(request):
     try:
@@ -156,7 +147,6 @@ async def upload_image_custom(request):
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
-# ====================== 【仅新增：实时删除接口】 ======================
 async def delete_image(request):
     try:
         subdir = request.query.get("subdir", "")
@@ -176,7 +166,7 @@ async def delete_image(request):
     except Exception as e:
         return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
 
-# 注册路由（只加了最后一行删除路由，其他完全不动）
+# 注册路由
 try:
     server.PromptServer.instance.routes.get("/fxai/image/v2/preview")(get_preview)
     server.PromptServer.instance.routes.get("/fxai/image/v2/list")(get_file_list)
@@ -215,7 +205,6 @@ class FxAiImageManagerV2:
             image_np = (image_tensor.cpu().numpy() * 255).astype(np.uint8)
             for i in range(image_np.shape[0]):
                 img = Image.fromarray(image_np[i])
-                # =============== 空文件夹 → start_num=0 → 000.png，正常 ===============
                 filename = f"{start_num + i:03d}.png"
                 save_path = os.path.join(save_dir, filename)
                 img.save(save_path, format="PNG")
