@@ -136,7 +136,7 @@ async def upload_image_custom(request):
         if ext not in ['png', 'jpg', 'jpeg', 'webp']:
             ext = 'png'
         
-        # =============== 空文件夹 → next_num=0 → 生成 000.png，完全正常 ===============
+        # =============== 网页上传永远自动计数，不受文件名序号影响 ===============
         new_filename = f"{next_num:03d}.{ext}"
         save_path = safe_path_join(target_dir, new_filename)
 
@@ -187,6 +187,7 @@ class FxAiImageManagerV2:
             "optional":{
                 "图片": ("IMAGE", {"forceInput": True}),
                 "刷新标记": ("INT", {"forceInput": True}),
+                "文件名序号": ("INT", {"forceInput": True}),
             }
         }
 
@@ -195,12 +196,17 @@ class FxAiImageManagerV2:
     FUNCTION = "run"
     CATEGORY = "凤希AI/图片"
 
-    def save_tensor_image(self, image_tensor, save_dir):
+    def save_tensor_image(self, image_tensor, save_dir, custom_num=None):
         if image_tensor is None or not isinstance(image_tensor, torch.Tensor):
             return
         try:
             os.makedirs(save_dir, exist_ok=True)
-            start_num = get_next_number(save_dir)
+            
+            # 仅节点传入图片张量时：有文件名序号就用，没有就自动计数
+            if custom_num is not None and isinstance(custom_num, int) and custom_num >= 0:
+                start_num = custom_num
+            else:
+                start_num = get_next_number(save_dir)
             
             image_np = (image_tensor.cpu().numpy() * 255).astype(np.uint8)
             for i in range(image_np.shape[0]):
@@ -212,11 +218,12 @@ class FxAiImageManagerV2:
         except Exception as e:
             print(f"[凤希AI图片资源管理] 保存失败：{e}")
 
-    def run(self, 目录="", 图片=None, 刷新标记=0):
+    def run(self, 目录="", 图片=None, 刷新标记=0,文件名序号=None):
         target_dir = get_image_dir(目录)
         
+        # 只有左侧输入图片时，才使用文件名序号
         if 图片 is not None:
-            self.save_tensor_image(图片, target_dir)
+            self.save_tensor_image(图片, target_dir, custom_num=文件名序号)
         
         files = list_images(target_dir)
         
