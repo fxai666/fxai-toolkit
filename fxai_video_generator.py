@@ -50,7 +50,7 @@ def get_fixed_temp_audio_path():
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
 
-# 音频张量转WAV
+# 【完全复用V2的音频转换逻辑】增加traceback、关闭ffmpeg stderr输出
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     try:
         waveform = audio_dict["waveform"]
@@ -81,11 +81,12 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             temp_path
         ]
         
+        # V2优化：stdout/stderr都重定向到DEVNULL，避免无关输出
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE
+            stderr=subprocess.DEVNULL
         )
         proc.stdin.write(raw_pcm)
         proc.stdin.close()
@@ -97,9 +98,12 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         return temp_path
     except Exception as e:
         print(f"[凤希AI FFmpeg音频转换失败] {str(e)}")
+        # V2优化：增加堆栈跟踪，方便定位问题
+        import traceback
+        traceback.print_exc()
         return ""
 
-# 视频合成：修复所有报错
+# 【核心修正】复用V2的视频合成逻辑（音频处理、参数、异常捕获）
 def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
     gc.collect()
     if torch.cuda.is_available():
@@ -109,24 +113,24 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
     filename = f"{num:03d}.mp4"
     save_path = safe_path_join(save_dir, filename)
 
-    # 转numpy
+    # V2优化：通用的过渡帧移除逻辑（替代原固定[:-1]）
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
-    img_np = img_np[:-1]
+    total_len = img_np.shape[0]
+    img_np = img_np[: total_len - 1]
 
     if len(img_np) == 0:
-        print("[凤希AI视频合成失败] 移除最后一帧后无有效帧，无法合成")
+        print("[凤希AI视频合成失败] 没有有效帧")
         return ""
 
     try:
         height, width = img_np[0].shape[0], img_np[0].shape[1]
         
-        # 音频处理
-        audio_path = ""
+        # V2优化：音频处理逻辑简化（直接赋值，而非单独定义audio_path）
         if isinstance(audio, dict) and "waveform" in audio:
-            audio_path = audio_tensor_to_wav_ffmpeg(audio)
+            audio = audio_tensor_to_wav_ffmpeg(audio)
 
-        # FFmpeg命令
-        if audio_path and os.path.exists(audio_path):
+        # 构建ffmpeg命令（复用V2的参数：如crf用字符串、音频码率192k等）
+        if audio and os.path.exists(audio):
             cmd = [
                 'ffmpeg', '-y',
                 '-f', 'rawvideo',
@@ -135,13 +139,13 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
                 '-pix_fmt', 'rgb24',
                 '-r', str(fps),
                 '-i', '-',
-                '-i', audio_path,
+                '-i', audio,
                 '-c:v', 'libx264',
                 '-preset', 'slow',
-                '-crf', 17,
+                '-crf', '17',  # V2修正：字符串格式（避免int可能的隐式转换问题）
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
-                '-b:a', '320k',
+                '-b:a', '192k',  # V2调整：更合理的音频码率
                 '-shortest',
                 '-movflags', '+faststart',
                 save_path
@@ -157,21 +161,22 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
                 '-i', '-',
                 '-c:v', 'libx264',
                 '-preset', 'slow',
-                '-crf', 17,
+                '-crf', '17',
                 '-pix_fmt', 'yuv420p',
                 '-movflags', '+faststart',
                 save_path
             ]
 
+        # V2优化：stdout/stderr都重定向，避免冗余输出
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             bufsize=1024*1024*10
         )
 
-        # 批量写入
+        # 分批写入，降低内存峰值（V2逻辑）
         batch_size = 20
         for i in range(0, len(img_np), batch_size):
             batch = img_np[i:i+batch_size]
@@ -181,17 +186,19 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
         proc.stdin.close()
         proc.wait()
 
-        # 视频已生成，直接返回路径
-        print(f"[凤希AI视频] 成功保存：{save_path}")
-        return save_path
+        # V2新增：检查ffmpeg返回码，主动抛出错误
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
 
-    except BrokenPipeError:
-        # FFmpeg正常结束时的常见无害警告
-        print(f"[凤希AI视频] 已完成写入（管道关闭）：{save_path}")
-        return save_path
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
+        # V2优化：增加堆栈跟踪
+        import traceback
+        traceback.print_exc()
         return ""
+
+    print(f"[凤希AI视频] 成功保存：{save_path}")
+    return save_path
 
 class FxAiVideoGenerator:
     @classmethod
@@ -223,7 +230,7 @@ class FxAiVideoGenerator:
             save_dir=target_dir,
             fps=帧率FPS,
             custom_num=视频序号,
-            audio=音频
+            audio=音频,
         )
         
         return (图片序列, video_path, target_dir)
