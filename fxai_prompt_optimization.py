@@ -11,6 +11,7 @@ try:
 except:
     PromptServer = None
 
+default_modes = ""
 # ------------------------------
 # 异步接口
 # ------------------------------
@@ -23,10 +24,10 @@ async def api_get_ollama_models(request):
                 if resp.status == 200:
                     data = await resp.json()
                     models = [m["name"] for m in data.get("models", [])]
-                    return web.json_response({"models": models if models else []})
+                    return web.json_response({"models": models if models else [default_modes]})
     except:
         pass
-    return web.json_response({"models": []})
+    return web.json_response({"models": [default_modes]})
 
 if PromptServer:
     try:
@@ -46,7 +47,7 @@ class FxAiPromptGenerator:
             "required": {
                 "是否开启提示词优化": ("BOOLEAN", {"default": False,"tooltip":"当关闭时，原样输出提示词"}),
                 "API主机地址": ("STRING", {"default": "http://127.0.0.1:11434"}),
-                "模型选择": ([""], {"default": ""}),
+                "模型选择": ([default_modes], {"default": default_modes}),
                 "推理后释放资源": ("BOOLEAN", {"default": True}),
                 "系统提示词": ("STRING", {
                     "multiline": True
