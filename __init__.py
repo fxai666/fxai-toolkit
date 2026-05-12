@@ -95,7 +95,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 
 for class_name, module_name, display_name in NODE_REGISTRY:
     try:
-        print(f"[凤希AI] 正在注册节点: {class_name} - 进Q群与更多的群友学习：775649071")
+        print(f"[凤希AI] 正在加载 {display_name} 节点 - 进Q群与更多的群友学习：775649071")
         module = importlib.import_module(module_name)
         node_class = getattr(module, class_name)
         NODE_CLASS_MAPPINGS[class_name] = node_class
