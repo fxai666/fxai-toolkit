@@ -175,7 +175,6 @@ try:
     server.PromptServer.instance.routes.get("/fxai/image/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxai/image/apply")(apply_changes)
     server.PromptServer.instance.routes.post("/fxai/image/upload")(upload_image_custom)
-    print("✅ 凤希AI图片资源管理器已就绪 Q群：775649071")
 except Exception as e:
     print(f"❌ 凤希AI图片资源管理器启动失败：{e}")
 

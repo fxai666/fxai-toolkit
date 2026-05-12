@@ -98,7 +98,6 @@ try:
     server.PromptServer.instance.routes.get("/fxai/prompt/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxai/prompt/save_manual")(save_manual_prompt)
     server.PromptServer.instance.routes.get("/fxai/prompt/delete")(delete_prompt)
-    print("✅ 凤希AI提示词资源管理器已就绪 Q群：775649071")
 except Exception as e:
     print(f"❌ 凤希AI提示词资源管理器启动失败：{e}")
 
