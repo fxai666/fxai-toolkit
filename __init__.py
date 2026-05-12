@@ -69,6 +69,7 @@ NODE_REGISTRY = [
     # 视频类
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
     ("FxAiVideoGeneratorV2",      "fxai_video_generator_v2",    "凤希AI - 视频生成V2"),
+    ("FxAiVideoGeneratorV3",      "fxai_video_generator_v3",    "凤希AI - 视频生成V3"),
     ("FxAiVideoMerger",           "fxai_video_merger",          "凤希AI - 视频合并"),
     ("FxAiVideoPreview",          "fxai_video_preview",         "凤希AI - 视频预览"),
     ("FxAiVideoManager",          "fxai_video_manager",         "凤希AI - 视频管理"),
