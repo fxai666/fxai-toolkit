@@ -165,7 +165,6 @@ try:
     server.PromptServer.instance.routes.get("/fxai/audio/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxai/audio/apply")(apply_changes)
     server.PromptServer.instance.routes.post("/fxai/audio/upload")(upload_audio_custom)
-    print("✅ 凤希AI音频资源管理器已就绪")
 except Exception as e:
     print(f"❌ 启动失败：{e}")
 

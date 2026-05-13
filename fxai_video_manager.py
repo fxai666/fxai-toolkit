@@ -212,7 +212,6 @@ try:
     server.PromptServer.instance.routes.post("/fxai/video/apply")(apply_changes)
     server.PromptServer.instance.routes.post("/fxai/video/upload")(upload_video_custom)
     server.PromptServer.instance.routes.get("/fxai/video/delete")(delete_single_video)
-    print("✅ 凤希AI视频资源管理器已就绪")
 except Exception as e:
     print(f"❌ 视频管理器启动失败：{e}")
 

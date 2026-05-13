@@ -198,7 +198,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     defaultValue = defaultValue || "";
     defaultDuration = defaultDuration || 15;
     defaultAudioNo = defaultAudioNo ?? -1;
-    defaultAudioStart = defaultAudioStart ?? 0; // 新增：音频开始默认值
+    defaultAudioStart = defaultAudioStart ?? 0; 
     defaultImgNo = defaultImgNo ?? -1;
     defaultTailNeedle = defaultTailNeedle ?? -1;
     defaultTransition = defaultTransition ?? 1;
@@ -474,10 +474,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     };
 
     delBtn.onclick = function() {
-        if (node.lines.length <= 1) {
-            alert("至少保留一行文本");
-            return;
-        }
         removeLine(node, item);
     };
 
