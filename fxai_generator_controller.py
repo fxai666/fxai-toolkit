@@ -38,7 +38,7 @@ class FxAIGeneratorController:
                 "场景分段时长": ("LIST", {"forceInput": True}),
                 "音频分段时长": ("LIST", {"forceInput": True}),
                 "过渡帧数": ("INT", {"default": 9, "min": 1,"step":8}),
-                "采样次数": ("INT", {"default": 1, "min": 1,"step":1}),
+                "采样次数": ("INT", {"default": 1, "min": 1,"max":2,"step":1}),
             }
         }
 
@@ -62,14 +62,9 @@ class FxAIGeneratorController:
             return ([], 0, 1, 帧率, 最终宽度, 最终高度, 0, 过渡帧数, 最终宽度//2, 最终高度//2)
 
         开始索引 = max(0, min(开始索引, 分段数量 - 1))
-
-        if 结束索引 > 0:
-           结束索引 = 结束索引
-        else:
-           结束索引 = 分段数量
-
-        结束索引 = max(开始索引, 结束索引)
-
-        循环数 = max(结束索引 - 开始索引,0) + 1
+        
+        循环数 = 分段数量 - 开始索引
+        if 结束索引 > 0 and 结束索引 >= 开始索引:
+           循环数 = max(结束索引 - 开始索引 + 1,1)
 
         return (分段时长, 开始索引, 循环数, 帧率, 最终宽度, 最终高度,分段数量,过渡帧数,最终宽度//2,最终高度//2)

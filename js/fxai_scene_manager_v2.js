@@ -29,7 +29,7 @@ app.registerExtension({
             this.scrollContainer.style.height = "100%";
             this.scrollContainer.style.overflowY = "auto";
             this.scrollContainer.style.overflowX = "hidden";
-            this.scrollContainer.style.minWidth = "500px";
+            this.scrollContainer.style.minWidth = "800px";
             this.scrollContainer.style.margin = "5px 0";
             this.scrollContainer.style.paddingRight = "5px";
             this.scrollContainer.style.boxSizing = "border-box";
@@ -198,7 +198,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     defaultValue = defaultValue || "";
     defaultDuration = defaultDuration || 15;
     defaultAudioNo = defaultAudioNo ?? -1;
-    defaultAudioStart = defaultAudioStart ?? 0; 
+    defaultAudioStart = defaultAudioStart ?? 0; // 新增：音频开始默认值
     defaultImgNo = defaultImgNo ?? -1;
     defaultTailNeedle = defaultTailNeedle ?? -1;
     defaultTransition = defaultTransition ?? 1;

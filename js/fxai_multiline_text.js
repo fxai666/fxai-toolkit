@@ -31,7 +31,7 @@ app.registerExtension({
             this.scrollContainer.style.height = "100%";
             this.scrollContainer.style.overflowY = "auto";
             this.scrollContainer.style.overflowX = "hidden";
-            this.scrollContainer.style.minWidth = "500px";
+            this.scrollContainer.style.minWidth = "800px";
             this.scrollContainer.style.margin = "5px 0";
             this.scrollContainer.style.paddingRight = "5px";
             this.scrollContainer.style.boxSizing = "border-box";
