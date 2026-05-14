@@ -28,7 +28,7 @@ class FxAIGeneratorController:
             "required": {
                 "启用场景分段": ("BOOLEAN", {"default": False}),
                 "开始索引": ("INT", {"default": 0, "min": 0}),
-                "结束索引": ("INT", {"default": 0, "min": 0}),
+                "结束索引": ("INT", {"default": -1, "min": -1}),
                 "帧率": ("INT", {"default": 24, "min": 1}),
                 "宽度": ("INT", {"default": 960, "min": 544, "step": 2}),
                 "高度": ("INT", {"default": 544, "min": 544, "step": 2}),
@@ -64,7 +64,7 @@ class FxAIGeneratorController:
         开始索引 = max(0, min(开始索引, 分段数量 - 1))
         
         循环数 = 分段数量 - 开始索引
-        if 结束索引 > 0 and 结束索引 >= 开始索引:
+        if 结束索引 > -1 and 结束索引 >= 开始索引:
            循环数 = max(结束索引 - 开始索引 + 1,1)
 
         return (分段时长, 开始索引, 循环数, 帧率, 最终宽度, 最终高度,分段数量,过渡帧数,最终宽度//2,最终高度//2)
