@@ -29,6 +29,9 @@ class FxAiSceneManagerV2:
         except:
             lines = []
 
+        if not isinstance(lines, list) or len(lines) == 0:
+            lines = [[15.0, "", 0, 0.0, -1, -1, 1]]
+
         total_count = len(lines)
         scene_data = []
         segment_durations = []

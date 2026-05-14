@@ -6,6 +6,7 @@ import folder_paths
 import subprocess
 import torch
 import numpy as np
+import gc
 
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
@@ -159,7 +160,6 @@ class FxAiVideoMerger:
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
 
-    # ✅ 修复：参数顺序必须和 INPUT_TYPES 完全一致
     def run(self, 源视频文件夹路径, 文件数量=1, 名称前缀="fxai_", 音频=None, 刷新标记=None):
         time_str = time.strftime("%Y%m%d_%H%M%S")
         final_name = f"{名称前缀}{time_str}"
@@ -168,5 +168,6 @@ class FxAiVideoMerger:
             return ("",)
         
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
+        gc.collect()
         print(f"[凤希AI] 视频生成完毕。")
         return (video_path or "",)
