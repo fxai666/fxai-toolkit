@@ -2,6 +2,8 @@ import subprocess
 import sys
 import importlib
 import os
+from aiohttp import web
+from server import PromptServer
 
 def install_package(package):
     try:
@@ -109,3 +111,20 @@ WEB_DIRECTORY = "./js"
 
 # 导出
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
+
+# 加载 JS
+js_file = os.path.join(os.path.dirname(__file__), "js/bottom_preview.js")
+with open(js_file, "r", encoding="utf-8") as f:
+    js_content = f.read()
+
+@PromptServer.instance.routes.get("/fxai/image/bottom/preview.js")
+async def fxai_bottom_preview(request):
+    return web.Response(text=js_content, content_type="application/javascript")
+
+try:
+    PromptServer.instance.add_extra_js("/fxai/image/bottom/preview.js")
+except:
+    try:
+        PromptServer.instance.add_extra_code('<script src="/fxai/image/bottom/preview.js"></script>')
+    except:
+        pass
