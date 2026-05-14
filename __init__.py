@@ -83,6 +83,7 @@ NODE_REGISTRY = [
     ("FxAIGeneratorController",   "fxai_generator_controller",  "凤希AI - 生成控制器"),
     ("FxAiFrameGenerator",        "fxai_frame_generator",       "凤希AI - 首尾帧生成器"),
     ("FxAiFrameGeneratorV2",      "fxai_frame_generator_v2",    "凤希AI - 首尾帧生成器V2"),
+    ("FxAiStartEndIndex",         "fxai_start_end_index",       "凤希AI - 循环控制器"),
 
     # 潜空间类
     ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),

@@ -26,8 +26,8 @@ class FxAiLoadImageByIndex:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "STRING", "INT")
-    RETURN_NAMES = ("图片", "遮罩", "当前图片路径", "总图片数量")
+    RETURN_TYPES = ("IMAGE", "MASK", "STRING", "INT", "INT", "INT")
+    RETURN_NAMES = ("图片", "遮罩", "当前图片路径", "总图片数量","宽度","高度")
     FUNCTION = "load_image"
     CATEGORY = "凤希AI/图片"
 
@@ -53,4 +53,4 @@ class FxAiLoadImageByIndex:
         h, w = image_tensor.shape[1], image_tensor.shape[2]
         mask_tensor = torch.ones((1, h, w), dtype=torch.float32)
         
-        return (image_tensor, mask_tensor, target_path, total_images)
+        return (image_tensor, mask_tensor, target_path, total_images,w,h)
