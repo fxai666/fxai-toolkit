@@ -113,7 +113,7 @@ WEB_DIRECTORY = "./js"
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
 
 # 加载 JS
-js_file = os.path.join(os.path.dirname(__file__), "js/bottom_preview.js")
+js_file = os.path.join(os.path.dirname(__file__), "js/faxi_bottom_preview.js")
 with open(js_file, "r", encoding="utf-8") as f:
     js_content = f.read()
 
