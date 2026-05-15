@@ -1,7 +1,7 @@
 import os
 import torch
 import cv2
-import ffmpeg
+import subprocess
 import numpy as np
 from PIL import Image
 from typing import Tuple, List
@@ -19,8 +19,19 @@ def decode_video_frames(
     start_second: float = 0.0,
     end_second: float = 0.0
 ) -> Tuple[List[np.ndarray], float, Tuple[int, int]]:
-    probe = ffmpeg.probe(video_path)
-    video_stream = next((s for s in probe['streams'] if s['codec_type'] == 'video'), None)
+    # ===================== 这里改用系统 ffmpeg =====================
+    # 1. 获取视频信息（用 cmd 版 ffmpeg）
+    cmd_probe = [
+        'ffmpeg', '-i', video_path,
+        '-hide_banner', '-loglevel', 'error',
+        '-show_streams', '-select_streams', 'v',
+        '-of', 'json'
+    ]
+    result = subprocess.run(cmd_probe, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    import json
+    probe = json.loads(result.stdout)
+    video_stream = probe['streams'][0] if probe.get('streams') else None
+
     if not video_stream:
         raise RuntimeError("无视频流")
 
@@ -35,19 +46,29 @@ def decode_video_frames(
     else:
         end = min(end_second, duration)
 
-    cmd = (
-        ffmpeg
-        .input(video_path, ss=start, to=end)
-        .output('pipe:', format='rawvideo', pix_fmt='bgr24', vsync='0')
-        .global_args('-hide_banner', '-loglevel', 'error')
-        .run_async(pipe_stdout=True)
-    )
+    # 2. 解码帧（直接调用系统 ffmpeg）
+    cmd_decode = [
+        'ffmpeg',
+        '-ss', str(start),
+        '-i', video_path,
+        '-to', str(end),
+        '-f', 'rawvideo',
+        '-pix_fmt', 'bgr24',
+        '-vsync', '0',
+        '-hide_banner',
+        '-loglevel', 'error',
+        '-'
+    ]
+
+    cmd = subprocess.Popen(cmd_decode, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # ==============================================================
 
     frames = []
     frame_size = height * width * 3
     while True:
         b = cmd.stdout.read(frame_size)
-        if not b: break
+        if not b:
+            break
         frame = np.frombuffer(b, dtype=np.uint8).reshape((height, width, 3))
         frames.append(frame)
     cmd.wait()

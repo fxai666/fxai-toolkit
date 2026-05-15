@@ -104,7 +104,7 @@ for class_name, module_name, display_name in NODE_REGISTRY:
         NODE_CLASS_MAPPINGS[class_name] = node_class
         NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
     except Exception as e:
-        print(f"[凤希AI] 节点加载失败: {class_name} → {str(e)}")
+        print(f"❌[凤希AI] 节点加载失败: {class_name} → {str(e)}")
 
 # Web 扩展
 WEB_DIRECTORY = "./js"
