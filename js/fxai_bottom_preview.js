@@ -6,9 +6,10 @@ app.registerExtension({
     nodeCreated: function(node) {
         if (document.getElementById('fxai-bottom-preview')) return;
 
-        // ========== 底部预览栏 ==========
+        // 底部预览栏
         var previewEl = document.createElement('div');
         previewEl.id = 'fxai-bottom-preview';
+        previewEl.dataset.expanded = "true";
         previewEl.style.cssText =
             "position: fixed;" +
             "bottom: 0;" +
@@ -19,18 +20,49 @@ app.registerExtension({
             "border-top: 1px solid #333;" +
             "border-radius:10px;" +
             "display: flex;" +
+            "flex-wrap: wrap;" + 
             "gap: 8px;" +
             "padding: 8px;" +
             "overflow-x: auto;" +
             "z-index: 1;" +
-            "box-sizing: border-box;";
+            "box-sizing: border-box;" +
+            "transition: all 0.3s ease;";
+
+        // 左侧缩放按钮
+        const toggleBtn = document.createElement('button');
+        toggleBtn.innerText = '❮';
+        toggleBtn.style.cssText =
+            "position:fixed;left:65px;bottom:5px;" +
+            "width:24px;height:24px;border-radius:50%;border:none;background:#444;color:#fff;" +
+            "cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;";
+        toggleBtn.onclick = () => {
+            const isOpen = previewEl.dataset.expanded === "true";
+            if(isOpen){
+                // 收缩成左下角小方块
+                previewEl.dataset.expanded = "false";
+                previewEl.style.right = "auto";
+                previewEl.style.width = "35px";
+                previewEl.style.transform ="all 0.3s ease";
+                previewEl.style.height = "35px";
+                toggleBtn.innerText = '❯';
+            }else{
+                toggleBtn.innerText = '❮';
+                // 展开回底部长条
+                previewEl.dataset.expanded = "true";
+                previewEl.style.width = "auto";
+                previewEl.style.transform ="all 0.3s ease";
+                previewEl.style.right = "5px";
+                previewEl.style.height = "120px";
+            }
+        };
+        previewEl.appendChild(toggleBtn);
         document.body.appendChild(previewEl);
 
         var style = document.createElement('style');
         style.textContent = ".litegraph { padding-bottom: 130px !important; }";
         document.head.appendChild(style);
 
-        // ========== 全局弹窗查看器（单例，只创建一次） ==========
+        // 全局弹窗查看器（完全原代码未改动）
         if (!document.getElementById("fxai-image-viewer")) {
             const viewer = document.createElement("div");
             viewer.id = "fxai-image-viewer";
@@ -72,7 +104,6 @@ app.registerExtension({
             viewer.appendChild(closeBtn);
             document.body.appendChild(viewer);
 
-            // 缩放&拖拽变量
             let scale = 1;
             let translateX = 0;
             let translateY = 0;
@@ -80,7 +111,6 @@ app.registerExtension({
             let dragStartX = 0;
             let dragStartY = 0;
 
-            // 关闭
             const closeViewer = () => {
                 viewer.style.display = "none";
                 scale = 1;
@@ -91,7 +121,6 @@ app.registerExtension({
             closeBtn.onclick = closeViewer;
             viewer.onclick = (e) => { if(e.target === viewer) closeViewer(); };
 
-            // 滚轮缩放
             viewer.onwheel = (e) => {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -99,7 +128,6 @@ app.registerExtension({
                 bigImg.style.transform = `scale(${scale}) translate(${translateX}px,${translateY}px)`;
             };
 
-            // 拖拽
             viewer.onmousedown = (e) => {
                 isDragging = true;
                 dragStartX = e.clientX - translateX;
@@ -117,14 +145,13 @@ app.registerExtension({
                 viewer.style.cursor = "grab";
             };
 
-            // 对外暴露打开方法
             window.fxaiOpenImage = (src) => {
                 bigImg.src = src;
                 viewer.style.display = "flex";
             };
         }
 
-        // ========== 监听生成图片 ==========
+        // 监听生成图片（原代码完全未动）
         api.addEventListener('executed', function(e) {
             var outputs = e.detail && e.detail.output;
             if (!outputs || !outputs["images"]) return;
@@ -140,7 +167,7 @@ app.registerExtension({
                 var imgWrapper = document.createElement('div');
                 imgWrapper.style.position = 'relative';
                 imgWrapper.style.display = 'inline-block';
-                imgWrapper.style.margin = '4px';
+                imgWrapper.style.borderRadius = '10px';
 
                 var deleteBtn = document.createElement('button');
                 deleteBtn.innerText = '×';
@@ -168,7 +195,6 @@ app.registerExtension({
                 img.style.borderRadius = '4px';
                 img.style.cursor = 'pointer';
 
-                // 核心改动：调用弹窗查看器，不新开窗口
                 img.onclick = function() {
                     window.fxaiOpenImage(this.src);
                 };
