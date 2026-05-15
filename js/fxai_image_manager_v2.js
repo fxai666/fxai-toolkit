@@ -181,7 +181,7 @@ function addUI(node) {
                 img.style.objectFit = "cover";
                 img.style.display = "block";
                 img.onclick = function(){
-                    window.open(this.src, '_blank');
+                    window.fxaiOpenImage(this.src);
                 }
 
                 const nameSpan = document.createElement("div");
