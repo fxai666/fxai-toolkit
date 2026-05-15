@@ -180,6 +180,9 @@ function addUI(node) {
                 img.style.height = "100%";
                 img.style.objectFit = "cover";
                 img.style.display = "block";
+                img.onclick = function(){
+                    window.open(this.src, '_blank');
+                }
 
                 const nameSpan = document.createElement("div");
                 nameSpan.textContent = file;
