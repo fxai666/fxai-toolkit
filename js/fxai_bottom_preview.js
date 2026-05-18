@@ -23,7 +23,7 @@ app.registerExtension({
             "flex-wrap: wrap;" + 
             "gap: 8px;" +
             "padding: 8px;" +
-            "overflow-x: auto;" +
+            "overflow: auto;" +
             "z-index: 1;" +
             "box-sizing: border-box;" +
             "transition: all 0.3s ease;";
@@ -44,6 +44,7 @@ app.registerExtension({
                 previewEl.style.width = "35px";
                 previewEl.style.transform ="all 0.3s ease";
                 previewEl.style.height = "35px";
+                previewEl.style.overflow = "hidden";
                 toggleBtn.innerText = '❯';
             }else{
                 toggleBtn.innerText = '❮';
@@ -52,6 +53,7 @@ app.registerExtension({
                 previewEl.style.width = "auto";
                 previewEl.style.transform ="all 0.3s ease";
                 previewEl.style.right = "5px";
+                previewEl.style.overflow = "auto";
                 previewEl.style.height = "120px";
             }
         };

@@ -178,21 +178,29 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         for i in range(0, len(img_np), batch_size):
             batch = img_np[i:i+batch_size]
             batch_data = b''.join([img.tobytes() for img in batch])
-            proc.stdin.write(batch_data)
+            try:
+                proc.stdin.write(batch_data)
+            except BrokenPipeError:
+                break
 
-        proc.stdin.close()
+        try:
+            proc.stdin.close()
+        except:
+            pass
+
         proc.wait()
 
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
+			
+        print(f"[凤希AI视频] 成功保存：{save_path}")
 
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
         import traceback
         traceback.print_exc()
-        return ""
-
-    print(f"[凤希AI视频] 成功保存：{save_path}")
+		
+    gc.collect()
     return save_path
 
 class FxAiVideoGeneratorV3:

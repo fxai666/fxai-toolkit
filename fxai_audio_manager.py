@@ -177,6 +177,7 @@ class FxAiAudioManager:
             },
             "optional":{
                 "音频": ("AUDIO", {"forceInput": True}),
+                "刷新标记": ("INT", {"forceInput": True}),
             }
         }
 
@@ -206,7 +207,7 @@ class FxAiAudioManager:
         except Exception as e:
             print(f"❌ 保存音频失败：{e}")
 
-    def run(self, 目录="", 音频=None):
+    def run(self, 目录="", 音频=None,刷新标记=0):
         target_dir = get_audio_dir(目录)
         if 音频 is not None:
             self.save_tensor_audio(音频, target_dir)

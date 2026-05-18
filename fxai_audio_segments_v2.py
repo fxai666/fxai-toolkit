@@ -82,7 +82,7 @@ def _load_audio_tensor_from_file(audio_file):
     import wave
     with wave.open(audio_path, "rb") as wav_file:
         channels = wav_file.getnchannels()
-        sampwidth = wav_file.getsamplewidth()
+        sampwidth = wav_file.getsampwidth()
         sr = wav_file.getframerate()
         frames = wav_file.getnframes()
         data = wav_file.readframes(frames)
@@ -291,6 +291,7 @@ class FxAiAudioSegmenterV2:
             },
             "optional": {
                 "刷新标记": ("INT", {"forceInput": True}),
+                "音频": ("AUDIO", {"forceInput": True}),
             }
         }
 
@@ -318,9 +319,10 @@ class FxAiAudioSegmenterV2:
         包含尾部段=True,
         是否平均分段=True,
         平均分段时长=15,
-        刷新标记=0
+        刷新标记=0,
+		音频 = None
     ):
-        audio = _load_audio_tensor_from_file(音频文件)
+        audio = 音频 or _load_audio_tensor_from_file(音频文件)
         waveform, sample_rate = _normalize_audio_tensor(audio)
         total_duration = waveform.shape[-1] / sample_rate if sample_rate else 0.0
 

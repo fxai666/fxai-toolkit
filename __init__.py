@@ -43,6 +43,8 @@ NODE_REGISTRY = [
     ("FxAiMultiAudioLoad",        "fxai_multi_audio_load",      "凤希AI - 多音频加载"),
     ("FxAiAudioManager",          "fxai_audio_manager",         "凤希AI - 音频管理器"),
     ("FxAiLoadAudioByIndex",      "fxai_audio_load",            "凤希AI - 音频管理器 - 音频加载"),
+    ("FxAiSingleAudioProc",       "fxai_single_audio_proc",     "凤希AI - 单音频处理器"),
+    ("FxAiAudioMerge",            "fxai_audio_merge",           "凤希AI - 多音频合并"),
 
     # 场景/文本类
     ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),

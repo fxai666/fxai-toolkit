@@ -191,7 +191,8 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         import traceback
         traceback.print_exc()
         return ""
-
+		
+    gc.collect()
     print(f"[凤希AI视频] 成功保存：{save_path}")
     return save_path
 
