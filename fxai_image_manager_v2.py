@@ -78,7 +78,6 @@ async def get_file_list(request):
     files = list_images(target_dir)
     return web.json_response({"files": files, "total": len(files)})
 
-# ===================== 【唯一修改的地方：仅这里！】 =====================
 async def apply_changes(request):
     try:
         data = await request.json()
@@ -89,7 +88,6 @@ async def apply_changes(request):
         if not ordered_filenames:
             return web.json_response({"files": list_images(target_dir), "success": True, "msg": "无需修改"})
 
-        # 第一步：直接加序号前缀，绝对不重名
         for idx, old_name in enumerate(ordered_filenames):
             old_path = safe_path_join(target_dir, old_name)
             if not old_path or not os.path.exists(old_path):
@@ -98,13 +96,12 @@ async def apply_changes(request):
             temp_path = safe_path_join(target_dir, temp_name)
             os.rename(old_path, temp_path)
 
-        # 第二步：精简成 000.png
         for idx, old_name in enumerate(ordered_filenames):
             temp_name = f"{idx:03d}_{old_name}"
             temp_path = safe_path_join(target_dir, temp_name)
             if not temp_path or not os.path.exists(temp_path):
                 continue
-            # 直接取后缀，不解析、不复杂处理
+
             ext = old_name.split(".")[-1]
             final_name = f"{idx:03d}.{ext}"
             final_path = safe_path_join(target_dir, final_name)
@@ -114,7 +111,6 @@ async def apply_changes(request):
         return web.json_response({"files": new_files, "success": True})
     except Exception as e:
         return web.json_response({"error": f"应用失败：{str(e)}"}, status=500)
-# ===================== 【修改结束】 =====================
 
 async def upload_image_custom(request):
     try:
@@ -187,6 +183,7 @@ class FxAiImageManagerV2:
                 "图片": ("IMAGE", {"forceInput": True}),
                 "刷新标记": ("INT", {"forceInput": True}),
                 "文件名序号": ("INT", {"forceInput": True}),
+                "启用文件名覆盖": ("BOOLEAN", {"default": True}),
             }
         }
 
@@ -195,14 +192,13 @@ class FxAiImageManagerV2:
     FUNCTION = "run"
     CATEGORY = "凤希AI/图片"
 
-    def save_tensor_image(self, image_tensor, save_dir, custom_num=None):
+    def save_tensor_image(self, image_tensor, save_dir, custom_num=None, enable_overwrite=True):
         if image_tensor is None or not isinstance(image_tensor, torch.Tensor):
             return
         try:
             os.makedirs(save_dir, exist_ok=True)
             
-            # 仅节点传入图片张量时：有文件名序号就用，没有就自动计数
-            if custom_num is not None and isinstance(custom_num, int) and custom_num >= 0:
+            if enable_overwrite and custom_num is not None and isinstance(custom_num, int) and custom_num >= 0:
                 start_num = custom_num
             else:
                 start_num = get_next_number(save_dir)
@@ -217,12 +213,11 @@ class FxAiImageManagerV2:
         except Exception as e:
             print(f"[凤希AI图片资源管理] 保存失败：{e}")
 
-    def run(self, 目录="", 图片=None, 刷新标记=0,文件名序号=None):
+    def run(self, 目录="", 图片=None, 刷新标记=0,文件名序号=None, 启用文件名覆盖=True):
         target_dir = get_image_dir(目录)
         
-        # 只有左侧输入图片时，才使用文件名序号
         if 图片 is not None:
-            self.save_tensor_image(图片, target_dir, custom_num=文件名序号)
+            self.save_tensor_image(图片, target_dir, custom_num=文件名序号, enable_overwrite=启用文件名覆盖)
         
         files = list_images(target_dir)
         
