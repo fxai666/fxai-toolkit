@@ -2,14 +2,12 @@ import os
 import torch
 import torchaudio
 import numpy as np
-import sys
-sys.modules['torchcodec'] = None
 
 # 工具函数：加载单段音频（严格对齐ComfyUI音频张量标准）
 def load_single_audio(audio_path, start_seconds=0.0, duration_seconds=0.0):
     try:
-        # 加载音频
-        waveform, sample_rate = torchaudio.load(audio_path)
+        # 👇 关键修复：强制指定用 FFmpeg 后端，不使用 torchcodec
+        waveform, sample_rate = torchaudio.load(audio_path, backend="ffmpeg")
         
         # 维度修复
         if waveform.dim() == 1:
