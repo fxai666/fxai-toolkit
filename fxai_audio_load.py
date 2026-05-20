@@ -2,6 +2,8 @@ import os
 import torch
 import torchaudio
 import numpy as np
+import sys
+sys.modules['torchcodec'] = None
 
 # 工具函数：加载单段音频（严格对齐ComfyUI音频张量标准）
 def load_single_audio(audio_path, start_seconds=0.0, duration_seconds=0.0):
