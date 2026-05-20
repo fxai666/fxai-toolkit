@@ -36,7 +36,6 @@ app.registerExtension({
 
             this.addDOMWidget("lines_container", "container", this.scrollContainer);
             
-            // ========== 修复1：创建表头（新增「音频开始」列） ==========
             createHeader(this);
 
             this.addWidget("button", "➕ 添加新场景", null, (function(node) {
@@ -45,12 +44,17 @@ app.registerExtension({
                 };
             })(this));
 
-            // ========== 修复2：默认创建一个空行 ==========
+            this.addWidget("button", "📋 批量输入", null, (function(node) {
+                return function() {
+                    openBatchPopup(node);
+                };
+            })(this));
+
             if (this.lines.length === 0) {
                 addLine(this);
             }
 
-            const FIXED_WIDTH = 840; // 加宽适配新列
+            const FIXED_WIDTH = 840;
             this.size[0] = FIXED_WIDTH;
             this.setSize(this.computeSize());
 
@@ -90,7 +94,7 @@ app.registerExtension({
                         var duration = 15;
                         var text = "";
                         var audioNo = 0;
-                        var audioStart = 0; // 新增：音频开始时间
+                        var audioStart = 0;
                         var imgNo = 0;
                         var tailNeedle = -1;
                         var transition = 1;
@@ -99,14 +103,13 @@ app.registerExtension({
                             duration = Number(item[0]) || 15;
                             text = item[1] || "";
                             if(item.length >=3) audioNo = Number(item[2]) || 0;
-                            if(item.length >=4) audioStart = Number(item[3]) || 0; // 新增解析
-                            if(item.length >=5) imgNo = Number(item[4]) || 0; // 原imgNo索引+1
-                            if(item.length >=6) tailNeedle = Number(item[5]) || -1; // 原tailNeedle索引+1
-                            if(item.length >=7) transition = Number(item[6]) || 1; // 原transition索引+1
+                            if(item.length >=4) audioStart = Number(item[3]) || 0;
+                            if(item.length >=5) imgNo = Number(item[4]) || 0;
+                            if(item.length >=6) tailNeedle = Number(item[5]) || -1;
+                            if(item.length >=7) transition = Number(item[6]) || 1;
                         } else {
                             text = item || "";
                         }
-                        // 新增 audioStart 参数传递
                         addLine(this, text, duration, audioNo, audioStart, imgNo, tailNeedle, transition);
                     }
                 }
@@ -123,12 +126,12 @@ app.registerExtension({
 
             if (this.linesDataWidget && this.lines) {
                 var values = [];
-                for (var i = 0; i < this.lines.length; i++) {
+                for (var i = 0; i < node.lines.length; i++) {
                     values.push([
                         this.lines[i].duration,
                         this.lines[i].value,
                         this.lines[i].audiono,
-                        this.lines[i].audiostart, // 新增：音频开始时间
+                        this.lines[i].audiostart,
                         this.lines[i].imgno,
                         this.lines[i].tailNeedle,
                         this.lines[i].transition,
@@ -155,6 +158,83 @@ app.registerExtension({
     },
 });
 
+// ===================== 批量输入自定义弹窗（纯手工打造，ComfyUI风格） =====================
+function openBatchPopup(node) {
+    // 背景遮罩
+    const mask = document.createElement("div");
+    mask.style.cssText = `
+        position: fixed; top:0; left:0; width:100%; height:100%;
+        background: rgba(0,0,0,0.6); z-index:9999;
+        display: flex; align-items:center; justify-content:center;
+    `;
+
+    // 弹窗主体
+    const dialog = document.createElement("div");
+    dialog.style.cssText = `
+        width: 700px; background: #2a2a2a; border: 1px solid #666;
+        border-radius: 10px; padding: 15px; box-shadow: 0 0 20px #000;
+        color: #fff; font-family: sans-serif;
+    `;
+
+    // 标题
+    const title = document.createElement("div");
+    title.textContent = "批量导入场景提示词";
+    title.style.cssText = "font-size:16px; font-weight:bold; margin-bottom:8px; text-align:center;";
+
+    // 说明
+    const tip = document.createElement("div");
+    tip.textContent = "输入 JSON 数组格式，例如：[\"场景提示词1\",\"场景提示词2\",\"场景提示词3\"]，导入后追加到现有列表末尾";
+    tip.style.cssText = "font-size:12px; color:#aaa; margin-bottom:10px; line-height:1.4;";
+
+    // 文本域
+    const textarea = document.createElement("textarea");
+    textarea.placeholder = "粘贴你的提示词数组...";
+    textarea.style.cssText = `
+        width: 100%; height: 320px; box-sizing: border-box;
+        background: #1a1a1a; color: #fff; border: 1px solid #555;
+        border-radius: 6px; padding: 10px; font-size:12px;
+        font-family: monospace; resize: vertical;
+    `;
+
+    // 按钮栏
+    const bar = document.createElement("div");
+    bar.style.cssText = "display:flex; justify-content:center; gap:10px; margin-top:12px;";
+
+    const okBtn = document.createElement("button");
+    okBtn.textContent = "✅ 确认导入";
+    okBtn.style.cssText = "padding:6px 14px; background:#4a86e8; color:#fff; border:none; border-radius:4px; cursor:pointer;";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "❌ 取消";
+    cancelBtn.style.cssText = "padding:6px 14px; background:#666; color:#fff; border:none; border-radius:4px; cursor:pointer;";
+
+    bar.append(okBtn, cancelBtn);
+    dialog.append(title, tip, textarea, bar);
+    mask.append(dialog);
+    document.body.append(mask);
+
+    // 关闭
+    const close = () => document.body.removeChild(mask);
+    cancelBtn.onclick = close;
+
+    // 导入逻辑
+    okBtn.onclick = () => {
+        try {
+            const v = textarea.value.trim();
+            if (!v) return alert("请输入内容");
+            const arr = JSON.parse(v);
+            if (!Array.isArray(arr)) return alert("必须是数组格式");
+            
+            arr.forEach(t => addLine(node, String(t || "")));
+            close();
+        } catch (e) {
+            alert("格式错误：" + e.message);
+        }
+    };
+
+    textarea.focus();
+}
+
 function createHeader(node) {
     var header = document.createElement("div");
     header.style.display = "flex";
@@ -173,7 +253,7 @@ function createHeader(node) {
         { text: "音频时长", width: "60px" },
         { text: "场景控制提示词", flex: 1 },
         { text: "音频文件", width: "60px" },
-        { text: "音频开始", width: "60px" }, // 新增：音频开始列表头
+        { text: "音频开始", width: "60px" },
         { text: "图片索引", width: "60px" },
         { text: "尾帧位置", width: "60px" },
         { text: "转场", width: "30px" },
@@ -193,12 +273,11 @@ function createHeader(node) {
     node.scrollContainer.appendChild(header);
 }
 
-// 新增 audioStart 参数
 function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAudioStart, defaultImgNo, defaultTailNeedle, defaultTransition) {
     defaultValue = defaultValue || "";
     defaultDuration = defaultDuration || 15;
     defaultAudioNo = defaultAudioNo ?? -1;
-    defaultAudioStart = defaultAudioStart ?? 0; // 新增：音频开始默认值
+    defaultAudioStart = defaultAudioStart ?? 0;
     defaultImgNo = defaultImgNo ?? -1;
     defaultTailNeedle = defaultTailNeedle ?? -1;
     defaultTransition = defaultTransition ?? 1;
@@ -274,7 +353,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     audionoInput.style.marginTop = "2px";
     audionoInput.value = defaultAudioNo;
 
-    // 新增：音频开始输入框
     var audiostartInput = document.createElement("input");
     audiostartInput.type = "number";
     audiostartInput.min = "0";
@@ -309,7 +387,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     imgnoInput.style.marginTop = "2px";
     imgnoInput.value = defaultImgNo;
 
-    // 尾帧位置 —— 纯数字输入框，和图片索引完全一样
     var tailNeedleInput = document.createElement("input");
     tailNeedleInput.type = "number";
     tailNeedleInput.min = "-1";
@@ -378,12 +455,11 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     delBtn.style.flexShrink = "0";
     delBtn.style.marginTop = "2px";
 
-    // 追加音频开始输入框到行内
     row.appendChild(lineNumLabel);
     row.appendChild(durationInput);
     row.appendChild(textarea);
     row.appendChild(audionoInput);
-    row.appendChild(audiostartInput); // 新增
+    row.appendChild(audiostartInput);
     row.appendChild(imgnoInput);
     row.appendChild(tailNeedleInput);
     row.appendChild(transitionCheckbox);
@@ -396,7 +472,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
         textarea: textarea,
         durationInput: durationInput,
         audionoInput: audionoInput,
-        audiostartInput: audiostartInput, // 新增
+        audiostartInput: audiostartInput,
         imgnoInput: imgnoInput,
         tailNeedleInput: tailNeedleInput,
         transitionCheckbox: transitionCheckbox,
@@ -406,7 +482,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
         value: defaultValue,
         duration: defaultDuration,
         audiono: defaultAudioNo,
-        audiostart: defaultAudioStart, // 新增
+        audiostart: defaultAudioStart,
         imgno: defaultImgNo,
         tailNeedle: defaultTailNeedle,
         transition: defaultTransition,
@@ -435,7 +511,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
         updateHidden(node);
     });
 
-    // 新增：音频开始输入框事件
     audiostartInput.addEventListener("input", function() {
         var val = parseFloat(audiostartInput.value) || 0;
         if (val < 0) val = 0;
@@ -539,7 +614,7 @@ function updateHidden(node) {
             node.lines[i].duration,
             node.lines[i].value,
             node.lines[i].audiono,
-            node.lines[i].audiostart, // 新增
+            node.lines[i].audiostart,
             node.lines[i].imgno,
             node.lines[i].tailNeedle,
             node.lines[i].transition

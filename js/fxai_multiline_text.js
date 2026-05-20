@@ -44,6 +44,13 @@ app.registerExtension({
                 };
             })(this));
 
+            // ========== 新增：批量输入按钮 ==========
+            this.addWidget("button", "📋 批量输入", null, (function(node) {
+                return function() {
+                    openBatchPopup(node);
+                };
+            })(this));
+
             // 初始创建表头 + 第一行
             createHeader(this);
             addLine(this);
@@ -138,6 +145,84 @@ app.registerExtension({
         };
     },
 });
+
+// ========== 新增：批量输入自定义弹窗（美观ComfyUI风格） ==========
+function openBatchPopup(node) {
+    // 背景遮罩
+    const mask = document.createElement("div");
+    mask.style.cssText = `
+        position: fixed; top:0; left:0; width:100%; height:100%;
+        background: rgba(0,0,0,0.6); z-index:9999;
+        display: flex; align-items:center; justify-content:center;
+    `;
+
+    // 弹窗主体
+    const dialog = document.createElement("div");
+    dialog.style.cssText = `
+        width: 700px; background: #2a2a2a; border: 1px solid #666;
+        border-radius: 10px; padding: 15px; box-shadow: 0 0 20px #000;
+        color: #fff; font-family: sans-serif;
+    `;
+
+    // 标题
+    const title = document.createElement("div");
+    title.textContent = "批量导入提示词";
+    title.style.cssText = "font-size:16px; font-weight:bold; margin-bottom:8px; text-align:center;";
+
+    // 说明
+    const tip = document.createElement("div");
+    tip.textContent = "输入 JSON 数组格式，例如：[\"提示词1\",\"提示词2\",\"提示词3\"]，导入后追加到现有列表末尾";
+    tip.style.cssText = "font-size:12px; color:#aaa; margin-bottom:10px; line-height:1.4;";
+
+    // 文本域
+    const textarea = document.createElement("textarea");
+    textarea.placeholder = "粘贴你的提示词数组...";
+    textarea.style.cssText = `
+        width: 100%; height: 320px; box-sizing: border-box;
+        background: #1a1a1a; color: #fff; border: 1px solid #555;
+        border-radius: 6px; padding: 10px; font-size:12px;
+        font-family: monospace; resize: vertical;
+    `;
+
+    // 按钮栏
+    const bar = document.createElement("div");
+    bar.style.cssText = "display:flex; justify-content:center; gap:10px; margin-top:12px;";
+
+    const okBtn = document.createElement("button");
+    okBtn.textContent = "✅ 确认导入";
+    okBtn.style.cssText = "padding:6px 14px; background:#4a86e8; color:#fff; border:none; border-radius:4px; cursor:pointer;";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "❌ 取消";
+    cancelBtn.style.cssText = "padding:6px 14px; background:#666; color:#fff; border:none; border-radius:4px; cursor:pointer;";
+
+    bar.append(okBtn, cancelBtn);
+    dialog.append(title, tip, textarea, bar);
+    mask.append(dialog);
+    document.body.append(mask);
+
+    // 关闭
+    const close = () => document.body.removeChild(mask);
+    cancelBtn.onclick = close;
+
+    // 导入逻辑
+    okBtn.onclick = () => {
+        try {
+            const v = textarea.value.trim();
+            if (!v) return alert("请输入内容");
+            const arr = JSON.parse(v);
+            if (!Array.isArray(arr)) return alert("必须是数组格式");
+            
+            arr.forEach(t => addLine(node, String(t || "")));
+            alert(`成功导入 ${arr.length} 条提示词`);
+            close();
+        } catch (e) {
+            alert("格式错误：" + e.message);
+        }
+    };
+
+    textarea.focus();
+}
 
 // 创建顶部表头标签（仅保留序号、文本、操作列）
 function createHeader(node) {
