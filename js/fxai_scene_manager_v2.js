@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 
 app.registerExtension({
     name: "FxAiSceneManagerV2",
-    beforeRegisterNodeDef(nodeType, nodeData, app) {
+    beforeRegisterNodeDef: function(nodeType, nodeData, app) {
         if (nodeData.name !== "FxAiSceneManagerV2") return;
 
         var onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -10,7 +10,7 @@ app.registerExtension({
         var onSerialize = nodeType.prototype.onSerialize;
 
         nodeType.prototype.onNodeCreated = function () {
-            var r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
+            var r = onNodeCreated ? onNodeCreated.apply(this, arguments) : void 0;
             this.lines = [];
 
             this.linesDataWidget = null;
@@ -38,27 +38,24 @@ app.registerExtension({
             
             createHeader(this);
 
-            this.addWidget("button", "➕ 添加新场景", null, (function(node) {
-                return function() {
-                    addLine(node);
-                };
-            })(this));
+            var self = this;
+            this.addWidget("button", "➕ 添加新场景", null, function() {
+                addLine(self);
+            });
 
-            this.addWidget("button", "📋 批量输入", null, (function(node) {
-                return function() {
-                    openBatchPopup(node);
-                };
-            })(this));
+            this.addWidget("button", "📋 批量输入", null, function() {
+                openBatchPopup(self);
+            });
 
             if (this.lines.length === 0) {
                 addLine(this);
             }
 
-            const FIXED_WIDTH = 840;
+            var FIXED_WIDTH = 840;
             this.size[0] = FIXED_WIDTH;
             this.setSize(this.computeSize());
 
-            this.onResize = (size) => {
+            this.onResize = function(size) {
                 if (size[0] < FIXED_WIDTH) {
                     this.size[0] = FIXED_WIDTH;
                     this.setSize([FIXED_WIDTH, size[1]]);
@@ -69,7 +66,7 @@ app.registerExtension({
         };
 
         nodeType.prototype.onConfigure = function (o) {
-            var r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
+            var r = onConfigure ? onConfigure.apply(this, arguments) : void 0;
             if (!o || !o.widgets_values) return r;
 
             var data = null;
@@ -126,7 +123,7 @@ app.registerExtension({
 
             if (this.linesDataWidget && this.lines) {
                 var values = [];
-                for (var i = 0; i < node.lines.length; i++) {
+                for (var i = 0; i < this.lines.length; i++) {
                     values.push([
                         this.lines[i].duration,
                         this.lines[i].value,
@@ -158,74 +155,111 @@ app.registerExtension({
     },
 });
 
-// ===================== 批量输入自定义弹窗（纯手工打造，ComfyUI风格） =====================
 function openBatchPopup(node) {
-    // 背景遮罩
-    const mask = document.createElement("div");
-    mask.style.cssText = `
-        position: fixed; top:0; left:0; width:100%; height:100%;
-        background: rgba(0,0,0,0.6); z-index:9999;
-        display: flex; align-items:center; justify-content:center;
-    `;
+    var mask = document.createElement("div");
+    mask.style.position = "fixed";
+    mask.style.top = "0";
+    mask.style.left = "0";
+    mask.style.width = "100%";
+    mask.style.height = "100%";
+    mask.style.background = "rgba(0,0,0,0.6)";
+    mask.style.zIndex = "9999";
+    mask.style.display = "flex";
+    mask.style.alignItems = "center";
+    mask.style.justifyContent = "center";
 
-    // 弹窗主体
-    const dialog = document.createElement("div");
-    dialog.style.cssText = `
-        width: 700px; background: #2a2a2a; border: 1px solid #666;
-        border-radius: 10px; padding: 15px; box-shadow: 0 0 20px #000;
-        color: #fff; font-family: sans-serif;
-    `;
+    var dialog = document.createElement("div");
+    dialog.style.width = "700px";
+    dialog.style.background = "#2a2a2a";
+    dialog.style.border = "1px solid #666";
+    dialog.style.borderRadius = "10px";
+    dialog.style.padding = "15px";
+    dialog.style.boxShadow = "0 0 20px #000";
+    dialog.style.color = "#fff";
+    dialog.style.fontFamily = "sans-serif";
 
-    // 标题
-    const title = document.createElement("div");
+    var title = document.createElement("div");
     title.textContent = "批量导入场景提示词";
-    title.style.cssText = "font-size:16px; font-weight:bold; margin-bottom:8px; text-align:center;";
+    title.style.fontSize = "16px";
+    title.style.fontWeight = "bold";
+    title.style.marginBottom = "8px";
+    title.style.textAlign = "center";
 
-    // 说明
-    const tip = document.createElement("div");
+    var tip = document.createElement("div");
     tip.textContent = "输入 JSON 数组格式，例如：[\"场景提示词1\",\"场景提示词2\",\"场景提示词3\"]，导入后追加到现有列表末尾";
-    tip.style.cssText = "font-size:12px; color:#aaa; margin-bottom:10px; line-height:1.4;";
+    tip.style.fontSize = "12px";
+    tip.style.color = "#aaa";
+    tip.style.marginBottom = "10px";
+    tip.style.lineHeight = "1.4";
 
-    // 文本域
-    const textarea = document.createElement("textarea");
+    var textarea = document.createElement("textarea");
     textarea.placeholder = "粘贴你的提示词数组...";
-    textarea.style.cssText = `
-        width: 100%; height: 320px; box-sizing: border-box;
-        background: #1a1a1a; color: #fff; border: 1px solid #555;
-        border-radius: 6px; padding: 10px; font-size:12px;
-        font-family: monospace; resize: vertical;
-    `;
+    textarea.style.width = "100%";
+    textarea.style.height = "320px";
+    textarea.style.boxSizing = "border-box";
+    textarea.style.background = "#1a1a1a";
+    textarea.style.color = "#fff";
+    textarea.style.border = "1px solid #555";
+    textarea.style.borderRadius = "6px";
+    textarea.style.padding = "10px";
+    textarea.style.fontSize = "12px";
+    textarea.style.fontFamily = "monospace";
+    textarea.style.resize = "vertical";
 
-    // 按钮栏
-    const bar = document.createElement("div");
-    bar.style.cssText = "display:flex; justify-content:center; gap:10px; margin-top:12px;";
+    var bar = document.createElement("div");
+    bar.style.display = "flex";
+    bar.style.justifyContent = "center";
+    bar.style.gap = "10px";
+    bar.style.marginTop = "12px";
 
-    const okBtn = document.createElement("button");
+    var okBtn = document.createElement("button");
     okBtn.textContent = "✅ 确认导入";
-    okBtn.style.cssText = "padding:6px 14px; background:#4a86e8; color:#fff; border:none; border-radius:4px; cursor:pointer;";
+    okBtn.style.padding = "6px 14px";
+    okBtn.style.background = "#4a86e8";
+    okBtn.style.color = "#fff";
+    okBtn.style.border = "none";
+    okBtn.style.borderRadius = "4px";
+    okBtn.style.cursor = "pointer";
 
-    const cancelBtn = document.createElement("button");
+    var cancelBtn = document.createElement("button");
     cancelBtn.textContent = "❌ 取消";
-    cancelBtn.style.cssText = "padding:6px 14px; background:#666; color:#fff; border:none; border-radius:4px; cursor:pointer;";
+    cancelBtn.style.padding = "6px 14px";
+    cancelBtn.style.background = "#666";
+    cancelBtn.style.color = "#fff";
+    cancelBtn.style.border = "none";
+    cancelBtn.style.borderRadius = "4px";
+    cancelBtn.style.cursor = "pointer";
 
-    bar.append(okBtn, cancelBtn);
-    dialog.append(title, tip, textarea, bar);
-    mask.append(dialog);
-    document.body.append(mask);
+    bar.appendChild(okBtn);
+    bar.appendChild(cancelBtn);
+    dialog.appendChild(title);
+    dialog.appendChild(tip);
+    dialog.appendChild(textarea);
+    dialog.appendChild(bar);
+    mask.appendChild(dialog);
+    document.body.appendChild(mask);
 
-    // 关闭
-    const close = () => document.body.removeChild(mask);
+    var close = function() {
+        document.body.removeChild(mask);
+    };
     cancelBtn.onclick = close;
 
-    // 导入逻辑
-    okBtn.onclick = () => {
+    okBtn.onclick = function() {
         try {
-            const v = textarea.value.trim();
-            if (!v) return alert("请输入内容");
-            const arr = JSON.parse(v);
-            if (!Array.isArray(arr)) return alert("必须是数组格式");
+            var v = textarea.value.trim();
+            if (!v) {
+                alert("请输入内容");
+                return;
+            }
+            var arr = JSON.parse(v);
+            if (!Array.isArray(arr)) {
+                alert("必须是数组格式");
+                return;
+            }
             
-            arr.forEach(t => addLine(node, String(t || "")));
+            for (var k = 0; k < arr.length; k++) {
+                addLine(node, String(arr[k] || ""));
+            }
             close();
         } catch (e) {
             alert("格式错误：" + e.message);
@@ -260,7 +294,8 @@ function createHeader(node) {
         { text: "操作", width: "90px" }
     ];
 
-    labels.forEach(item => {
+    for (var m = 0; m < labels.length; m++) {
+        var item = labels[m];
         var span = document.createElement("span");
         span.textContent = item.text;
         span.style.textAlign = "center";
@@ -268,19 +303,20 @@ function createHeader(node) {
         if (item.flex) span.style.flex = item.flex;
         span.style.flexShrink = "0";
         header.appendChild(span);
-    });
+    }
 
     node.scrollContainer.appendChild(header);
 }
 
 function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAudioStart, defaultImgNo, defaultTailNeedle, defaultTransition) {
-    defaultValue = defaultValue || "";
-    defaultDuration = defaultDuration || 15;
-    defaultAudioNo = defaultAudioNo ?? -1;
-    defaultAudioStart = defaultAudioStart ?? 0;
-    defaultImgNo = defaultImgNo ?? -1;
-    defaultTailNeedle = defaultTailNeedle ?? -1;
-    defaultTransition = defaultTransition ?? 1;
+    // 完全按你的要求：只有等于 undefined 才用默认值
+    if (defaultValue === undefined) defaultValue = "";
+    if (defaultDuration === undefined) defaultDuration = 15;
+    if (defaultAudioNo === undefined) defaultAudioNo = -1;
+    if (defaultAudioStart === undefined) defaultAudioStart = 0;
+    if (defaultImgNo === undefined) defaultImgNo = -1;
+    if (defaultTailNeedle === undefined) defaultTailNeedle = -1;
+    if (defaultTransition === undefined) defaultTransition = 1;
 
     var idx = node.lines.length;
     var row = document.createElement("div");
