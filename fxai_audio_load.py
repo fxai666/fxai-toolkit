@@ -84,8 +84,14 @@ class FxAiLoadAudioByIndex:
                 audio_files.append(full_path)
         
         total_audios = len(audio_files)
-        if total_audios == 0:
-            raise RuntimeError(f"文件夹中没有找到音频：{folder_path}")
+        
+        if total_audios == 0 or 音频索引 >= total_audios:
+            empty_waveform = torch.zeros(1, 2, 44100, dtype=torch.float32)
+            empty_audio = {
+                "waveform": empty_waveform,
+                "sample_rate": 44100
+            }
+            return (empty_audio, 44100, "索引越界-无音频", total_audios)
         
         target_path = audio_files[音频索引 % total_audios]
         

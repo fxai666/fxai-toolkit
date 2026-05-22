@@ -46,9 +46,6 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             else:
                 audio_data = waveform_np[:2].T
 
-        # ==============================================
-        # 尾数格式（完全正确）
-        # ==============================================
         audio_data = np.ascontiguousarray(audio_data)
         raw_pcm = audio_data.tobytes()
 
@@ -56,6 +53,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
 
         cmd = [
             'ffmpeg', '-y',
+            '-hide_banner', '-loglevel', 'quiet', '-nostats',
             '-f', 'f32le',
             '-ar', str(sample_rate),
             '-ac', '2',
@@ -88,7 +86,7 @@ def replace_video_audio(video_path, audio_path):
     temp_video = video_path.replace(".mp4", "_temp.mp4")
     try:
         cmd = (
-            f'ffmpeg -y -i "{video_path}" -i "{audio_path}" '
+            f'ffmpeg -y -hide_banner -loglevel quiet -nostats -i "{video_path}" -i "{audio_path}" '
             f'-c:v copy -c:a aac -ac 2 -map 0:v:0 -map 1:a:0 -shortest "{temp_video}"'
         )
         subprocess.run(cmd, shell=True, check=True, capture_output=True)
@@ -102,7 +100,6 @@ def get_video_files(source_dir, max_count=0):
     if not os.path.isdir(source_dir):
         return []
     
-    # 修复：防止 max_count 为 None
     if max_count is None:
         max_count = 0
         
@@ -128,11 +125,10 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
         with open(list_path, "w", encoding="utf-8") as f:
             for p in videos:
                 f.write(f"file '{p}'\n")
-        cmd = f'ffmpeg -y -f concat -safe 0 -i "{list_path}" -c copy "{output_path}"'
+        cmd = f'ffmpeg -y -hide_banner -loglevel quiet -nostats -f concat -safe 0 -i "{list_path}" -c copy "{output_path}"'
         subprocess.run(cmd, shell=True, check=True)
         os.remove(list_path)
 
-    # 音频替换（强制双通道）
     if audio and isinstance(audio, dict) and "waveform" in audio:
         audio_wav = audio_tensor_to_wav_ffmpeg(audio)
         if audio_wav:

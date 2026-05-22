@@ -35,7 +35,7 @@ class FxAiImageBatchLoad:
         }
 
     RETURN_TYPES = ("IMAGE", "MASK", "INT")
-    RETURN_NAMES = ("图片列表", "遮罩列表", "总数量")
+    RETURN_NAMES = ("图片列表", "遮罩列表", "图片序列", "总数量")
     
     # 已删除 OUTPUT_IS_LIST
     FUNCTION = "load_image"
@@ -115,4 +115,4 @@ class FxAiImageBatchLoad:
             raise RuntimeError("没有成功加载任何图片")
         
         # 唯一修复：包一层 tuple 禁止ComfyUI自动合并
-        return ((images,), (masks,), len(images))
+        return ((images,), (masks,),images, len(images))

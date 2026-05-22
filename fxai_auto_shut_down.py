@@ -15,7 +15,7 @@ class FxAiAutoShutdown:
             "required": {
                 "触发输入": ("*",),  # 任意节点连接过来，执行完才关机
                 "等待秒数": ("INT", {
-                    "default": 600,
+                    "default": 60,
                     "min": 5,
                     "max": 86400,
                     "step": 1,

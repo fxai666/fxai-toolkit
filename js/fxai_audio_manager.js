@@ -146,7 +146,7 @@ function addUI(node) {
     listDiv.style.display = "flex";
     listDiv.style.flexWrap = "wrap";
     listDiv.style.gap = "5px";
-    listDiv.style.maxHeight = "200px";
+    listDiv.style.height = "260px";
     listDiv.style.overflowY = "auto";
     listDiv.style.padding = "4px";
     listDiv.style.border = "1px solid #666";

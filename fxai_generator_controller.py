@@ -8,7 +8,7 @@ class FxAIGeneratorController:
     FUNCTION = "process"
 
     # 返回值：增加了处理后的宽度、高度
-    RETURN_TYPES = ("LIST", "INT", "INT", "INT", "INT", "INT", "INT","INT", "INT","INT")
+    RETURN_TYPES = ("LIST", "INT", "INT", "INT", "INT", "INT", "INT","INT", "INT","INT","BOOLEAN")
     RETURN_NAMES = (
         "分段时长列表",
         "开始索引",
@@ -20,6 +20,7 @@ class FxAIGeneratorController:
         "过渡帧数",
         "实际半宽",
         "实际半高",
+        "自动关机",
     )
 
     @classmethod
@@ -39,10 +40,11 @@ class FxAIGeneratorController:
                 "音频分段时长": ("LIST", {"forceInput": True}),
                 "过渡帧数": ("INT", {"default": 9, "min": 1,"step":8}),
                 "采样次数": ("INT", {"default": 1, "min": 1,"max":2,"step":1}),
+                "自动关机": ("BOOLEAN", {"default": False}),
             }
         }
 
-    def process(self, 启用场景分段, 开始索引, 结束索引, 帧率, 宽度, 高度, 长宽对齐基数, 场景分段时长=None, 音频分段时长=None,过渡帧数=9,采样次数=1):
+    def process(self, 启用场景分段, 开始索引, 结束索引, 帧率, 宽度, 高度, 长宽对齐基数, 场景分段时长=None, 音频分段时长=None,过渡帧数=9,采样次数=1,自动关机=False):
         # 1. 纯读取分段时长，不做任何计算
         if 启用场景分段 and 场景分段时长 is not None:
             分段时长 = 场景分段时长
@@ -59,7 +61,7 @@ class FxAIGeneratorController:
 
         分段数量 = len(分段时长)
         if 分段数量 == 0:
-            return ([], 0, 1, 帧率, 最终宽度, 最终高度, 0, 过渡帧数, 最终宽度//2, 最终高度//2)
+            return ([], 0, 1, 帧率, 最终宽度, 最终高度, 0, 过渡帧数, 最终宽度//2, 最终高度//2,自动关机)
 
         开始索引 = max(0, min(开始索引, 分段数量 - 1))
         
@@ -67,4 +69,4 @@ class FxAIGeneratorController:
         if 结束索引 > -1 and 结束索引 >= 开始索引:
            循环数 = max(结束索引 - 开始索引 + 1,1)
 
-        return (分段时长, 开始索引, 循环数, 帧率, 最终宽度, 最终高度,分段数量,过渡帧数,最终宽度//2,最终高度//2)
+        return (分段时长, 开始索引, 循环数, 帧率, 最终宽度, 最终高度,分段数量,过渡帧数,最终宽度//2,最终高度//2,自动关机)
