@@ -22,7 +22,7 @@ class FxAiAutoShutdown:
                     "display": "number"
                 }),
                 "启用关机": ("BOOLEAN", {
-                    "default": True,
+                    "default": False,
                     "label_on": "启用",
                     "label_off": "关闭"
                 }),
