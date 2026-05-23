@@ -80,31 +80,36 @@ class FxAiImageBatchLoad:
         
         total_images = len(image_files)
         if total_images == 0:
-            raise RuntimeError("文件夹内没有图片")
+            return (None, None, None, 0)
         
-        # 解析索引
-        index_list = []
-        for s in 图片索引.split(','):
-            s = s.strip()
-            if not s:
-                continue
-            
-            if ':' in s:
-                try:
-                    start, end = map(int, s.split(':'))
-                    end = end + 1
-                    if start < 0:
-                        start = 0
-                    if end > total_images:
-                        end = total_images
-                    index_list.extend(range(start, end))
-                except ValueError:
-                    raise RuntimeError(f"索引范围格式错误：{s}")
-            else:
-                if not s.isdigit():
-                    raise RuntimeError(f"索引必须是数字或范围：{s}")
-                idx = int(s)
-                index_list.append(idx)
+        index_str = 图片索引.strip()
+        index_list = list(range(total_images))
+        
+        # 如果不等于-1，才执行原来的索引解析逻辑
+        if index_str != "-1":
+            index_list = []  # 清空，重新解析
+            for s in index_str.split(','):
+                s = s.strip()
+                if not s:
+                    continue
+                
+                if ':' in s:
+                    try:
+                        start, end = map(int, s.split(':'))
+                        end = end + 1
+                        if start < 0:
+                            start = 0
+                        if end > total_images:
+                            end = total_images
+                        index_list.extend(range(start, end))
+                    except ValueError:
+                        raise RuntimeError(f"索引范围格式错误：{s}")
+                else:
+                    if not s.isdigit():
+                        raise RuntimeError(f"索引必须是数字或范围：{s}")
+                    idx = int(s)
+                    index_list.append(idx)
+        # ======================================================
         
         # 去除重复索引并保持顺序
         unique_indices = []
