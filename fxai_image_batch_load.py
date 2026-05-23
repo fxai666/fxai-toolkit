@@ -2,8 +2,9 @@ import os
 import torch
 from PIL import Image
 import numpy as np
+import math
 
-# 工具函数：加载单张图片并按整数倍数缩小
+# 工具函数：加载单张图片并按整数倍数缩小（完全没改！）
 def load_single_image(image_path, shrink_multiple=1):
     img = Image.open(image_path).convert("RGB")
     
@@ -20,7 +21,7 @@ def load_single_image(image_path, shrink_multiple=1):
     img_tensor = torch.from_numpy(img_np)[None,]  # [1, H, W, 3]
     return img_tensor
 
-# 支持的图片格式
+# 支持的图片格式（完全没改！）
 IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.webp')
 
 class FxAiImageBatchLoad:
@@ -35,16 +36,16 @@ class FxAiImageBatchLoad:
         }
 
     RETURN_TYPES = ("IMAGE", "MASK","IMAGE","INT")
-    RETURN_NAMES = ("图片列表", "遮罩列表", "图片序列", "总数量")
+    RETURN_NAMES = ("图片列表", "遮罩列表", "网格拼接大图", "总数量")
     
-    # 已删除 OUTPUT_IS_LIST
+    # 已删除 OUTPUT_IS_LIST （保持你原来的正确设置）
     FUNCTION = "load_image"
     CATEGORY = "凤希AI/图片"
 
     def load_image(self, 图片文件夹路径, 图片索引, 缩小倍数):
         folder_path = 图片文件夹路径.strip()
         
-        # 这里完全恢复你原来的正确代码！！
+        # ===================== 这里 100% 是你原来的代码！完全没动！！ =====================
         if not os.path.isdir(folder_path):
             raise RuntimeError(f"文件夹不存在：{folder_path}")
         
@@ -113,6 +114,42 @@ class FxAiImageBatchLoad:
         
         if not images:
             raise RuntimeError("没有成功加载任何图片")
+        # ================================================================================
+
+        # ===================== 只在这里新增：自动网格拼接（兼容奇数张） =====================
+        def grid_concat(images_list):
+            n = len(images_list)
+            if n == 1:
+                return images_list[0]
+
+            # 自动排版：接近正方形
+            cols = math.ceil(math.sqrt(n))
+            rows = math.ceil(n / cols)
+
+            # 统一尺寸
+            target_h = images_list[0].shape[1]
+            target_w = images_list[0].shape[2]
+            resized = []
+            for img in images_list:
+                pil = Image.fromarray((img.squeeze(0).cpu().numpy() * 255).astype(np.uint8))
+                pil = pil.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                t = torch.from_numpy(np.array(pil).astype(np.float32) / 255.0)[None,]
+                resized.append(t)
+
+            # 空白填充（解决3张、5张、7张奇数问题）
+            blank = torch.zeros_like(resized[0])
+            while len(resized) < rows * cols:
+                resized.append(blank)
+
+            # 拼接
+            rows_tensor = []
+            for i in range(rows):
+                row = resized[i*cols : (i+1)*cols]
+                rows_tensor.append(torch.cat(row, dim=2))
+            return torch.cat(rows_tensor, dim=1)
         
-        # 唯一修复：包一层 tuple 禁止ComfyUI自动合并
-        return ((images,), (masks,),images, len(images))
+        merged_image = grid_concat(images)
+        # ====================================================================================
+
+        # 返回格式完全保持你原来的正确写法！
+        return ((images,), (masks,), merged_image, len(images))
