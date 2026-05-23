@@ -34,7 +34,7 @@ class FxAiImageBatchLoad:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "INT")
+    RETURN_TYPES = ("IMAGE", "MASK","IMAGE","INT")
     RETURN_NAMES = ("图片列表", "遮罩列表", "图片序列", "总数量")
     
     # 已删除 OUTPUT_IS_LIST

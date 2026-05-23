@@ -17,8 +17,8 @@ class FxAiMultiPromptLoader:
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "DICT")
-    RETURN_NAMES = ("时序分行提示词", "分段纯文本提示词", "字典数据结构")
+    RETURN_TYPES = ("STRING", "STRING", "DICT", "STRING")
+    RETURN_NAMES = ("时序按帧数提示词", "分段纯文本提示词", "字典数据结构", "时序按秒数提示词")
     FUNCTION = "load_prompt_data"
     CATEGORY = "凤希AI/场景管理"
 
@@ -31,30 +31,35 @@ class FxAiMultiPromptLoader:
         刷新标记=0,
         通用提示词="",
         尾部通用提示词=""
-    ) -> tuple[str, str, dict]:
+    ) -> tuple[str, str, dict, str]:
         try:
             if not 多提示词数据:
-                return (默认提示词, 默认提示词, {
-                    "global_prompt": 通用提示词 + " " + 尾部通用提示词,
+                empty_dict = {
+                    "global_prompt": f"{通用提示词} {尾部通用提示词}".strip(),
                     "segments": [],
                     "total_frames": 0
-                })
+                }
+                return (默认提示词, 默认提示词, empty_dict, "")
 
             # ==============================================
-            # ✅ 第一步：筛选 + 预处理帧（只算一次！）
+            # ✅ 第一步：筛选 + 秒数+帧 统一预处理（只跑一次！）
             # ==============================================
             matched_items = []
+            sec_format_lines = []  # 直接在这里收集秒数格式
             for item in 多提示词数据:
                 if item.get("索引编号") != 索引值:
                     continue
 
-                # 预处理：秒 → 帧（只在这里算一次）
-                start_frame = round(float(item.get("开始时间", 0.0)) * 帧率)
-                end_frame = round(float(item.get("结束时间", 15.0)) * 帧率)
+                # 原始秒数（直接用，不转换）
+                start_sec = float(item.get("开始时间", 0.0))
+                end_sec = float(item.get("结束时间", 15.0))
                 prompt = item.get("提示词文本", "")
-
                 if not prompt:
                     continue
+
+                # 帧计算
+                start_frame = round(start_sec * 帧率)
+                end_frame = round(end_sec * 帧率)
 
                 matched_items.append({
                     "prompt": prompt,
@@ -62,8 +67,11 @@ class FxAiMultiPromptLoader:
                     "end": end_frame
                 })
 
+                # ✅ 直接生成你要的秒数格式文本！一步到位
+                sec_format_lines.append(f"[{start_sec}-{end_sec}s]".replace(".0", "") + f" {prompt} |")
+
             # ==============================================
-            # ✅ 第二步：自动修正断帧（上一段尾 == 下一段首 → +1）
+            # ✅ 第二步：断帧修正
             # ==============================================
             if len(matched_items) >= 2:
                 for i in range(1, len(matched_items)):
@@ -73,59 +81,53 @@ class FxAiMultiPromptLoader:
                         matched_items[i]["start"] = curr_start + 1
 
             # ==============================================
-            # ✅ 第三步：直接用预处理好的数据（无重复计算）
+            # ✅ 第三步：拼接原有输出
             # ==============================================
             segment_parts = []
             segment_prompts = []
             total_frames = 0
-
             for seg in matched_items:
-                s = seg["start"]
-                e = seg["end"]
-                p = seg["prompt"]
-
+                s, e, p = seg["start"], seg["end"], seg["prompt"]
                 segment_parts.append(f"[{s}-{e}]:{p}")
                 segment_prompts.append(p)
-                if e > total_frames:
-                    total_frames = e
+                total_frames = max(total_frames, e)
 
-            # 拼接时序提示词
+            # 时序分行提示词
             final_lines = []
             if 通用提示词:
                 final_lines.append(通用提示词)
             if 尾部通用提示词:
                 final_lines.append(尾部通用提示词)
             final_lines.extend(segment_parts)
-            final_text = "\n".join(final_lines)
-            if not final_text:
-                final_text = 默认提示词
+            final_text = "\n".join(final_lines) or 默认提示词
 
-            # 拼接纯提示词
+            # 分段纯文本提示词
             global_parts = []
             if 通用提示词:
                 global_parts.append(通用提示词)
             global_parts.extend(segment_prompts)
             if 尾部通用提示词:
                 global_parts.append(尾部通用提示词)
-            final_global_str = "\n".join(global_parts)
-            if not final_global_str:
-                final_global_str = 默认提示词
+            final_global_str = "\n".join(global_parts) or 默认提示词
 
-            # 输出字典
-            global_prompt_str = (通用提示词 + " " + 尾部通用提示词)
+            # 秒数格式最终文本
+            sec_format_text = "\n".join(sec_format_lines)
+
+            # 字典
+            global_prompt_str = f"{通用提示词} {尾部通用提示词}".strip()
             result = {
                 "global_prompt": global_prompt_str,
-                "segments": matched_items,  # 直接用预处理好的数组
+                "segments": matched_items,
                 "total_frames": total_frames
             }
 
-            return (final_text, final_global_str, result)
+            return (final_text, final_global_str, result, sec_format_text)
 
         except Exception as e:
             print(f"[凤希AI] 加载提示词失败: {e}")
-            empty_result = {
-                "global_prompt": 通用提示词 + " " + 尾部通用提示词,
+            empty_dict = {
+                "global_prompt": f"{通用提示词} {尾部通用提示词}".strip(),
                 "segments": [],
                 "total_frames": 0
             }
-            return (默认提示词, 默认提示词, empty_result)
+            return (默认提示词, 默认提示词, empty_dict, "")
