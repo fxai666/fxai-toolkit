@@ -79,10 +79,14 @@ class FxAiImageBatchLoad:
                 image_files.append(full_path)
         
         total_images = len(image_files)
+        
+        # ========== 没图片，直接返回 None，干净利落 ==========
         if total_images == 0:
             return (None, None, None, 0)
-        
+
+        # ===================== 核心优化逻辑 =====================
         index_str = 图片索引.strip()
+        # 初始化：默认加载所有图片
         index_list = list(range(total_images))
         
         # 如果不等于-1，才执行原来的索引解析逻辑
@@ -142,7 +146,7 @@ class FxAiImageBatchLoad:
                 continue
         
         if not images:
-            raise RuntimeError("没有成功加载任何图片")
+            return (None, None, None, 0)
 
         # 自动网格拼接
         def grid_concat(images_list):
