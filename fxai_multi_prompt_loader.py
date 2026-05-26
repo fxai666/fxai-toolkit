@@ -24,14 +24,14 @@ class FxAiMultiPromptLoader:
 
     def load_prompt_data(
         self,
-        多提示词数据: List[Dict[str, Any]],
-        索引值: int,
-        帧率: int,
-        默认提示词: str,
+        多提示词数据,
+        索引值,
+        帧率,
+        默认提示词,
         刷新标记=0,
         通用提示词="",
         尾部通用提示词=""
-    ) -> tuple[str, str, dict, str]:
+    ):
         try:
             if not 多提示词数据:
                 empty_dict = {
@@ -68,7 +68,7 @@ class FxAiMultiPromptLoader:
                 })
 
                 # ✅ 直接生成你要的秒数格式文本！一步到位
-                sec_format_lines.append(f"[{start_sec}-{end_sec}s]".replace(".0", "") + f" {prompt} |")
+                sec_format_lines.append(f"[{start_sec}-{end_sec}s]".replace(".0", "") + f" {prompt}")
 
             # ==============================================
             # ✅ 第二步：断帧修正
@@ -96,6 +96,7 @@ class FxAiMultiPromptLoader:
             final_lines = []
             if 通用提示词:
                 final_lines.append(通用提示词)
+
             if 尾部通用提示词:
                 final_lines.append(尾部通用提示词)
             final_lines.extend(segment_parts)
@@ -110,8 +111,13 @@ class FxAiMultiPromptLoader:
                 global_parts.append(尾部通用提示词)
             final_global_str = "\n".join(global_parts) or 默认提示词
 
-            # 秒数格式最终文本
-            sec_format_text = "\n".join(sec_format_lines)
+            sec_lines = []
+            if 通用提示词:
+                sec_lines.append(通用提示词)
+            sec_lines.extend(sec_format_lines)
+            if 尾部通用提示词:
+                sec_lines.append(尾部通用提示词)
+            sec_format_text = "|\n".join(sec_lines)
 
             # 字典
             global_prompt_str = f"{通用提示词} {尾部通用提示词}".strip()

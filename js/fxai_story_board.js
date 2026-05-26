@@ -1,9 +1,9 @@
 import { app } from "../../scripts/app.js";
 
 app.registerExtension({
-    name: "FxAiMultiLineText",
+    name: "FxaiStoryBoard",
     beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name !== "FxAiMultiLineText") return;
+        if (nodeData.name !== "FxaiStoryBoard") return;
 
         var onNodeCreated = nodeType.prototype.onNodeCreated;
         var onConfigure = nodeType.prototype.onConfigure;
@@ -13,7 +13,6 @@ app.registerExtension({
             var r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
             this.lines = [];
 
-            // 强制隐藏 lines_data 参数
             this.linesDataWidget = null;
             for (var i = 0; i < this.widgets.length; i++) {
                 var w = this.widgets[i];
@@ -26,7 +25,6 @@ app.registerExtension({
                 }
             }
 
-            // 创建滚动容器
             this.scrollContainer = document.createElement("div");
             this.scrollContainer.style.height = "100%";
             this.scrollContainer.style.overflowY = "auto";
@@ -44,25 +42,19 @@ app.registerExtension({
                 };
             })(this));
 
-            // ========== 新增：批量输入按钮 ==========
             this.addWidget("button", "📋 批量输入", null, (function(node) {
                 return function() {
                     openBatchPopup(node);
                 };
             })(this));
 
-            // 初始创建表头 + 第一行
             createHeader(this);
             addLine(this);
 
-            // 只定义这一个宽度：既是默认宽度，也是最小宽度
-            const FIXED_WIDTH = 820;
-
-            // 1. 设置默认宽度
+            const FIXED_WIDTH = 950;
             this.size[0] = FIXED_WIDTH;
             this.setSize(this.computeSize());
 
-            // 2. 强制限制最小宽度（不能拉窄）+ 刷新后保持宽度
             this.onResize = (size) => {
                 if (size[0] < FIXED_WIDTH) {
                     this.size[0] = FIXED_WIDTH;
@@ -73,7 +65,6 @@ app.registerExtension({
             return r;
         };
 
-        // 加载配置（仅保留文本解析）
         nodeType.prototype.onConfigure = function (o) {
             var r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
             if (!o || !o.widgets_values) return r;
@@ -91,30 +82,22 @@ app.registerExtension({
 
             try {
                 var list = JSON.parse(data);
-                if (Array.isArray(list)) {
-                    while (this.lines.length > 0) {
-                        removeLine(this, this.lines[0]);
-                    }
-                    for (var j = 0; j < list.length; j++) {
-                        var item = list[j];
-                        var text = "";
-                        
-                        if (Array.isArray(item)) {
-                            text = item[0] || ""; // 仅保留文本字段
-                        } else {
-                            text = item || "";
-                        }
-                        addLine(this, text);
-                    }
+                while (this.lines.length > 0) {
+                    removeLine(this, this.lines[0]);
+                }
+                for (var j = 0; j < list.length; j++) {
+                    var item = list[j];
+                    let promptText = item.提示词 || "";
+                    let sceneProp = item.场景道具 || "";
+                    addLine(this, promptText, sceneProp);
                 }
             } catch (e) {
-                console.error("FxAiMultiLineText: 加载数据失败", e);
+                console.error("FxaiStoryBoard: 加载数据失败", e);
             }
 
             return r;
         };
 
-        // 序列化保存（仅保留文本字段）
         nodeType.prototype.onSerialize = function (o) {
             o = o || {};
             o.widgets_values = o.widgets_values || [];
@@ -122,7 +105,10 @@ app.registerExtension({
             if (this.linesDataWidget && this.lines) {
                 var values = [];
                 for (var i = 0; i < this.lines.length; i++) {
-                    values.push(this.lines[i].value); // 仅保留文本
+                    values.push({
+                        提示词: this.lines[i].promptValue,
+                        场景道具: this.lines[i].propValue
+                    });
                 }
                 var json = JSON.stringify(values);
                 this.linesDataWidget.value = json;
@@ -141,14 +127,15 @@ app.registerExtension({
                 }
             }
 
-            return onSerialize ? onSerialize.apply(this, arguments) : o;
+            // 修复：onSerialize 不返回值，直接调用原方法并传递参数
+            if (onSerialize) {
+                onSerialize.apply(this, arguments);
+            }
         };
     },
 });
 
-// ========== 新增：批量输入自定义弹窗（美观ComfyUI风格） ==========
 function openBatchPopup(node) {
-    // 背景遮罩
     const mask = document.createElement("div");
     mask.style.cssText = `
         position: fixed; top:0; left:0; width:100%; height:100%;
@@ -156,7 +143,6 @@ function openBatchPopup(node) {
         display: flex; align-items:center; justify-content:center;
     `;
 
-    // 弹窗主体
     const dialog = document.createElement("div");
     dialog.style.cssText = `
         width: 700px; background: #2a2a2a; border: 1px solid #666;
@@ -164,19 +150,16 @@ function openBatchPopup(node) {
         color: #fff; font-family: sans-serif;
     `;
 
-    // 标题
     const title = document.createElement("div");
     title.textContent = "批量导入提示词";
     title.style.cssText = "font-size:16px; font-weight:bold; margin-bottom:8px; text-align:center;";
 
-    // 说明
     const tip = document.createElement("div");
-    tip.textContent = "输入 JSON 数组格式，例如：[\"提示词1\",\"提示词2\",\"提示词3\"]，导入后追加到现有列表末尾";
+    tip.textContent = "只导入提示词字符串数组，例如：[\"提示词1\",\"提示词2\"]，场景道具会自动为空，可手动填写";
     tip.style.cssText = "font-size:12px; color:#aaa; margin-bottom:10px; line-height:1.4;";
 
-    // 文本域
     const textarea = document.createElement("textarea");
-    textarea.placeholder = "粘贴你的提示词数组...";
+    textarea.placeholder = "粘贴字符串数组...";
     textarea.style.cssText = `
         width: 100%; height: 320px; box-sizing: border-box;
         background: #1a1a1a; color: #fff; border: 1px solid #555;
@@ -184,7 +167,6 @@ function openBatchPopup(node) {
         font-family: monospace; resize: vertical;
     `;
 
-    // 按钮栏
     const bar = document.createElement("div");
     bar.style.cssText = "display:flex; justify-content:center; gap:10px; margin-top:12px;";
 
@@ -201,19 +183,20 @@ function openBatchPopup(node) {
     mask.append(dialog);
     document.body.append(mask);
 
-    // 关闭
     const close = () => document.body.removeChild(mask);
     cancelBtn.onclick = close;
 
-    // 导入逻辑
     okBtn.onclick = () => {
         try {
             const v = textarea.value.trim();
             if (!v) return alert("请输入内容");
             const arr = JSON.parse(v);
-            if (!Array.isArray(arr)) return alert("必须是数组格式");
+            if (!Array.isArray(arr)) return alert("必须是字符串数组");
             
-            arr.forEach(t => addLine(node, String(t || "")));
+            arr.forEach(item => {
+                let promptText = String(item || "");
+                addLine(node, promptText, "");
+            });
             alert(`成功导入 ${arr.length} 条提示词`);
             close();
         } catch (e) {
@@ -224,7 +207,6 @@ function openBatchPopup(node) {
     textarea.focus();
 }
 
-// 创建顶部表头标签（仅保留序号、文本、操作列）
 function createHeader(node) {
     var header = document.createElement("div");
     header.style.display = "flex";
@@ -238,10 +220,10 @@ function createHeader(node) {
     header.style.fontWeight = "bold";
     header.style.color = "#ffffff";
 
-    // 表头标签文本（移除时长、音频索引、转场列）
     var labels = [
         { text: "序号", width: "24px" },
         { text: "提示词文本", flex: 1 },
+        { text: "场景道具", width: "120px" },
         { text: "操作", width: "90px" }
     ];
 
@@ -258,9 +240,9 @@ function createHeader(node) {
     node.scrollContainer.appendChild(header);
 }
 
-// 添加行（仅保留文本字段）
-function addLine(node, defaultValue) {
-    defaultValue = defaultValue || "";
+function addLine(node, promptDefault , propDefault ) {
+    promptDefault = promptDefault || "";
+    propDefault = propDefault || "";
 
     var idx = node.lines.length;
     var row = document.createElement("div");
@@ -271,7 +253,6 @@ function addLine(node, defaultValue) {
     row.style.marginBottom = "8px";
     row.style.boxSizing = "border-box";
 
-    // 1. 行号
     var lineNumLabel = document.createElement("span");
     lineNumLabel.textContent = (idx + 1) + ".";
     lineNumLabel.style.minWidth = "24px";
@@ -284,24 +265,38 @@ function addLine(node, defaultValue) {
     lineNumLabel.style.marginTop = "6px";
     lineNumLabel.style.flexShrink = "0";
 
-    // 2. 文本框（仅保留核心文本输入）
-    var textarea = document.createElement("textarea");
-    textarea.placeholder = "输入内容...";
-    textarea.style.flex = "1";
-    textarea.style.minWidth = "0";
-    textarea.style.minHeight = "60px";
-    textarea.style.padding = "6px 8px";
-    textarea.style.borderRadius = "4px";
-    textarea.style.fontFamily = "monospace";
-    textarea.style.fontSize = "12px";
-    textarea.style.border = "1px solid var(--comfy-menu-border-color)";
-    textarea.style.backgroundColor = "var(--comfy-input-bg)";
-    textarea.style.color = "var(--fg-color)";
-    textarea.style.resize = "vertical";
-    textarea.style.boxSizing = "border-box";
-    textarea.value = defaultValue;
+    var promptTextarea = document.createElement("textarea");
+    promptTextarea.placeholder = "输入提示词...";
+    promptTextarea.style.flex = "1";
+    promptTextarea.style.minWidth = "0";
+    promptTextarea.style.minHeight = "60px";
+    promptTextarea.style.padding = "6px 8px";
+    promptTextarea.style.borderRadius = "4px";
+    promptTextarea.style.fontFamily = "monospace";
+    promptTextarea.style.fontSize = "12px";
+    promptTextarea.style.border = "1px solid var(--comfy-menu-border-color)";
+    promptTextarea.style.backgroundColor = "var(--comfy-input-bg)";
+    promptTextarea.style.color = "var(--fg-color)";
+    promptTextarea.style.resize = "vertical";
+    promptTextarea.style.boxSizing = "border-box";
+    promptTextarea.value = promptDefault;
 
-    // 3. 操作按钮（上移/下移/删除）
+    var propInput = document.createElement("input");
+    propInput.placeholder = "输入数字（如1.2）";
+    propInput.style.minWidth = "120px";
+    propInput.style.height = "30px";
+    propInput.style.padding = "0 8px";
+    propInput.style.borderRadius = "4px";
+    propInput.style.fontFamily = "monospace";
+    propInput.style.fontSize = "12px";
+    propInput.style.border = "1px solid var(--comfy-menu-border-color)";
+    propInput.style.backgroundColor = "var(--comfy-input-bg)";
+    propInput.style.color = "var(--fg-color)";
+    propInput.style.boxSizing = "border-box";
+    propInput.style.marginTop = "6px";
+    propInput.style.flexShrink = "0";
+    propInput.value = propDefault;
+
     var upBtn = document.createElement("button");
     upBtn.textContent = "↑";
     upBtn.title = "上移此行";
@@ -344,42 +339,44 @@ function addLine(node, defaultValue) {
     delBtn.style.flexShrink = "0";
     delBtn.style.marginTop = "2px";
 
-    // 组装行元素（移除时长、音频索引、转场相关DOM）
     row.appendChild(lineNumLabel);
-    row.appendChild(textarea);
+    row.appendChild(promptTextarea);
+    row.appendChild(propInput);
     row.appendChild(upBtn);
     row.appendChild(downBtn);
     row.appendChild(delBtn);
     node.scrollContainer.appendChild(row);
 
-    // 行数据（仅保留文本相关字段）
     var item = {
-        textarea: textarea,
+        promptTextarea: promptTextarea,
+        propInput: propInput,
         upBtn: upBtn,
         downBtn: downBtn,
         row: row,
-        value: defaultValue,
+        promptValue: promptDefault,
+        propValue: propDefault,
         label: lineNumLabel
     };
     node.lines.push(item);
 
-    // 文本变化监听
-    textarea.addEventListener("input", function() {
-        item.value = textarea.value;
+    promptTextarea.addEventListener("input", function() {
+        item.promptValue = promptTextarea.value;
         updateHidden(node);
     });
 
-    // 上移按钮
+    propInput.addEventListener("input", function() {
+        item.propValue = propInput.value;
+        updateHidden(node);
+    });
+
     upBtn.onclick = function() {
         moveLine(node, item, -1);
     };
 
-    // 下移按钮
     downBtn.onclick = function() {
         moveLine(node, item, 1);
     };
 
-    // 删除按钮
     delBtn.onclick = function() {
         removeLine(node, item);
     };
@@ -391,7 +388,6 @@ function addLine(node, defaultValue) {
     updateHidden(node);
 }
 
-// 上移/下移行（逻辑不变）
 function moveLine(node, item, dir) {
     var index = -1;
     for (var i = 0; i < node.lines.length; i++) {
@@ -405,12 +401,10 @@ function moveLine(node, item, dir) {
     var newIndex = index + dir;
     if (newIndex < 0 || newIndex >= node.lines.length) return;
 
-    // 交换数组
     var temp = node.lines[index];
     node.lines[index] = node.lines[newIndex];
     node.lines[newIndex] = temp;
 
-    // 交换DOM
     var container = node.scrollContainer;
     container.insertBefore(
         node.lines[newIndex].row,
@@ -421,14 +415,12 @@ function moveLine(node, item, dir) {
     updateHidden(node);
 }
 
-// 刷新行号（逻辑不变）
 function refreshLineNumbers(node) {
     for (var i = 0; i < node.lines.length; i++) {
         node.lines[i].label.textContent = (i + 1) + ".";
     }
 }
 
-// 删除行（逻辑不变）
 function removeLine(node, item) {
     item.row.remove();
     var newLines = [];
@@ -442,13 +434,16 @@ function removeLine(node, item) {
     updateHidden(node);
 }
 
-// 更新隐藏数据（仅保留文本字段）
+// 修复：updateHidden 函数移除 this，统一使用 node 参数
 function updateHidden(node) {
-    if (!node.linesDataWidget) return;
+    if (!node || !node.linesDataWidget) return;
 
     var values = [];
     for (var i = 0; i < node.lines.length; i++) {
-        values.push(node.lines[i].value);
+        values.push({
+            提示词: node.lines[i].promptValue,
+            场景道具: node.lines[i].propValue
+        });
     }
     var data = JSON.stringify(values);
     node.linesDataWidget.value = data;

@@ -7,6 +7,7 @@ from aiohttp import web
 import mimetypes
 import soundfile as sf
 import numpy as np
+import torchaudio
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -46,6 +47,15 @@ def sanitize_filename(filename):
     name = re.sub(r'[\\/*?:"<>|]', '', filename)
     name = name.strip()
     return name
+
+# ==================== 【新增】获取音频时长（秒）====================
+def get_audio_duration(audio_path):
+    try:
+        info = torchaudio.info(audio_path, backend="ffmpeg")
+        duration = info.num_frames / info.sample_rate
+        return round(duration, 3)
+    except:
+        return 0.0
 
 # ---------- HTTP 路由 ----------
 async def get_preview(request):
@@ -102,7 +112,6 @@ async def apply_changes(request):
             if not old_fp or not os.path.exists(old_fp):
                 continue
 
-            # 正确解析：只保留真实文件名，不重复加序号
             match = re.match(r'^\d{3}_(.+)', os.path.splitext(old_fullname)[0])
             if match:
                 pure_name = match.group(1)
@@ -126,7 +135,6 @@ async def apply_changes(request):
     except Exception as e:
         return web.json_response({"error": f"应用失败：{str(e)}"}, status=500)
 
-# 最终完美版：三位序号 + 纯中文原始文件名
 async def upload_audio_custom(request):
     try:
         data = await request.post()
@@ -142,7 +150,6 @@ async def upload_audio_custom(request):
 
         target_dir = get_audio_dir(subdir)
         
-        # 统计文件数量 +1
         file_list = list_audios(target_dir)
         next_num = len(file_list)
 
@@ -181,8 +188,9 @@ class FxAiAudioManager:
             }
         }
 
-    RETURN_TYPES = ("STRING", "INT", "AUDIO")
-    RETURN_NAMES = ("文件夹路径", "音频总数", "音频")
+    # ==================== 【新增】返回值：分段列表 ====================
+    RETURN_TYPES = ("STRING", "INT", "AUDIO", "LIST")
+    RETURN_NAMES = ("文件夹路径", "音频总数", "音频", "分段列表")
     FUNCTION = "run"
     CATEGORY = "凤希AI/音频"
 
@@ -213,4 +221,13 @@ class FxAiAudioManager:
             self.save_tensor_audio(音频, target_dir)
         
         files = list_audios(target_dir)
-        return (target_dir, len(files), 音频)
+
+        # ==================== 【新增】生成分段列表 ====================
+        duration_list = []
+        for f in files:
+            audio_path = os.path.join(target_dir, f)
+            duration = get_audio_duration(audio_path)
+            duration_list.append(duration)
+
+        # ==================== 【新增】返回分段列表 ====================
+        return (target_dir, len(files), 音频, duration_list)

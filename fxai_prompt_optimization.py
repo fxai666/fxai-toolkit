@@ -116,7 +116,7 @@ class FxAiPromptGenerator:
                     pass
 
         except Exception as e:
-            print("❌ 凤希AI提示词优化失败：{e}")
+            print(f"❌ 凤希AI提示词优化失败：{e}")
             pass
 
         return (final_output, 分段时长)

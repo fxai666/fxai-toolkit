@@ -45,10 +45,13 @@ NODE_REGISTRY = [
     ("FxAiLoadAudioByIndex",      "fxai_audio_load",            "凤希AI - 音频管理器 - 音频加载"),
     ("FxAiSingleAudioProc",       "fxai_single_audio_proc",     "凤希AI - 单音频处理器"),
     ("FxAiAudioMerge",            "fxai_audio_merge",           "凤希AI - 多音频合并"),
+    ("FxAiAudioAvgSplit",         "fxai_audio_avg_split",       "凤希AI - 音频平均分段器"),
 
     # 场景/文本类
     ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
     ("FxAiMultiLineTextLoad",     "fxai_multiline_text_load",   "凤希AI - 场景提示词加载器"),
+    ("FxaiStoryBoard",            "fxai_story_board",           "凤希AI - 分镜生成器 - 进Q群与更多的群友学习：775649071"),
+    ("FxaiStoryBoardLoad",        "fxai_story_board_load",      "凤希AI - 分镜数据解析器"),
     ("FxAiSceneManager",          "fxai_scene_manager",         "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071"),
     ("FxAiSceneManagerV2",        "fxai_scene_manager_v2",      "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071"),
     ("FxAiSceneLoad",             "fxai_scene_load",            "凤希AI - 场景数据加载器"),

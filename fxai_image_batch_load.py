@@ -84,6 +84,9 @@ class FxAiImageBatchLoad:
         if total_images == 0:
             return (None, None, None, 0)
 
+        CANVAS_W = 1024 // 缩小倍数
+        CANVAS_H = 1024 // 缩小倍数
+
         # ===================== 核心优化逻辑 =====================
         index_str = 图片索引.strip()
         # 初始化：默认加载所有图片
@@ -128,9 +131,6 @@ class FxAiImageBatchLoad:
         masks = []
         
         for idx in unique_indices:
-            if idx >= total_images:
-                continue
-                
             try:
                 img_path = image_files[idx]
                 img = load_single_image(img_path, 缩小倍数)
