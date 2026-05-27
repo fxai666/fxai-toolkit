@@ -1,91 +1,121 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-const TARGET_CLASS = "FxAiAudioManager";
+var TARGET_CLASS = "FxAiAudioManager";
+var sortable = null;
 
-let sortable = null;
-
-async function fetchFileList(subdir) {
-    const resp = await fetch(api.apiURL(`/fxai/audio/list?subdir=${encodeURIComponent(subdir)}`));
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return data.files;
+// 获取文件列表
+function fetchFileList(subdir, callback) {
+    var url = api.apiURL("/fxai/audio/list?subdir=" + encodeURIComponent(subdir));
+    fetch(url)
+        .then(function(resp) {
+            if (!resp.ok) {
+                callback(null, []);
+                return;
+            }
+            return resp.json();
+        })
+        .then(function(data) {
+            callback(null, data.files);
+        })
+        .catch(function() {
+            callback(null, []);
+        });
 }
 
-async function getNextNumber(subdir) {
-    const resp = await fetch(api.apiURL(`/fxai/audio/next_number?subdir=${encodeURIComponent(subdir)}`));
-    if (!resp.ok) throw new Error("获取序号失败");
-    const data = await resp.json();
-    return data.next_num;
-}
-
-// 音频上传逻辑
-async function uploadFiles(files, subdir, onProgress) {
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        const formData = new FormData();
-        formData.append("audio", file, file.name); 
+// 音频逐文件上传（保留原串行逻辑）
+function uploadFiles(files, subdir, onProgress, callback) {
+    var i = 0;
+    function doUpload() {
+        if (i >= files.length) {
+            callback(null);
+            return;
+        }
+        var file = files[i];
+        var formData = new FormData();
+        formData.append("audio", file, file.name);
         formData.append("subdir", subdir);
 
-        try {
-            const response = await fetch(api.apiURL("/fxai/audio/upload"), {
-                method: "POST",
-                body: formData,
-            });
-
+        fetch(api.apiURL("/fxai/audio/upload"), {
+            method: "POST",
+            body: formData
+        })
+        .then(function(response) {
             if (!response.ok) {
-                throw new Error(`上传失败: ${response.status}`);
+                throw new Error("上传失败: " + response.status);
             }
-            
-            onProgress?.(i, 1); // 进度完成
-        } catch (err) {
-            throw new Error(`文件 ${file.name} 上传失败: ${err.message}`);
-        }
+            if (onProgress) {
+                onProgress(i, 1);
+            }
+            i++;
+            doUpload();
+        })
+        .catch(function(err) {
+            callback(new Error("文件 " + file.name + " 上传失败: " + err.message));
+        });
     }
+    doUpload();
 }
 
-async function applyChanges(subdir, orderedFilenames) {
-    const resp = await fetch(api.apiURL("/fxai/audio/apply"), {
+// 应用排序
+function applyChanges(subdir, orderedFilenames, callback) {
+    fetch(api.apiURL("/fxai/audio/apply"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subdir, ordered_filenames: orderedFilenames })
-        });
-    if (!resp.ok) throw new Error("应用更改失败");
-    const data = await resp.json();
-    return data.files;
+        body: JSON.stringify({ subdir: subdir, ordered_filenames: orderedFilenames })
+    })
+    .then(function(resp) {
+        if (!resp.ok) {
+            throw new Error("应用更改失败");
+        }
+        return resp.json();
+    })
+    .then(function(data) {
+        callback(null, data.files);
+    })
+    .catch(function(err) {
+        callback(err);
+    });
 }
 
-// 全局阻止浏览器默认拖拽行为
+// 全局阻止拖拽默认行为
 function preventDefaultDragDrop() {
-    document.addEventListener('dragover', (e) => e.preventDefault());
-    document.addEventListener('drop', (e) => e.preventDefault());
-    document.addEventListener('dragenter', (e) => e.preventDefault());
-    document.addEventListener('dragleave', (e) => e.preventDefault());
+    document.addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.addEventListener('drop', function(e) { e.preventDefault(); });
+    document.addEventListener('dragenter', function(e) { e.preventDefault(); });
+    document.addEventListener('dragleave', function(e) { e.preventDefault(); });
 }
 
 function addUI(node) {
     if (node._uiAdded) return;
     node._uiAdded = true;
 
-    // 启用全局防拖拽打开
     preventDefaultDragDrop();
 
-    const subdirWidget = node.widgets.find(w => w.name === "目录");
+    // 查找 目录 widget（等价原 find）
+    var subdirWidget = null;
+    for (var wIdx = 0; wIdx < node.widgets.length; wIdx++) {
+        if (node.widgets[wIdx].name === "目录") {
+            subdirWidget = node.widgets[wIdx];
+            break;
+        }
+    }
     if (!subdirWidget) {
         console.error("未找到子目录控件");
         return;
     }
 
-    const container = document.createElement("div");
+    var container = document.createElement("div");
     container.style.padding = "8px";
     container.style.border = "1px solid #555";
     container.style.borderRadius = "4px";
-    var domWidget=  node.addDOMWidget("audio_ui", "audio_ui", container);
-    domWidget.computeSize = () => [500, 385];
+    var domWidget = node.addDOMWidget("audio_ui", "audio_ui", container);
+    domWidget.computeSize = function() {
+        return [500, 420];
+    };
 
     // 拖拽上传区域
-    const dropArea = document.createElement("div");
+    var dropArea = document.createElement("div");
     dropArea.style.padding = "12px";
     dropArea.style.marginBottom = "8px";
     dropArea.style.border = "2px dashed #777";
@@ -95,177 +125,206 @@ function addUI(node) {
     dropArea.textContent = "📥 拖拽音频到这里上传（支持多文件）";
     container.appendChild(dropArea);
 
-    // 拖拽逻辑
-    dropArea.addEventListener("dragover", (e) => {
+    // 拖拽事件
+    dropArea.addEventListener("dragover", function(e) {
         e.preventDefault();
         dropArea.style.borderColor = "#fff";
     });
-    dropArea.addEventListener("dragleave", () => {
+    dropArea.addEventListener("dragleave", function() {
         dropArea.style.borderColor = "#777";
     });
-    dropArea.addEventListener("drop", async (e) => {
+    dropArea.addEventListener("drop", function(e) {
         e.preventDefault();
         e.stopPropagation();
         dropArea.style.borderColor = "#777";
-        const files = Array.from(e.dataTransfer.files);
+        var files = Array.prototype.slice.call(e.dataTransfer.files);
         if (!files.length) return;
 
-        const originalText = uploadBtn.textContent;
+        var originalText = uploadBtn.textContent;
         uploadBtn.textContent = "上传中...";
         uploadBtn.disabled = true;
-        try {
-            await uploadFiles(files, subdirWidget.value, (idx, prog) => {
-                uploadBtn.textContent = `上传中 ${idx+1}/${files.length} ${Math.round(prog*100)}%`;
-            });
-            await updateList();
-        } catch(err) {
-            alert("上传失败: " + err.message);
-        } finally {
+
+        uploadFiles(files, subdirWidget.value, function(idx, prog) {
+            uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + files.length + " " + Math.round(prog * 100) + "%";
+        }, function(err) {
+            if (err) {
+                alert("上传失败: " + err.message);
+            }
+            // 无论成败都恢复按钮状态（和原逻辑一致）
             uploadBtn.textContent = originalText;
             uploadBtn.disabled = false;
-        }
+            // 上传成功才刷新列表（还原原版逻辑）
+            if (!err) {
+                updateList();
+            }
+        });
     });
 
-    const btnDiv = document.createElement("div");
+    // 按钮容器
+    var btnDiv = document.createElement("div");
     btnDiv.style.display = "flex";
     btnDiv.style.gap = "8px";
     btnDiv.style.marginBottom = "8px";
     container.appendChild(btnDiv);
 
-    const uploadBtn = document.createElement("button");
+    var uploadBtn = document.createElement("button");
     uploadBtn.textContent = "📤 选择音频上传";
-    const refreshBtn = document.createElement("button");
+    var refreshBtn = document.createElement("button");
     refreshBtn.textContent = "🔄 刷新";
-    const applyBtn = document.createElement("button");
+    var applyBtn = document.createElement("button");
     applyBtn.textContent = "✅ 应用排序";
     btnDiv.appendChild(uploadBtn);
     btnDiv.appendChild(refreshBtn);
     btnDiv.appendChild(applyBtn);
 
-    const listDiv = document.createElement("div");
+    // 列表容器
+    var listDiv = document.createElement("div");
     listDiv.style.display = "flex";
     listDiv.style.flexWrap = "wrap";
     listDiv.style.gap = "5px";
-    listDiv.style.height = "260px";
+    listDiv.style.maxHeight = "280px";
     listDiv.style.overflowY = "auto";
     listDiv.style.padding = "4px";
     listDiv.style.border = "1px solid #666";
     container.appendChild(listDiv);
 
-    // 点击上传
-    uploadBtn.onclick = () => {
-        const input = document.createElement("input");
+    // 点击选择文件上传
+    uploadBtn.onclick = function() {
+        var input = document.createElement("input");
         input.type = "file";
         input.multiple = true;
-        input.accept = "audio/*"; // 仅接受音频文件
-        input.onchange = async () => {
+        input.accept = "audio/*";
+        input.onchange = function() {
             if (!input.files.length) return;
-            const files = Array.from(input.files);
-            const originalText = uploadBtn.textContent;
+            var files = Array.prototype.slice.call(input.files);
+            var originalText = uploadBtn.textContent;
             uploadBtn.textContent = "上传中...";
             uploadBtn.disabled = true;
-            try {
-                await uploadFiles(files, subdirWidget.value, (idx, prog) => {
-                    uploadBtn.textContent = `上传中 ${idx+1}/${files.length} ${Math.round(prog*100)}%`;
-                });
-                await updateList();
-            } catch(err) {
-                alert("上传失败: " + err.message);
-            } finally {
+
+            uploadFiles(files, subdirWidget.value, function(idx, prog) {
+                uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + files.length + " " + Math.round(prog * 100) + "%";
+            }, function(err) {
+                if (err) {
+                    alert("上传失败: " + err.message);
+                }
                 uploadBtn.textContent = originalText;
                 uploadBtn.disabled = false;
-            }
+                if (!err) {
+                    updateList();
+                }
+            });
         };
         input.click();
     };
 
-    refreshBtn.onclick = async () => {
-        await updateList();
+    // 刷新按钮
+    refreshBtn.onclick = function() {
+        updateList();
     };
 
-    applyBtn.onclick = async () => {
-        const items = listDiv.querySelectorAll(".audio-item");
-        const ordered = Array.from(items).map(item => item.dataset.filename);
-        try {
-            await applyChanges(subdirWidget.value, ordered);
-            await updateList();
-        } catch(err) {
-            alert("应用失败: " + err.message);
+    // 应用排序按钮
+    applyBtn.onclick = function() {
+        var items = listDiv.querySelectorAll(".audio-item");
+        var ordered = [];
+        for (var m = 0; m < items.length; m++) {
+            ordered.push(items[m].dataset.filename);
         }
+        applyChanges(subdirWidget.value, ordered, function(err) {
+            if (err) {
+                alert("应用失败: " + err.message);
+            } else {
+                updateList();
+            }
+        });
     };
 
-    async function updateList() {
-        const files = await fetchFileList(subdirWidget.value);
-        listDiv.innerHTML = "";
+    // 更新列表核心方法
+    function updateList() {
+        fetchFileList(subdirWidget.value, function(err, files) {
+            listDiv.innerHTML = "";
+            if (err) return;
 
-        for (const file of files) {
-            const item = document.createElement("div");
-            item.className = "audio-item";
-            item.dataset.filename = file;
-            item.style.position = "relative";
-            item.style.width = "250px";
-            item.style.height = "80px";
-            item.style.margin = "4px";
-            item.style.cursor = "grab";
-            item.style.borderRadius = "6px";
-            item.style.overflow = "hidden";
-            item.style.display = "flex";
-            item.style.flexDirection = "column";
-            item.style.alignItems = "center";
-            item.style.justifyContent = "center";
+            // 原 for...of 改为标准 for 循环
+            for (var fIdx = 0; fIdx < files.length; fIdx++) {
+                var file = files[fIdx];
+                var item = document.createElement("div");
+                item.className = "audio-item";
+                item.dataset.filename = file;
+                item.style.position = "relative";
+                item.style.width = "250px";
+                item.style.height = "80px";
+                item.style.margin = "4px";
+                item.style.cursor = "grab";
+                item.style.borderRadius = "6px";
+                item.style.overflow = "hidden";
+                item.style.display = "flex";
+                item.style.flexDirection = "column";
+                item.style.alignItems = "center";
+                item.style.justifyContent = "center";
 
-            
-        // 音频播放控件
-            const audio = document.createElement("audio");
-            audio.controls = true;
-            audio.style.width = "100%";
-            audio.style.marginBottom = "4px";
-            audio.src = api.apiURL(`/fxai/audio/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}`);
+                // 音频标签
+                var audio = document.createElement("audio");
+                audio.controls = true;
+                audio.style.width = "100%";
+                audio.style.marginBottom = "4px";
+                var audioSrc = api.apiURL("/fxai/audio/preview?subdir=" + encodeURIComponent(subdirWidget.value) + "&filename=" + encodeURIComponent(file));
+                audio.src = audioSrc;
 
-            const nameSpan = document.createElement("div");
-            nameSpan.textContent = file;
-            nameSpan.style.color = "white";
-            nameSpan.style.fontSize = "10px";
-            nameSpan.style.textAlign = "center";
-            nameSpan.style.padding = "2px";
-            nameSpan.style.whiteSpace = "nowrap";
-            nameSpan.style.overflow = "hidden";
-            nameSpan.style.textOverflow = "ellipsis";
-            nameSpan.style.width = "100%";
+                // 文件名
+                var nameSpan = document.createElement("div");
+                nameSpan.textContent = file;
+                nameSpan.style.color = "white";
+                nameSpan.style.fontSize = "10px";
+                nameSpan.style.textAlign = "center";
+                nameSpan.style.padding = "2px";
+                nameSpan.style.whiteSpace = "nowrap";
+                nameSpan.style.overflow = "hidden";
+                nameSpan.style.textOverflow = "ellipsis";
+                nameSpan.style.width = "100%";
 
-            const delBtn = document.createElement("button");
-            delBtn.textContent = "✖";
-            delBtn.style.position = "absolute";
-            delBtn.style.top = "2px";
-            delBtn.style.right = "2px";
-            delBtn.style.backgroundColor = "rgba(0,0,0,0.6)";
-            delBtn.style.color = "white";
-            delBtn.style.border = "none";
-            delBtn.style.borderRadius = "50%";
-            delBtn.style.width = "20px";
-            delBtn.style.height = "20px";
-            delBtn.style.cursor = "pointer";
-            delBtn.onclick = (e) => {
-                e.stopPropagation();
-                item.remove();
-            };
+                // 删除按钮
+                var delBtn = document.createElement("button");
+                delBtn.textContent = "✖";
+                delBtn.style.position = "absolute";
+                delBtn.style.top = "2px";
+                delBtn.style.right = "2px";
+                delBtn.style.backgroundColor = "rgba(0,0,0,0.6)";
+                delBtn.style.color = "white";
+                delBtn.style.border = "none";
+                delBtn.style.borderRadius = "50%";
+                delBtn.style.width = "20px";
+                delBtn.style.height = "20px";
+                delBtn.style.cursor = "pointer";
+                delBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    item.remove(); // 还原原版：使用外层 item 变量，而非 this.parentNode
+                };
 
-            item.appendChild(audio);
-            item.appendChild(nameSpan);
-            item.appendChild(delBtn);
-            listDiv.appendChild(item);
-        }
+                item.appendChild(audio);
+                item.appendChild(nameSpan);
+                item.appendChild(delBtn);
+                listDiv.appendChild(item);
+            }
 
-        // 加载Sortable实现拖拽排序
-        if (!window.Sortable) {
-            await new Promise((resolve) => {
-                const script = document.createElement("script");
+            // 动态加载 Sortable 并初始化
+            if (!window.Sortable) {
+                var script = document.createElement("script");
                 script.src = "./Sortable.min.js";
-                script.onload = resolve;
+                script.onload = function() {
+                    initSortable();
+                };
                 document.head.appendChild(script);
-            });
+            } else {
+                initSortable();
+            }
+        });
+    }
+
+    // 初始化拖拽排序
+    function initSortable() {
+        if (sortable) {
+            sortable.destroy();
         }
-        if (sortable) sortable.destroy();
         sortable = new Sortable(listDiv, {
             animation: 150,
             handle: ".audio-item",
@@ -273,23 +332,27 @@ function addUI(node) {
         });
     }
 
-    // 目录切换时刷新列表
-    const origCallback = subdirWidget.callback;
+    // 目录切换回调（完全还原原版 this 指向 + 调用逻辑）
+    var origCallback = subdirWidget.callback;
     subdirWidget.callback = function(v) {
-        origCallback?.call(this, v);
+        if (origCallback) {
+            origCallback.call(this, v);
+        }
         updateList();
     };
 
-    // 初始化列表
+    // 初始化渲染列表
     updateList();
 }
 
-// 注册ComfyUI扩展
+// 注册扩展（保留原 import 语法 + 原生结构）
 app.registerExtension({
     name: "FxAiAudioManager",
-    async nodeCreated(node) {
+    nodeCreated: function(node) {
         if (node.comfyClass === TARGET_CLASS) {
-            setTimeout(() => addUI(node), 100);
+            setTimeout(function() {
+                addUI(node);
+            }, 100);
         }
-},
+    }
 });
