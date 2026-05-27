@@ -15,6 +15,8 @@ class FxAiStartEndIndex:
     CATEGORY = "凤希AI/工具"
 
     def convert(self, 开始索引,结束索引,总循环数):
+        if 结束索引 < 0
+           结束索引 = max(总循环数 - 1,0)
         if 结束索引 > -1 and 结束索引 >= 开始索引:
            总循环数 = min(结束索引 - 开始索引 + 1,总循环数)
         return (开始索引,结束索引,总循环数)
