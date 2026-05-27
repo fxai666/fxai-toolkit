@@ -111,7 +111,7 @@ function addUI(node) {
     container.style.borderRadius = "4px";
     var domWidget = node.addDOMWidget("audio_ui", "audio_ui", container);
     domWidget.computeSize = function() {
-        return [500, 420];
+        return [500, 410];
     };
 
     // 拖拽上传区域
@@ -182,7 +182,7 @@ function addUI(node) {
     listDiv.style.display = "flex";
     listDiv.style.flexWrap = "wrap";
     listDiv.style.gap = "5px";
-    listDiv.style.maxHeight = "280px";
+    listDiv.style.maxHeight = "290px";
     listDiv.style.overflowY = "auto";
     listDiv.style.padding = "4px";
     listDiv.style.border = "1px solid #666";
