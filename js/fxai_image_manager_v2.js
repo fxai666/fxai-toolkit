@@ -1,66 +1,115 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-const TARGET_CLASS = "FxAiImageManagerV2";
-let sortable = null;
-const updatedListBindFlag = new WeakMap();
+var TARGET_CLASS = "FxAiImageManagerV2";
+var sortable = null;
+var updatedListBindFlag = new WeakMap();
 
-async function fetchFileList(subdir) {
-    const resp = await fetch(api.apiURL(`/fxai/image/v2/list?subdir=${encodeURIComponent(subdir)}`));
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    return data.files;
-}
-
-async function uploadFiles(files, subdir, onProgress) {
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const formData = new FormData();
-        formData.append("image", file, file.name); 
-        formData.append("subdir", subdir);
-        try {
-            const response = await fetch(api.apiURL("/fxai/image/v2/upload"), {
-                method: "POST",
-                body: formData,
-            });
-            if (!response.ok) {
-                throw new Error(`上传失败: ${response.status}`);
+function fetchFileList(subdir) {
+    return new Promise(function(resolve, reject) {
+        var url = api.apiURL("/fxai/image/v2/list?subdir=" + encodeURIComponent(subdir));
+        fetch(url)
+        .then(function(resp) {
+            if (!resp.ok) {
+                return resolve([]);
             }
-            
-            onProgress?.(i, 1);
-        } catch (err) {
-            throw new Error(`文件 ${file.name} 上传失败: ${err.message}`);
-        }
-    }
+            return resp.json();
+        })
+        .then(function(data) {
+            resolve(data.files);
+        })
+        .catch(function() {
+            resolve([]);
+        });
+    });
 }
 
-async function applyChanges(subdir, orderedFilenames) {
-    const resp = await fetch(api.apiURL("/fxai/image/v2/apply"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subdir, ordered_filenames: orderedFilenames })
+function uploadFiles(files, subdir, onProgress) {
+    return new Promise(function(resolve, reject) {
+        var loop = function(i) {
+            if (i >= files.length) {
+                resolve();
+                return;
+            }
+            var file = files[i];
+            var formData = new FormData();
+            formData.append("image", file, file.name);
+            formData.append("subdir", subdir);
+
+            fetch(api.apiURL("/fxai/image/v2/upload"), {
+                method: "POST",
+                body: formData
+            })
+            .then(function(response) {
+                if (!response.ok) {
+                    throw new Error("上传失败: " + response.status);
+                }
+                if (onProgress) {
+                    onProgress(i, 1);
+                }
+                loop(i + 1);
+            })
+            .catch(function(err) {
+                reject(new Error("文件 " + file.name + " 上传失败: " + err.message));
+            });
+        };
+        loop(0);
     });
-    if (!resp.ok) throw new Error("应用更改失败");
-    const data = await resp.json();
-    return data.files;
 }
 
-// ====================== 【仅新增】删除接口调用 ======================
-async function deleteImage(subdir, filename) {
-    const resp = await fetch(api.apiURL(`/fxai/image/v2/delete?subdir=${encodeURIComponent(subdir)}&filename=${encodeURIComponent(filename)}`), {
-        method: "DELETE",
+function applyChanges(subdir, orderedFilenames) {
+    return new Promise(function(resolve, reject) {
+        fetch(api.apiURL("/fxai/image/v2/apply"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subdir: subdir, ordered_filenames: orderedFilenames })
+        })
+        .then(function(resp) {
+            if (!resp.ok) {
+                throw new Error("应用更改失败");
+            }
+            return resp.json();
+        })
+        .then(function(data) {
+            resolve(data.files);
+        })
+        .catch(function(err) {
+            reject(err);
+        });
     });
-    if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({ error: "删除失败" }));
-        throw new Error(errData.error || `删除失败: ${resp.status}`);
-    }
-    return await resp.json();
+}
+
+function deleteImage(subdir, filename) {
+    return new Promise(function(resolve, reject) {
+        var url = api.apiURL("/fxai/image/v2/delete?subdir=" + encodeURIComponent(subdir) + "&filename=" + encodeURIComponent(filename));
+        fetch(url, {
+            method: "DELETE"
+        })
+        .then(function(resp) {
+            if (!resp.ok) {
+                return resp.json()
+                .catch(function() {
+                    return { error: "删除失败" };
+                })
+                .then(function(errData) {
+                    throw new Error(errData.error || "删除失败: " + resp.status);
+                });
+            }
+            return resp.json();
+        })
+        .then(function(data) {
+            resolve(data);
+        })
+        .catch(function(err) {
+            reject(err);
+        });
+    });
 }
 
 function preventDefaultDragDrop() {
-    document.addEventListener('dragover', (e) => e.preventDefault());
-    document.addEventListener('drop', (e) => e.preventDefault());
-    document.addEventListener('dragenter', (e) => e.preventDefault());
-    document.addEventListener('dragleave', (e) => e.preventDefault());
+    document.addEventListener('dragover', function(e) { e.preventDefault(); });
+    document.addEventListener('drop', function(e) { e.preventDefault(); });
+    document.addEventListener('dragenter', function(e) { e.preventDefault(); });
+    document.addEventListener('dragleave', function(e) { e.preventDefault(); });
 }
 
 function addUI(node) {
@@ -68,24 +117,31 @@ function addUI(node) {
     node._uiAdded = true;
     preventDefaultDragDrop();
 
-    const subdirWidget = node.widgets.find(w => w.name === "目录");
+    var subdirWidget = null;
+    for (var i = 0; i < node.widgets.length; i++) {
+        if (node.widgets[i].name === "目录") {
+            subdirWidget = node.widgets[i];
+            break;
+        }
+    }
+
     if (!subdirWidget) {
         console.error("未找到子目录控件");
         return;
     }
 
-    const container = document.createElement("div");
+    var container = document.createElement("div");
     container.style.padding = "8px";
     container.style.border = "1px solid #555";
     container.style.borderRadius = "4px";
     container.style.minWidth = "300px";
 
     var domWidget = node.addDOMWidget("image_ui", "image_ui", container);
-    if (domWidget) {
-        domWidget.computeSize = () => [790, 530];
-    }
+    domWidget.computeSize = function() {
+        return [790, 530];
+    };
 
-    const dropArea = document.createElement("div");
+    var dropArea = document.createElement("div");
     dropArea.style.padding = "12px";
     dropArea.style.marginBottom = "8px";
     dropArea.style.border = "2px dashed #777";
@@ -95,53 +151,24 @@ function addUI(node) {
     dropArea.textContent = "📥 拖拽图片到这里上传（支持多图）";
     container.appendChild(dropArea);
 
-    dropArea.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropArea.style.borderColor = "#fff";
-    });
-    dropArea.addEventListener("dragleave", () => {
-        dropArea.style.borderColor = "#777";
-    });
-    dropArea.addEventListener("drop", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropArea.style.borderColor = "#777";
-        const files = Array.from(e.dataTransfer.files);
-        if (!files.length) return;
-        const uploadBtn = btnDiv.querySelector('button:first-child');
-        const originalText = uploadBtn.textContent;
-        uploadBtn.textContent = "上传中...";
-        uploadBtn.disabled = true;
-        try {
-            await uploadFiles(files, subdirWidget.value, (idx, prog) => {
-                uploadBtn.textContent = `上传中 ${idx+1}/${files.length} ${Math.round(prog*100)}%`;
-            });
-            await updateList();
-        } catch(err) {
-            alert("上传失败: " + err.message);
-        } finally {
-            uploadBtn.textContent = originalText;
-            uploadBtn.disabled = false;
-        }
-    });
-
-    const btnDiv = document.createElement("div");
+    // 按钮区域 提前定义，修复之前 childNodes 硬编码取值BUG
+    var btnDiv = document.createElement("div");
     btnDiv.style.display = "flex";
     btnDiv.style.gap = "8px";
     btnDiv.style.marginBottom = "8px";
     container.appendChild(btnDiv);
 
-    const uploadBtn = document.createElement("button");
+    var uploadBtn = document.createElement("button");
     uploadBtn.textContent = "📤 选择图片上传";
-    const refreshBtn = document.createElement("button");
+    var refreshBtn = document.createElement("button");
     refreshBtn.textContent = "🔄 刷新";
-    const applyBtn = document.createElement("button");
+    var applyBtn = document.createElement("button");
     applyBtn.textContent = "✅ 确认操作";
     btnDiv.appendChild(uploadBtn);
     btnDiv.appendChild(refreshBtn);
     btnDiv.appendChild(applyBtn);
 
-    const listDiv = document.createElement("div");
+    var listDiv = document.createElement("div");
     listDiv.style.display = "flex";
     listDiv.style.flexWrap = "wrap";
     listDiv.style.gap = "5px";
@@ -151,165 +178,226 @@ function addUI(node) {
     listDiv.style.border = "1px solid #666";
     container.appendChild(listDiv);
 
-    async function updateList() {
-        while (listDiv.firstChild) {
-            listDiv.removeChild(listDiv.firstChild);
-        }
-        if (sortable) {
-            sortable.destroy();
-            sortable = null;
-        }
-        try {
-            const files = await fetchFileList(subdirWidget.value);
-            for (const file of files) {
-                const item = document.createElement("div");
-                item.className = "image-item";
-                item.dataset.filename = file;
-                item.style.position = "relative";
-                item.style.width = "120px";
-                item.style.height = "120px";
-                item.style.margin = "4px";
-                item.style.cursor = "grab";
-                item.style.backgroundColor = "#222";
-                item.style.borderRadius = "6px";
-                item.style.overflow = "hidden";
+    // 拖拽上传
+    dropArea.addEventListener("dragover", function(e) {
+        e.preventDefault();
+        dropArea.style.borderColor = "#fff";
+    });
+    dropArea.addEventListener("dragleave", function() {
+        dropArea.style.borderColor = "#777";
+    });
+    dropArea.addEventListener("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropArea.style.borderColor = "#777";
+        var files = Array.prototype.slice.call(e.dataTransfer.files);
+        if (!files.length) return;
 
-                const img = document.createElement("img");
-                img.src = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(subdirWidget.value)}&filename=${encodeURIComponent(file)}&t=${Date.now()}`);
-                img.style.width = "100%";
-                img.style.height = "100%";
-                img.style.objectFit = "cover";
-                img.style.display = "block";
-                img.onclick = function(){
-                    window.fxaiOpenImage(this.src);
+        var originalText = uploadBtn.textContent;
+        uploadBtn.textContent = "上传中...";
+        uploadBtn.disabled = true;
+
+        uploadFiles(files, subdirWidget.value, function(idx, prog) {
+            uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + files.length + " " + Math.round(prog * 100) + "%";
+        })
+        .then(function() {
+            return updateList();
+        })
+        .catch(function(err) {
+            alert("上传失败: " + err.message);
+        })
+        .finally(function() {
+            uploadBtn.textContent = originalText;
+            uploadBtn.disabled = false;
+        });
+    });
+
+    // 刷新列表
+    function updateList() {
+        return new Promise(function(resolve) {
+            while (listDiv.firstChild) {
+                listDiv.removeChild(listDiv.firstChild);
+            }
+            if (sortable) {
+                sortable.destroy();
+                sortable = null;
+            }
+
+            fetchFileList(subdirWidget.value)
+            .then(function(files) {
+                for (var j = 0; j < files.length; j++) {
+                    var file = files[j];
+                    var item = document.createElement("div");
+                    item.className = "image-item";
+                    item.dataset.filename = file;
+                    item.style.position = "relative";
+                    item.style.width = "120px";
+                    item.style.height = "120px";
+                    item.style.margin = "4px";
+                    item.style.cursor = "grab";
+                    item.style.backgroundColor = "#222";
+                    item.style.borderRadius = "6px";
+                    item.style.overflow = "hidden";
+
+                    var img = document.createElement("img");
+                    var imgUrl = api.apiURL("/fxai/image/v2/preview?subdir=" + encodeURIComponent(subdirWidget.value) + "&filename=" + encodeURIComponent(file) + "&t=" + Date.now());
+                    img.src = imgUrl;
+                    img.style.width = "100%";
+                    img.style.height = "100%";
+                    img.style.objectFit = "cover";
+                    img.style.display = "block";
+                    img.onclick = function() {
+                        window.fxaiOpenImage(this.src);
+                    };
+
+                    var nameSpan = document.createElement("div");
+                    nameSpan.textContent = file;
+                    nameSpan.style.position = "absolute";
+                    nameSpan.style.bottom = "0";
+                    nameSpan.style.left = "0";
+                    nameSpan.style.right = "0";
+                    nameSpan.style.backgroundColor = "rgba(0,0,0,0.6)";
+                    nameSpan.style.color = "white";
+                    nameSpan.style.fontSize = "10px";
+                    nameSpan.style.textAlign = "center";
+                    nameSpan.style.padding = "2px";
+                    nameSpan.style.whiteSpace = "nowrap";
+                    nameSpan.style.overflow = "hidden";
+                    nameSpan.style.textOverflow = "ellipsis";
+
+                    var delBtn = document.createElement("button");
+                    delBtn.textContent = "✖";
+                    delBtn.style.position = "absolute";
+                    delBtn.style.top = "2px";
+                    delBtn.style.right = "2px";
+                    delBtn.style.backgroundColor = "rgba(0,0,0,0.6)";
+                    delBtn.style.color = "white";
+                    delBtn.style.border = "none";
+                    delBtn.style.borderRadius = "50%";
+                    delBtn.style.width = "20px";
+                    delBtn.style.height = "20px";
+                    delBtn.style.cursor = "pointer";
+
+                    delBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        var filename = this.parentElement.dataset.filename;
+                        deleteImage(subdirWidget.value, filename)
+                        .then(function() {
+                            return updateList();
+                        })
+                        .catch(function(err) {
+                            alert("删除失败：" + err.message);
+                        });
+                    };
+
+                    item.appendChild(img);
+                    item.appendChild(nameSpan);
+                    item.appendChild(delBtn);
+                    listDiv.appendChild(item);
                 }
 
-                const nameSpan = document.createElement("div");
-                nameSpan.textContent = file;
-                nameSpan.style.position = "absolute";
-                nameSpan.style.bottom = "0";
-                nameSpan.style.left = "0";
-                nameSpan.style.right = "0";
-                nameSpan.style.backgroundColor = "rgba(0,0,0,0.6)";
-                nameSpan.style.color = "white";
-                nameSpan.style.fontSize = "10px";
-                nameSpan.style.textAlign = "center";
-                nameSpan.style.padding = "2px";
-                nameSpan.style.whiteSpace = "nowrap";
-                nameSpan.style.overflow = "hidden";
-                nameSpan.style.textOverflow = "ellipsis";
-
-                const delBtn = document.createElement("button");
-                delBtn.textContent = "✖";
-                delBtn.style.position = "absolute";
-                delBtn.style.top = "2px";
-                delBtn.style.right = "2px";
-                delBtn.style.backgroundColor = "rgba(0,0,0,0.6)";
-                delBtn.style.color = "white";
-                delBtn.style.border = "none";
-                delBtn.style.borderRadius = "50%";
-                delBtn.style.width = "20px";
-                delBtn.style.height = "20px";
-                delBtn.style.cursor = "pointer";
-
-            // ====================== 【只改了这里】实时删除 ======================
-                delBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    const filename = item.dataset.filename;
-                    try {
-                        await deleteImage(subdirWidget.value, filename);
-                        await updateList(); // 删除后自动刷新+重排
-                    } catch (err) {
-                        alert("删除失败：" + err.message);
-                    }
-                };
-
-                item.appendChild(img);
-                item.appendChild(nameSpan);
-                item.appendChild(delBtn);
-                listDiv.appendChild(item);
-            }
-            if (window.Sortable) {
-                sortable = new Sortable(listDiv, {
-                    animation: 150,
-                    handle: ".image-item",
-                    ghostClass: "sortable-ghost"
-                });
-            } else {
-                const script = document.createElement("script");
-                script.src = "./Sortable.min.js";
-                script.onload = () => {
+                if (window.Sortable) {
                     sortable = new Sortable(listDiv, {
                         animation: 150,
                         handle: ".image-item",
                         ghostClass: "sortable-ghost"
                     });
-                };
-                document.head.appendChild(script);
-            }
-        } catch (err) {
-            console.error("更新列表失败:", err);
-        }
+                } else {
+                    var script = document.createElement("script");
+                    script.src = "./Sortable.min.js";
+                    script.onload = function() {
+                        sortable = new Sortable(listDiv, {
+                            animation: 150,
+                            handle: ".image-item",
+                            ghostClass: "sortable-ghost"
+                        });
+                    };
+                    document.head.appendChild(script);
+                }
+                resolve();
+            })
+            .catch(function(err) {
+                console.error("更新列表失败:", err);
+                resolve();
+            });
+        });
     }
 
-    uploadBtn.onclick = () => {
-        const input = document.createElement("input");
+    // 选择文件上传按钮
+    uploadBtn.onclick = function() {
+        var input = document.createElement("input");
         input.type = "file";
         input.multiple = true;
         input.accept = "image/*";
-        input.onchange = async () => {
+        input.onchange = function() {
             if (!input.files.length) return;
-            const files = Array.from(input.files);
-            const originalText = uploadBtn.textContent;
+            var files = Array.prototype.slice.call(input.files);
+            var originalText = uploadBtn.textContent;
             uploadBtn.textContent = "上传中...";
             uploadBtn.disabled = true;
-            try {
-                await uploadFiles(files, subdirWidget.value, (idx, prog) => {
-                    uploadBtn.textContent = `上传中 ${idx+1}/${files.length} ${Math.round(prog*100)}%`;
-                });
-                await updateList();
-            } catch(err) {
+
+            uploadFiles(files, subdirWidget.value, function(idx, prog) {
+                uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + files.length + " " + Math.round(prog * 100) + "%";
+            })
+            .then(function() {
+                return updateList();
+            })
+            .catch(function(err) {
                 alert("上传失败: " + err.message);
-            } finally {
+            })
+            .finally(function() {
                 uploadBtn.textContent = originalText;
                 uploadBtn.disabled = false;
-            }
+            });
         };
         input.click();
     };
 
-    refreshBtn.onclick = async () => {
-        await updateList();
+    // 刷新按钮
+    refreshBtn.onclick = function() {
+        updateList();
     };
 
-    applyBtn.onclick = async () => {
-        const items = listDiv.querySelectorAll(".image-item");
-        const ordered = Array.from(items).map(item => item.dataset.filename);
-        try {
-            await applyChanges(subdirWidget.value, ordered);
-            await updateList();
-        } catch(err) {
-            alert("应用失败: " + err.message);
+    // 应用排序按钮
+    applyBtn.onclick = function() {
+        var items = listDiv.querySelectorAll(".image-item");
+        var ordered = [];
+        for (var k = 0; k < items.length; k++) {
+            ordered.push(items[k].dataset.filename);
         }
+        applyChanges(subdirWidget.value, ordered)
+        .then(function() {
+            return updateList();
+        })
+        .catch(function(err) {
+            alert("应用失败: " + err.message);
+        });
     };
 
+    // 目录切换监听
     if (!updatedListBindFlag.has(subdirWidget)) {
-        const origCallback = subdirWidget.callback;
+        var origCallback = subdirWidget.callback;
         subdirWidget.callback = function(v) {
-            origCallback?.call(this, v);
+            if (origCallback) {
+                origCallback.call(this, v);
+            }
             updateList();
         };
         updatedListBindFlag.set(subdirWidget, true);
     }
 
-    setTimeout(() => updateList(), 0);
+    setTimeout(function() {
+        updateList();
+    }, 0);
 }
 
 app.registerExtension({
     name: "FxAiImageManagerV2",
-    async nodeCreated(node) {
-        if (node.comfyClass === TARGET_CLASS) {
-            setTimeout(() => addUI(node), 200);
-        }
-},
+    nodeCreated:function(node) {
+        setTimeout(function() {
+            if (node.comfyClass === TARGET_CLASS) {
+                addUI(node);
+            }
+        }, 200);
+    }
 });
