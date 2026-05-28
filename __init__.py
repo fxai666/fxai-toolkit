@@ -97,7 +97,8 @@ NODE_REGISTRY = [
     ("FxAiStartEndIndex",         "fxai_start_end_index",       "凤希AI - 循环控制器"),
     ("FxAiAutoShutdown",          "fxai_auto_shut_down",        "凤希AI - 自动关机(GameOver)"),
     ("FxAiSegmentTotalFrames",    "fxai_segment_total_frames",  "凤希AI - 分段总帧数(向上取)"),
-    ("FxAiAnyPreview",            "fxai_any_preview",           "凤希AI - 任意预览"),
+    ("FxAiTextPreview",           "fxai_text_preview",          "凤希AI - 文本预览"),
+    ("FxAiImagePreview",          "fxai_image_preview",         "凤希AI - 图片预览"),
 
     # 潜空间类
     ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),
