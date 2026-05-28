@@ -23,37 +23,26 @@ function fetchFileList(subdir) {
     });
 }
 
-function uploadFiles(files, subdir, onProgress) {
-    return new Promise(function(resolve, reject) {
-        var loop = function(i) {
-            if (i >= files.length) {
-                resolve();
-                return;
-            }
-            var file = files[i];
-            var formData = new FormData();
-            formData.append("image", file, file.name);
-            formData.append("subdir", subdir);
+// 修复批量上传：改用并行上传（也可保持串行但简化逻辑），移除进度回调
+function uploadFiles(files, subdir) {
+    // 并行上传所有文件（效率更高，也避免串行循环的Promise陷阱）
+    const uploadPromises = files.map(file => {
+        var formData = new FormData();
+        formData.append("image", file, file.name);
+        formData.append("subdir", subdir);
 
-            fetch(api.apiURL("/fxai/image/v2/upload"), {
-                method: "POST",
-                body: formData
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error("上传失败: " + response.status);
-                }
-                if (onProgress) {
-                    onProgress(i, 1);
-                }
-                loop(i + 1);
-            })
-            .catch(function(err) {
-                reject(new Error("文件 " + file.name + " 上传失败: " + err.message));
-            });
-        };
-        loop(0);
+        return fetch(api.apiURL("/fxai/image/v2/upload"), {
+            method: "POST",
+            body: formData
+        }).then(function(response) {
+            if (!response.ok) {
+                throw new Error("上传失败: " + response.status);
+            }
+        });
     });
+
+    // 等待所有文件上传完成
+    return Promise.all(uploadPromises);
 }
 
 function applyChanges(subdir, orderedFilenames) {
@@ -197,9 +186,8 @@ function addUI(node) {
         uploadBtn.textContent = "上传中...";
         uploadBtn.disabled = true;
 
-        uploadFiles(files, subdirWidget.value, function(idx, prog) {
-            uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + files.length + " " + Math.round(prog * 100) + "%";
-        })
+        // 移除进度回调，简化上传逻辑
+        uploadFiles(files, subdirWidget.value)
         .then(function() {
             return updateList();
         })
@@ -336,9 +324,8 @@ function addUI(node) {
             uploadBtn.textContent = "上传中...";
             uploadBtn.disabled = true;
 
-            uploadFiles(files, subdirWidget.value, function(idx, prog) {
-                uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + files.length + " " + Math.round(prog * 100) + "%";
-            })
+            // 移除进度回调，简化上传逻辑
+            uploadFiles(files, subdirWidget.value)
             .then(function() {
                 return updateList();
             })
