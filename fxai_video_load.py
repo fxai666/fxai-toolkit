@@ -1,44 +1,47 @@
 import os
 import torch
-import cv2
 import subprocess
 import numpy as np
-from PIL import Image
-from typing import Tuple, List
+import json
 
-# 支持的视频格式
 VIDEO_EXTENSIONS = ('.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.mpeg', '.mpg', '.webm')
 
-def frame_to_comfy_image(frame: np.ndarray) -> torch.Tensor:
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-    tensor = torch.from_numpy(frame_rgb)[None,]
+def frame_to_comfy_image(frame):
+    frame = frame.astype(np.float32) / 255.0
+    tensor = torch.from_numpy(frame)[None,]
     return tensor
 
-def decode_video_frames(
-    video_path: str,
-    start_second: float = 0.0,
-    end_second: float = 0.0
-) -> Tuple[List[np.ndarray], float, Tuple[int, int]]:
-    # ===================== 这里改用系统 ffmpeg =====================
-    # 1. 获取视频信息（用 cmd 版 ffmpeg）
+def decode_video_frames(video_path, start_second, end_second):
+    video_path = os.path.abspath(video_path)
+
     cmd_probe = [
-        'ffmpeg', '-i', video_path,
+        'ffprobe', video_path,
         '-hide_banner', '-loglevel', 'error',
-        '-show_streams', '-select_streams', 'v',
+        '-show_streams', '-select_streams', 'v:0',
         '-of', 'json'
     ]
-    result = subprocess.run(cmd_probe, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    import json
+
+    result = subprocess.run(
+        cmd_probe,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        shell=os.name == 'nt'
+    )
+
+    if not result.stdout:
+        raise RuntimeError("FFprobe 无法读取视频")
+
     probe = json.loads(result.stdout)
-    video_stream = probe['streams'][0] if probe.get('streams') else None
+    video_stream = probe['streams'][0]
 
-    if not video_stream:
-        raise RuntimeError("无视频流")
+    fps_str = video_stream.get('r_frame_rate', '0/1')
+    num, den = map(int, fps_str.split('/'))
+    fps = num / den if den != 0 else 30.0
 
-    fps = eval(video_stream['r_frame_rate'])
     width = int(video_stream['width'])
     height = int(video_stream['height'])
-    duration = float(video_stream.get('duration', 0))
+    duration = float(video_stream.get('duration', 1))
 
     start = max(0.0, start_second)
     if end_second <= start or end_second == 0:
@@ -46,32 +49,37 @@ def decode_video_frames(
     else:
         end = min(end_second, duration)
 
-    # 2. 解码帧（直接调用系统 ffmpeg）
     cmd_decode = [
         'ffmpeg',
         '-ss', str(start),
         '-i', video_path,
         '-to', str(end),
         '-f', 'rawvideo',
-        '-pix_fmt', 'bgr24',
+        '-pix_fmt', 'rgb24',
         '-vsync', '0',
         '-hide_banner',
         '-loglevel', 'error',
         '-'
     ]
 
-    cmd = subprocess.Popen(cmd_decode, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    # ==============================================================
+    process = subprocess.Popen(
+        cmd_decode,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        shell=os.name == 'nt'
+    )
 
     frames = []
-    frame_size = height * width * 3
+    frame_size = width * height * 3
+
     while True:
-        b = cmd.stdout.read(frame_size)
-        if not b:
+        buffer = process.stdout.read(frame_size)
+        if not buffer:
             break
-        frame = np.frombuffer(b, dtype=np.uint8).reshape((height, width, 3))
+        frame = np.frombuffer(buffer, dtype=np.uint8).reshape(height, width, 3)
         frames.append(frame)
-    cmd.wait()
+
+    process.wait()
     return frames, fps, (height, width)
 
 class FxAiVideoLoad:
@@ -86,7 +94,6 @@ class FxAiVideoLoad:
             },
         }
 
-    # 输出类型：帧率改为 INT 整数
     RETURN_TYPES = ("IMAGE", "IMAGE", "STRING", "INT", "INT", "STRING")
     RETURN_NAMES = ("视频帧序列(视频格式)", "所有帧图片序列(图片格式)", "当前视频路径", "总帧数", "帧率(FPS)", "分辨率")
     FUNCTION = "load_video"
@@ -94,39 +101,33 @@ class FxAiVideoLoad:
 
     def load_video(self, 视频文件夹路径, 视频索引, 起始时间, 结束时间):
         folder = 视频文件夹路径.strip()
-
         if not os.path.isdir(folder):
-            raise RuntimeError(f"文件夹不存在: {folder}")
+            raise RuntimeError("文件夹不存在")
 
-        # 遍历文件夹 → 按文件名排序取视频
         files = sorted([f for f in os.listdir(folder) if f.lower().endswith(VIDEO_EXTENSIONS)])
         if not files:
             raise RuntimeError("文件夹内无视频文件")
 
-        # 索引越界处理
         if 视频索引 < 0 or 视频索引 >= len(files):
-            raise RuntimeError(f"索引越界，共 {len(files)} 个视频，索引只能 0~{len(files)-1}")
+            raise RuntimeError("视频索引越界")
 
-        # 视频路径
         video_path = os.path.join(folder, files[视频索引])
-
-        # 解码帧
         frames_bgr, fps, (h, w) = decode_video_frames(video_path, 起始时间, 结束时间)
 
-        # 转格式
+        if not frames_bgr:
+            raise RuntimeError("未解码到任何视频帧")
+
         comfy_frames = [frame_to_comfy_image(f) for f in frames_bgr]
         video_tensor = torch.cat(comfy_frames, dim=0)
-        all_frames_tensor = video_tensor  # 完整图片序列
+        all_frames_tensor = video_tensor
         total = len(comfy_frames)
-        
-        # 帧率 四舍五入转整数
-        fps_int = round(fps)
+        fps_int = round(fps) if fps > 0 else 30
 
         return (
             video_tensor,
             all_frames_tensor,
             video_path,
             total,
-            fps_int,  # 输出整数帧率
+            fps_int,
             f"{w}x{h}"
         )

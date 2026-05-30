@@ -42,6 +42,6 @@ class FxAiVideoPreview:
     def run(self, 视频文件路径):
         return {
             "ui": {
-                "path": 视频文件路径
+                "path": (视频文件路径,)
             }
         }
