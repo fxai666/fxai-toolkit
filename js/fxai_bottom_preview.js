@@ -64,7 +64,7 @@ app.registerExtension({
         style.textContent = ".litegraph { padding-bottom: 130px !important; }";
         document.head.appendChild(style);
 
-        // 全局弹窗查看器（完全原代码未改动）
+        // 全局弹窗查看器 + 左右箭头切换功能
         if (!document.getElementById("fxai-image-viewer")) {
             const viewer = document.createElement("div");
             viewer.id = "fxai-image-viewer";
@@ -112,6 +112,9 @@ app.registerExtension({
             let isDragging = false;
             let dragStartX = 0;
             let dragStartY = 0;
+            
+            // 新增：键盘切换变量
+            let currentKeydownListener = null;
 
             const closeViewer = () => {
                 viewer.style.display = "none";
@@ -119,6 +122,12 @@ app.registerExtension({
                 translateX = 0;
                 translateY = 0;
                 bigImg.style.transform = `scale(${scale}) translate(${translateX}px,${translateY}px)`;
+                
+                // 关闭时移除键盘事件
+                if (currentKeydownListener) {
+                    document.removeEventListener("keydown", currentKeydownListener);
+                    currentKeydownListener = null;
+                }
             };
             closeBtn.onclick = closeViewer;
             viewer.onclick = (e) => { if(e.target === viewer) closeViewer(); };
@@ -147,13 +156,50 @@ app.registerExtension({
                 viewer.style.cursor = "grab";
             };
 
+            // 打开图片 + 绑定键盘左右箭头
             window.fxaiOpenImage = (src) => {
                 bigImg.src = src;
                 viewer.style.display = "flex";
+                
+                // 先清除旧事件
+                if (currentKeydownListener) {
+                    document.removeEventListener("keydown", currentKeydownListener);
+                }
+                
+                // 新键盘事件
+                currentKeydownListener = (e) => {
+                    if (viewer.style.display !== "flex") return;
+                    
+                    const images = Array.from(previewEl.querySelectorAll("img"));
+                    if (images.length === 0) return;
+                    
+                    let currentIndex = images.findIndex(img => img.src === bigImg.src);
+                    if (currentIndex === -1) return;
+
+                    // 左箭头 ← 上一张
+                    if (e.key === "ArrowLeft") {
+                        currentIndex = (currentIndex - 1 + images.length) % images.length;
+                    }
+                        // 右箭头 → 下一张
+                    else if (e.key === "ArrowRight") {
+                        currentIndex = (currentIndex + 1) % images.length;
+                    } else {
+                        return;
+                    }
+                    
+                    // 切换图片 & 重置缩放
+                    bigImg.src = images[currentIndex].src;
+                    scale = 1;
+                    translateX = 0;
+                    translateY = 0;
+                    bigImg.style.transform = `scale(1) translate(0,0)`;
+                };
+                
+                document.addEventListener("keydown", currentKeydownListener);
             };
         }
 
-        // 监听生成图片（原代码完全未动）
+        // 监听生成图片
         api.addEventListener('executed', function(e) {
             var outputs = e.detail && e.detail.output;
             if (!outputs || !outputs["images"]) return;

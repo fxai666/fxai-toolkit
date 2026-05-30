@@ -25,9 +25,6 @@ async def get_preview(request):
 
 server.PromptServer.instance.routes.get("/fxai/video/preview")(get_preview)
 
-# ==============================================
-# 节点：不变
-# ==============================================
 class FxAiVideoPreview:
     @classmethod
     def INPUT_TYPES(s):

@@ -160,7 +160,6 @@ function addUI(node) {
     var listDiv = document.createElement("div");
     listDiv.style.display = "flex";
     listDiv.style.flexWrap = "wrap";
-    listDiv.style.gap = "5px";
     listDiv.style.maxHeight = "400px";
     listDiv.style.overflowY = "auto";
     listDiv.style.padding = "4px";

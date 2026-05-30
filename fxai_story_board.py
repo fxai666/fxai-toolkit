@@ -31,7 +31,7 @@ class FxaiStoryBoard:
         loop_count = total_lines - 开始索引
 
         if 结束序号 > 0 and 结束序号 > 开始序号:
-            loop_count = 结束序号 - 开始序号
+            loop_count = 结束序号 - 开始索引
         elif 结束序号 == 开始序号 != 0:
             loop_count = 1
 
