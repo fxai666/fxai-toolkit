@@ -1,5 +1,5 @@
-var app = window.app;
-var api = window.api;
+import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
 app.registerExtension({
     name: "FxAiVideoPreview",
