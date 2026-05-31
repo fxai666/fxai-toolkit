@@ -38,3 +38,5 @@ class FxaiStoryBoard:
         loop_count = max(loop_count, 1)
         
         return (lines, loop_count, 开始索引)
+
+FxaiStoryBoardV2 = FxaiStoryBoard

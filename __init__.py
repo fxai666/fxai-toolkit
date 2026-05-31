@@ -55,6 +55,7 @@ NODE_REGISTRY = [
     ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
     ("FxAiMultiLineTextLoad",     "fxai_multiline_text_load",   "凤希AI - 场景提示词加载器"),
     ("FxaiStoryBoard",            "fxai_story_board",           "凤希AI - 分镜生成器 - 进Q群与更多的群友学习：775649071"),
+    ("FxaiStoryBoardV2",          "fxai_story_board",           "凤希AI - 分镜生成器V2 - 进Q群与更多的群友学习：775649071"),
     ("FxaiStoryBoardLoad",        "fxai_story_board_load",      "凤希AI - 分镜数据解析器"),
     ("FxAiSceneManager",          "fxai_scene_manager",         "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071"),
     ("FxAiSceneManagerV2",        "fxai_scene_manager_v2",      "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071"),
@@ -68,6 +69,8 @@ NODE_REGISTRY = [
     ("FxAiImageBatchLoad",        "fxai_image_batch_load",      "凤希AI - 图像管理器 - 批量获取"),
     ("FxAiImageGetSingle",        "fxai_image_get_single",      "凤希AI - 图像管理器 - 获取批量单图"),
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
+    ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
+    ("FxAiCharacterAssetsLoad",   "fxai_character_assets_load", "凤希AI - 角色资源数据解析器"),
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),
