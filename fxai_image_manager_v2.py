@@ -157,8 +157,7 @@ async def delete_image(request):
             return web.json_response({"error": "文件不存在"}, status=404)
         
         os.remove(safe_file)
-        new_files = list_images(target_dir)
-        return web.json_response({"success": True, "files": new_files})
+        return web.json_response({"success": True})
     except Exception as e:
         return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
 

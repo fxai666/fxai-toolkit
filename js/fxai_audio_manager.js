@@ -23,6 +23,21 @@ function fetchFileList(subdir, callback) {
         });
 }
 
+// 音频删除接口
+function deleteAudio(subdir, filename, callback) {
+    fetch(api.apiURL("/fxai/audio/delete?subdir=" + encodeURIComponent(subdir) + "&filename=" + encodeURIComponent(filename)))
+        .then(function(resp) {
+            if (!resp.ok) throw new Error("删除失败");
+            return resp.json();
+        })
+        .then(function(data) {
+            callback(null, data);
+        })
+        .catch(function(err) {
+            callback(err);
+        });
+}
+
 // 音频逐文件上传（保留原串行逻辑）
 function uploadFiles(files, subdir, onProgress, callback) {
     var i = 0;
@@ -295,10 +310,23 @@ function addUI(node) {
                 delBtn.style.width = "20px";
                 delBtn.style.height = "20px";
                 delBtn.style.cursor = "pointer";
-                delBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    item.remove(); // 还原原版：使用外层 item 变量，而非 this.parentNode
-                };
+
+                // ====================== 修复 BUG 核心 ======================
+                (function(currentItem, currentFile){
+                    delBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        // 真正删除服务器文件
+                        deleteAudio(subdirWidget.value, currentFile, function(err){
+                            if(err){
+                                alert("删除失败："+err.message);
+                            }else{
+                                // 只删除当前UI，不刷新整个列表
+                                currentItem.remove();
+                            }
+                        });
+                    };
+                })(item, file);
+                // ===========================================================
 
                 item.appendChild(audio);
                 item.appendChild(nameSpan);

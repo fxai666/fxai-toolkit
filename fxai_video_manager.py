@@ -63,12 +63,8 @@ async def delete_single_video(request):
         # 直接删除文件
         os.remove(safe_file)
         
-        # 返回更新后的文件列表
-        new_files = list_videos(target_dir)
         return web.json_response({
-            "success": True, 
-            "files": new_files,
-            "message": f"文件 {filename} 已删除"
+            "success": True
         })
     except Exception as e:
         return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)

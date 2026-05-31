@@ -1,5 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+
 var TARGET_CLASS = "FxAiImageManagerV2";
 var sortable = null;
 var updatedListBindFlag = new WeakMap();
@@ -26,12 +27,14 @@ function fetchFileList(subdir) {
 // 修复批量上传：改用并行上传（也可保持串行但简化逻辑），移除进度回调
 function uploadFiles(files, subdir) {
     // 并行上传所有文件（效率更高，也避免串行循环的Promise陷阱）
-    const uploadPromises = files.map(file => {
+    var uploadPromises = [];
+    for (var i = 0; i < files.length; i++) {
+        var file = files[i];
         var formData = new FormData();
         formData.append("image", file, file.name);
         formData.append("subdir", subdir);
 
-        return fetch(api.apiURL("/fxai/image/v2/upload"), {
+        var promise = fetch(api.apiURL("/fxai/image/v2/upload"), {
             method: "POST",
             body: formData
         }).then(function(response) {
@@ -39,7 +42,8 @@ function uploadFiles(files, subdir) {
                 throw new Error("上传失败: " + response.status);
             }
         });
-    });
+        uploadPromises.push(promise);
+    }
 
     // 等待所有文件上传完成
     return Promise.all(uploadPromises);
@@ -210,8 +214,7 @@ function addUI(node) {
                 sortable = null;
             }
 
-            fetchFileList(subdirWidget.value)
-            .then(function(files) {
+            fetchFileList(subdirWidget.value).then(function(files) {
                 for (var j = 0; j < files.length; j++) {
                     var file = files[j];
                     var item = document.createElement("div");
@@ -243,7 +246,7 @@ function addUI(node) {
                     nameSpan.style.bottom = "0";
                     nameSpan.style.left = "0";
                     nameSpan.style.right = "0";
-                    nameSpan.style.backgroundColor = "rgba(0,0,0,0.6)";
+                    nameSpan.backgroundColor = "rgba(0,0,0,0.6)";
                     nameSpan.style.color = "white";
                     nameSpan.style.fontSize = "10px";
                     nameSpan.style.textAlign = "center";
@@ -265,17 +268,25 @@ function addUI(node) {
                     delBtn.style.height = "20px";
                     delBtn.style.cursor = "pointer";
 
-                    delBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        var filename = this.parentElement.dataset.filename;
-                        deleteImage(subdirWidget.value, filename)
-                        .then(function() {
-                            return updateList();
-                        })
-                        .catch(function(err) {
-                            alert("删除失败：" + err.message);
-                        });
-                    };
+                    // ====================== 修复 BUG 核心代码 ======================
+                    (function(currentItem, currentFile){
+                        delBtn.onclick = function(e) {
+                            e.stopPropagation();
+                            deleteImage(subdirWidget.value, currentFile)
+                            .then(function(data) {
+                                if (data.success) {
+                                    // 直接删除当前DOM，不刷新整个列表
+                                    currentItem.remove();
+                                } else {
+                                    alert("删除失败：" + (data.error || "未知错误"));
+                                }
+                            })
+                            .catch(function(err) {
+                                alert("删除失败：" + err.message);
+                            });
+                        };
+                    })(item, file);
+                    // =================================================================
 
                     item.appendChild(img);
                     item.appendChild(nameSpan);

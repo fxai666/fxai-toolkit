@@ -166,12 +166,37 @@ async def upload_audio_custom(request):
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
+async def delete_single_audio(request):
+    try:
+        # 获取请求参数
+        subdir = request.query.get("subdir", "")
+        filename = request.query.get("filename", "")
+        
+        if not filename:
+            return web.json_response({"error": "未提供文件名"}, status=400)
+        
+        # 安全路径校验
+        target_dir = get_audio_dir(subdir)
+        safe_file = safe_path_join(target_dir, filename)
+        
+        if not safe_file or not os.path.exists(safe_file):
+            return web.json_response({"error": "文件未找到"}, status=404)
+        
+        os.remove(safe_file)
+        
+        return web.json_response({
+            "success": True
+        })
+    except Exception as e:
+        return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
+
 # 注册路由
 try:
     server.PromptServer.instance.routes.get("/fxai/audio/preview")(get_preview)
     server.PromptServer.instance.routes.get("/fxai/audio/list")(get_file_list)
     server.PromptServer.instance.routes.post("/fxai/audio/apply")(apply_changes)
     server.PromptServer.instance.routes.post("/fxai/audio/upload")(upload_audio_custom)
+    server.PromptServer.instance.routes.get("/fxai/audio/delete")(delete_single_audio)
 except Exception as e:
     print(f"❌ 启动失败：{e}")
 
