@@ -25,7 +25,7 @@ class FxaiStoryBoardLoad:
     def convert_to_comma(self, text):
         if not text:
             return ""
-        text = re.sub(r'[^0-9]+', ',', text)
+        text = re.sub(r'[^\w\./]+', ',', text)
         return text
 
     def get_scene_data(self, 分镜数据, 行索引, 循环复用, 默认场景序号="1,2,3", 刷新标记=0, 通用提示词="", 尾部通用提示词=""):

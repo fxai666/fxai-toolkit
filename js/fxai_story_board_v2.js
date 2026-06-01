@@ -282,7 +282,8 @@ function addLine(node, promptDefault , propDefault ) {
     promptTextarea.value = promptDefault;
 
     var propInput = document.createElement("input");
-    propInput.placeholder = "输入数字（如1.2）";
+    propInput.placeholder = "请选择";
+    propInput.readOnly = true;
     propInput.style.minWidth = "120px";
     propInput.style.height = "30px";
     propInput.style.padding = "0 8px";
@@ -298,9 +299,11 @@ function addLine(node, promptDefault , propDefault ) {
     propInput.value = propDefault;
     propInput.onclick = function(){
         FxAiCharacterAssetsSelector(this.value).then(result => {
-            if(result)
+            if(result!==undefined)
             {
                 this.value=result;
+                item.propValue = this.value;
+                updateHidden(node);
             }
         });
     }
@@ -369,11 +372,6 @@ function addLine(node, promptDefault , propDefault ) {
 
     promptTextarea.addEventListener("input", function() {
         item.promptValue = promptTextarea.value;
-        updateHidden(node);
-    });
-
-    propInput.addEventListener("input", function() {
-        item.propValue = propInput.value;
         updateHidden(node);
     });
 
@@ -455,7 +453,6 @@ function updateHidden(node) {
     }
     var data = JSON.stringify(values);
     node.linesDataWidget.value = data;
-
     if (node.linesDataWidget.inputEl) {
         node.linesDataWidget.inputEl.value = data;
         var event = document.createEvent("Event");
