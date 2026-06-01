@@ -43,9 +43,10 @@ def safe_memory_clean():
             except:
                 pass
 
-        gc.collect(generation=2)
         if torch.cuda.is_available():
             torch.cuda.synchronize()
+
+        gc.collect(generation=2)
 
     except:
         pass

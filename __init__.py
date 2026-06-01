@@ -102,6 +102,7 @@ NODE_REGISTRY = [
     ("FxAiSegmentTotalFrames",    "fxai_segment_total_frames",  "凤希AI - 分段总帧数(向上取)"),
     ("FxAiTextPreview",           "fxai_text_preview",          "凤希AI - 文本预览"),
     ("FxAiImagePreview",          "fxai_image_preview",         "凤希AI - 图片预览"),
+    ("FxAiReleaseResources",      "fxai_release_resources",     "凤希AI - 释放资源"),
 
     # 潜空间类
     ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),
