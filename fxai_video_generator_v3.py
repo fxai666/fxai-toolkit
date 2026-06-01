@@ -13,23 +13,16 @@ import ctypes
 from ctypes import wintypes
 import comfy.model_management
 
-# ==========================
-# 🔥 最终版：只清理缓存、不卸载模型、只执行1次GC
-# ==========================
 def safe_memory_clean():
     try:
-        # 只需要 1 次全局垃圾回收 ✅
         gc.collect()
 
-        # CUDA 缓存清理（安全，不卸载模型）
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
 
-        # ComfyUI 官方软清理（不卸载模型）
         comfy.model_management.soft_empty_cache()
 
-        # 系统缓存清理
         system = platform.system()
         if system == "Windows":
             try:
@@ -37,7 +30,6 @@ def safe_memory_clean():
                 ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
             except:
                 pass
-
     except:
         pass
 

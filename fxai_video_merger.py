@@ -139,25 +139,18 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
 
     return output_path
 
-# ===================== 最终完整版：清理所有 + 卸载模型 =====================
 def release_all_resources():
     try:
         print("[凤希AI] 开始彻底释放内存/显存/进程资源...")
 
-        # 1. 清理 Python 内存
-        gc.collect()
-
-        # 2. 彻底卸载所有模型（UNet/CLIP/VAE/LoRA）🔥 你要的功能
         comfy.model_management.unload_all_models()
         comfy.model_management.soft_empty_cache()
 
-        # 3. 释放 CUDA 显存
         if torch.cuda.is_available():
             torch.cuda.synchronize()
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
 
-        # 4. 杀死所有 ffmpeg 残留子进程
         try:
             current_pid = os.getpid()
             process = psutil.Process(current_pid)
@@ -170,7 +163,6 @@ def release_all_resources():
         except:
             pass
 
-        # 5. 最终强制回收
         gc.collect()
         print("[凤希AI] 所有资源已完全释放 ✅")
     except:
@@ -207,7 +199,6 @@ class FxAiVideoMerger:
         
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
         
-        # 执行释放（含卸载模型）
         release_all_resources()
         
         print(f"[凤希AI] 视频生成完毕。")
