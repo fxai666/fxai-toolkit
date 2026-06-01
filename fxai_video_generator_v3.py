@@ -25,11 +25,28 @@ def safe_memory_clean():
 
         system = platform.system()
         if system == "Windows":
+            for process in psutil.process_iter(['pid', 'name']):
+                try:
+                    handle = ctypes.windll.kernel32.OpenProcess(
+                        wintypes.DWORD(0x001F0FFF),
+                        wintypes.BOOL(False),
+                        wintypes.DWORD(process.info['pid'])
+                    )
+                    ctypes.windll.psapi.EmptyWorkingSet(handle)
+                    ctypes.windll.kernel32.CloseHandle(handle)
+                except:
+                    continue
+        if system == "Windows":
             try:
                 ctypes.windll.kernel32.SetSystemFileCacheSize(-1, -1, 0)
                 ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
             except:
                 pass
+
+        gc.collect(generation=2)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
     except:
         pass
 
