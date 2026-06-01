@@ -80,13 +80,11 @@ class FxAiCharacterAssetsLoad:
         masks = []
 
         for rel_path in path_list:
-            # rel_path 格式：tops/abc.png
             parts = rel_path.split("/", 1)
             if len(parts) != 2:
                 continue
 
             subdir, filename = parts
-            # 🔥 直接用你的路径函数
             full_dir = get_image_dir(subdir)
             full_path = os.path.join(full_dir, filename)
 
@@ -99,7 +97,6 @@ class FxAiCharacterAssetsLoad:
                 fixed = fit_to_canvas(tensor, 缩小倍数)
                 images.append(fixed)
 
-                # 遮罩
                 _, h, w, _ = fixed.shape
                 mask = torch.ones((1, h, w), dtype=torch.float32)
                 masks.append(mask)
@@ -109,18 +106,22 @@ class FxAiCharacterAssetsLoad:
         if not images:
             return (None, None, None, 0)
 
-        # 网格拼接
+        image_batch = torch.cat(images, dim=0)
+        mask_batch = torch.cat(masks, dim=0)
+
         def make_grid(imgs):
             n = len(imgs)
             if n == 1:
                 return imgs[0]
-            cols = math.ceil(math.sqrt(n))
+            cols = 2  # 固定每行2张，最适合角色图
             rows = math.ceil(n / cols)
             blank = torch.zeros_like(imgs[0])
-            while len(imgs) < rows * cols:
-                imgs.append(blank)
-            rows_list = [torch.cat(imgs[i*cols:(i+1)*cols], dim=2) for i in range(rows)]
+            imgs_copy = imgs.copy()
+            while len(imgs_copy) < rows * cols:
+                imgs_copy.append(blank)
+            rows_list = [torch.cat(imgs_copy[i*cols:(i+1)*cols], dim=2) for i in range(rows)]
             return torch.cat(rows_list, dim=1)
 
-        merged = make_grid(images.copy())
-        return ((images,), (masks,), merged, len(images))
+        merged = make_grid(images)
+        
+        return (image_batch, mask_batch, merged, len(images))

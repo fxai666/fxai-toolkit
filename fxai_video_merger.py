@@ -7,7 +7,10 @@ import subprocess
 import torch
 import numpy as np
 import gc
-import psutil  # 仅新增这一行，其他原代码不动
+import psutil
+
+# 👇 只新增这一个导入（用于卸载模型）
+import comfy.model_management
 
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
@@ -79,7 +82,6 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         print(f"[凤希AI音频转换失败] {e}")
         return ""
 
-# 替换视频音频，强制输出 AAC 双通道
 def replace_video_audio(video_path, audio_path):
     if not os.path.exists(video_path) or not os.path.exists(audio_path):
         return video_path
@@ -137,7 +139,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
 
     return output_path
 
-# ===================== 最终版：无任何BUG的资源释放函数 =====================
+# ===================== 最终完整版：清理所有 + 卸载模型 =====================
 def release_all_resources():
     try:
         print("[凤希AI] 开始彻底释放内存/显存/进程资源...")
@@ -145,14 +147,17 @@ def release_all_resources():
         # 1. 清理 Python 内存
         gc.collect()
 
-        # 2. 释放 CUDA 显存（模型占用）
+        # 2. 彻底卸载所有模型（UNet/CLIP/VAE/LoRA）🔥 你要的功能
+        comfy.model_management.unload_all_models()
+        comfy.model_management.soft_empty_cache()
+
+        # 3. 释放 CUDA 显存
         if torch.cuda.is_available():
             torch.cuda.synchronize()
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
-            gc.collect()
 
-        # 3. 杀死所有 ffmpeg 残留子进程（最关键）
+        # 4. 杀死所有 ffmpeg 残留子进程
         try:
             current_pid = os.getpid()
             process = psutil.Process(current_pid)
@@ -165,11 +170,10 @@ def release_all_resources():
         except:
             pass
 
-        # 4. 最终强制回收
+        # 5. 最终强制回收
         gc.collect()
         print("[凤希AI] 所有资源已完全释放 ✅")
     except:
-        # 绝对保证不会因为释放函数报错而影响你的视频功能
         pass
 
 # ==========================================================================
@@ -203,7 +207,7 @@ class FxAiVideoMerger:
         
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
         
-        # 执行释放
+        # 执行释放（含卸载模型）
         release_all_resources()
         
         print(f"[凤希AI] 视频生成完毕。")

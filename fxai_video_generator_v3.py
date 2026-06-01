@@ -8,6 +8,38 @@ import subprocess
 import tempfile
 import io
 import gc
+import platform
+import ctypes
+from ctypes import wintypes
+import comfy.model_management
+
+# ==========================
+# 🔥 最终版：只清理缓存、不卸载模型、只执行1次GC
+# ==========================
+def safe_memory_clean():
+    try:
+        # 只需要 1 次全局垃圾回收 ✅
+        gc.collect()
+
+        # CUDA 缓存清理（安全，不卸载模型）
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+
+        # ComfyUI 官方软清理（不卸载模型）
+        comfy.model_management.soft_empty_cache()
+
+        # 系统缓存清理
+        system = platform.system()
+        if system == "Windows":
+            try:
+                ctypes.windll.kernel32.SetSystemFileCacheSize(-1, -1, 0)
+                ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
+            except:
+                pass
+
+    except:
+        pass
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -50,7 +82,7 @@ def get_fixed_temp_audio_path():
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
 
-# 音频张量转WAV（不变）
+# 音频张量转WAV
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     try:
         waveform = audio_dict["waveform"]
@@ -101,17 +133,15 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         traceback.print_exc()
         return ""
 
-# 视频合成：使用rawvideo管道 + 批量写入（最快+最高质量）
+# 视频合成
 def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    # 清理
+    safe_memory_clean()
 
     num = custom_num if custom_num >= 0 else get_last_number(save_dir)
     filename = f"{num:03d}.mp4"
     save_path = safe_path_join(save_dir, filename)
 
-    # 转numpy + 移除指定数量的过渡帧
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
     total_len = img_np.shape[0]
     img_np = img_np[: total_len - transition_frames]
@@ -123,11 +153,9 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
     try:
         height, width = img_np[0].shape[0], img_np[0].shape[1]
         
-        # 音频处理
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
-        # 构建ffmpeg命令
         if audio and os.path.exists(audio):
             cmd = [
                 'ffmpeg', '-y',
@@ -173,7 +201,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
             bufsize=1024*1024*10
         )
 
-        # 分批写入，降低内存峰值
         batch_size = 20
         for i in range(0, len(img_np), batch_size):
             batch = img_np[i:i+batch_size]
@@ -200,7 +227,8 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         import traceback
         traceback.print_exc()
 		
-    gc.collect()
+    # 结束清理
+    safe_memory_clean()
     return save_path
 
 class FxAiVideoGeneratorV3:
@@ -217,7 +245,7 @@ class FxAiVideoGeneratorV3:
                 "音频": ("AUDIO",),
                 "过渡帧数": ("INT", {"default": 1, "min": 1}),
                 "过渡帧引导": ("IMAGE",),
-                "视频帧序列": ("IMAGE",),  # 补上你遗漏的参数
+                "视频帧序列": ("IMAGE",),
             }
         }
 
@@ -235,12 +263,11 @@ class FxAiVideoGeneratorV3:
         total_frames = len(图片序列)
         actual_frames = total_frames - 过渡帧数
         
-        # 取出原过渡帧
-        transition_frames = 图片序列[-过渡帧数:]
+        transition_frames_out = 图片序列[-过渡帧数:]
         
         if 过渡帧引导 is not None and len(过渡帧引导) > 0:
             guide_frame = 过渡帧引导[0:1]
-            transition_frames = torch.cat([transition_frames, guide_frame], dim=0)
+            transition_frames_out = torch.cat([transition_frames_out, guide_frame], dim=0)
         
         if 视频帧序列 is not None and len(视频帧序列) > 0:
             video_frames = 视频帧序列
@@ -252,9 +279,10 @@ class FxAiVideoGeneratorV3:
             save_dir=target_dir,
             fps=帧率FPS,
             custom_num=视频序号,
-            audio=音频,
+            audio=audio,
             transition_frames=过渡帧数
         )
         
-        # 返回拼接后的完整过渡帧
-        return (transition_frames, video_path, target_dir, actual_frames)
+        safe_memory_clean()
+        
+        return (transition_frames_out, video_path, target_dir, actual_frames)
