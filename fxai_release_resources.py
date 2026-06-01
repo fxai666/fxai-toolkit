@@ -9,28 +9,35 @@ class FxAiReleaseResources:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "": ("*", {}),
-                "是否卸载模型": ("BOOLEAN", {"default": True, "label_on": "是", "label_off": "否"}),
+                "输入": ("*", {}),
+            },
+            "optional": {
+                "卸载所有模型": ("BOOLEAN", {"default": True, "label_on": "是", "label_off": "否"}),
             }
         }
 
     RETURN_TYPES = ()
     FUNCTION = "release_all_resources"
-    CATEGORY = "凤希AI / 工具"
+    CATEGORY = "凤希AI/工具"
     OUTPUT_NODE = True
 
-    def release_all_resources(self, _, 是否卸载模型):
+    # 参数名必须和上面 INPUT_TYPES 完全对应
+    def release_all_resources(self, 输入, 卸载所有模型=True):
         try:
+            # 清空缓存
             comfy.model_management.soft_empty_cache()
 
-            if 是否卸载模型:
+            # 卸载模型
+            if 卸载所有模型:
                 comfy.model_management.unload_all_models()
 
+            # CUDA 显存清理
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
                 torch.cuda.empty_cache()
                 torch.cuda.ipc_collect()
 
+            # 清理僵尸进程
             try:
                 current_pid = os.getpid()
                 process = psutil.Process(current_pid)
@@ -44,6 +51,7 @@ class FxAiReleaseResources:
                 pass
 
             gc.collect()
-            print("[凤希AI] 所有资源已完全释放 ✅")
-        except Exception:
-            pass
+            print("[凤希AI] 资源释放完成 ✅")
+
+        except Exception as e:
+            print(f"[凤希AI] 资源释放出错：{str(e)}")
