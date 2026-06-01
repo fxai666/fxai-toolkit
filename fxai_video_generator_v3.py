@@ -246,7 +246,7 @@ class FxAiVideoGeneratorV3:
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
 
-    def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频="", 过渡帧数=1, 过渡帧引导=None, 视频帧序列=None):
+    def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频=None, 过渡帧数=1, 过渡帧引导=None, 视频帧序列=None):
         if 图片序列 is None and 视频帧序列 is None:
             return (图片序列, "", "", 0)
         
@@ -271,7 +271,7 @@ class FxAiVideoGeneratorV3:
             save_dir=target_dir,
             fps=帧率FPS,
             custom_num=视频序号,
-            audio=audio,
+            audio=音频,
             transition_frames=过渡帧数
         )
         
