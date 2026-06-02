@@ -71,6 +71,7 @@ NODE_REGISTRY = [
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
     ("FxAiCharacterAssetsLoad",   "fxai_character_assets_load", "凤希AI - 角色资源数据解析器"),
+    ("FxAiQwenEditEnhanced",      "fxai_qwen_edit_enhanced",    "凤希AI - 千问图文正向提示词"),
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),

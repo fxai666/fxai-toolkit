@@ -93,7 +93,7 @@ class FxAiAudioMerge:
                 return (get_empty_audio(目标采样率, 目标声道),)
 
             # 5. 加载合并好的音频给 ComfyUI
-            waveform, sr = torchaudio.load(temp_out)
+            waveform, sr = torchaudio.load(temp_out, backend="ffmpeg")
             os.unlink(temp_out)  # 用完就删
 
             # 包装成 ComfyUI 格式

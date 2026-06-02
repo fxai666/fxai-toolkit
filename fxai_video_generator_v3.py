@@ -47,8 +47,9 @@ def safe_memory_clean():
             torch.cuda.synchronize()
 
         gc.collect(generation=2)
-
-    except:
+		
+    except Exception as e:
+        print(f"[凤希AI] 资源释放失败：{str(e)}")
         pass
 
 # 安全路径校验

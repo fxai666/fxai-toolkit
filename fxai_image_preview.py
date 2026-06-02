@@ -28,28 +28,32 @@ class FxAiImagePreview:
     CATEGORY = "凤希AI/工具"
 
     def preview(self, 图片, unique_id=None):
-        # 合并所有空值判断：图片为空 或 没有ID → 直接统一返回
+        # 空值判断
         if 图片 is None or not unique_id:
             return {"ui": {}, "result": ()}
 
-        # 下面只有正常情况才会执行
-        cache_name = f"cache_{unique_id}"
-        img_path = os.path.join(CACHE_DIR, f"{cache_name}.png")
         ui = {}
         images = []
 
-        for batch in 图片:
+        # 遍历 batch 中每一张图片，使用不同文件名保存
+        for i, batch in enumerate(图片):
+            # 每张图片使用独立文件名，避免覆盖
+            cache_name = f"cache_{unique_id}_{i}"
+            img_filename = f"{cache_name}.png"
+            img_path = os.path.join(CACHE_DIR, img_filename)
+
+            # 张量转图片
             np_img = batch.cpu().numpy()
             np_img = (np.clip(np_img, 0, 1) * 255).astype(np.uint8)
             img = Image.fromarray(np_img)
             img.save(img_path)
+
+            # 加入 UI 显示列表
             images.append({
-                "filename": f"{cache_name}.png",
+                "filename": img_filename,
                 "subfolder": "persist_preview",
                 "type": "temp"
             })
 
-        if os.path.exists(img_path):
-            ui["images"] = images
-
+        ui["images"] = images
         return {"ui": ui, "result": ()}

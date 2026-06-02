@@ -160,12 +160,15 @@ def release_all_resources():
                     child.kill()
                 except:
                     pass
-        except:
+        except Exception as e:
+            print(f"[凤希AI] 资源释放失败：{str(e)}")
             pass
 
         gc.collect()
         print("[凤希AI] 所有资源已完全释放 ✅")
-    except:
+
+    except Exception as e:
+        print(f"[凤希AI] 资源释放失败：{str(e)}")
         pass
 
 # ==========================================================================
