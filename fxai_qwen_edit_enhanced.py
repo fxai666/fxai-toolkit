@@ -28,9 +28,8 @@ class FxAiQwenEditEnhanced:
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
     
-    # 已删除：final_prompt、negative_prompt、first_image
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "IMAGE")
-    RETURN_NAMES = ("positive", "negative", "latent", "image_sequence")
+    RETURN_NAMES = ("positive", "negative", "latent", "图片序列")
     FUNCTION = "encode"
     CATEGORY = "凤希AI/提示词"
 
@@ -98,7 +97,6 @@ class FxAiQwenEditEnhanced:
                     ref_latents.append(vae.encode(s2.movedim(1,-1)[:,:,:,:3]))
 
         template = f"<|im_start|>system\n{DEFAULT_SYS}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
-        final_prompt = template.format(user_final)
 
         tokens = clip.tokenize(user_final, vision_images=images_vl, llama_template=template)
         positive = clip.encode_from_tokens_scheduled(tokens)
@@ -123,7 +121,6 @@ class FxAiQwenEditEnhanced:
             negative *= batch_size
             latent_out["samples"] = latent.repeat(batch_size,1,1,1)
 
-        # 已删除：final_prompt、负面提示词、first_image
         return (
             positive, negative, latent_out,
             image_batch if image_batch is not None else torch.zeros(1,1,1,3)
