@@ -23,7 +23,6 @@ def _strip_path(path):
 
 
 def _get_wav_path(file_path):
-    """任意格式 → 自动返回 .wav 后缀路径"""
     base, _ext = os.path.splitext(file_path)
     return base + ".wav"
 
@@ -50,34 +49,27 @@ def _resolve_audio_path(audio_file):
     if not audio_file:
         raise ValueError("音频文件路径为空")
 
-    # ====================== 核心逻辑 ======================
-    # 1. 先拿到目标 wav 路径（永远以 wav 为准）
     wav_file = _get_wav_path(audio_file)
     wav_full_path = os.path.join(folder_paths.get_input_directory(), wav_file)
-
-    # 2. 如果 wav 已经存在 → 直接返回（不再转码！）
+    # wav已存在直接返回
     if os.path.exists(wav_full_path):
         return wav_full_path
-
-    # 3. 只有 wav 不存在，才去找原文件（mp3/m4a...）并转换
+    # wav不存在则找原格式文件转码
     original_full_path = os.path.join(folder_paths.get_input_directory(), audio_file)
     if not os.path.exists(original_full_path):
         raise ValueError(f"未找到音频文件: {audio_file}")
 
-    # 4. 转码为 wav
     cmd = [
         "ffmpeg", "-i", original_full_path,
         "-ac", "1", "-f", "wav", "-y", wav_full_path
     ]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
-
-    # 5. 转码成功后删除原文件
+    # 转码成功删除原文件
     if os.path.exists(wav_full_path):
         try:
             os.remove(original_full_path)
-        except:
+        except Exception:
             pass
-
     return wav_full_path
 
 
@@ -223,6 +215,7 @@ def _build_segments(total_duration, keyframes, skip_initial, include_tail, is_av
                 end = e_total
             new_segs.append((curr, end))
             curr = end
+        segments = new_segs
     return segments, sum(e-s for s, e in segments)
 
 
@@ -275,7 +268,6 @@ class FxAiAudioSegmenterV2:
         return (selected, segment_list)
 
 
-# ===================== HTTP 接口（完全正确） =====================
 async def simple_audio_file(request):
     audio_file = request.query.get("audio_file", "")
     try:
