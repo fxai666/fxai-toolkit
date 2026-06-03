@@ -24,7 +24,7 @@ def install_package(package):
             print(f"[凤希AI音频分段器] 安装 {package} 失败: {e}")
             return False
 
-required_packages = ["pydub","soundfile"]
+required_packages = ["soundfile"]
 for pkg in required_packages:
     install_package(pkg)
 
