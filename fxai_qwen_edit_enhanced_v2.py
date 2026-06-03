@@ -21,7 +21,6 @@ class FxAiQwenEditEnhancedV2:
             "optional": {
                 "用户提示词": ("STRING", {"forceInput": True}),
                 "负面提示词": ("STRING", {"forceInput": True}),
-                "人物列表": ("IMAGE",),
                 "图片列表": ("IMAGE",),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
@@ -37,41 +36,21 @@ class FxAiQwenEditEnhancedV2:
         if isinstance(img, list): return torch.cat(img, dim=0) if img else None
         return img
 
-    def encode(self, clip,vae=None, width, height, batch_size, 用户提示词="", 负面提示词=None, 人物列表=None, 图片列表=None, unique_id=None):
+    def encode(self, clip,vae=None, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None, unique_id=None):
         user_text = 用户提示词.replace("\n", " ").strip()
         target_latent_h, target_latent_w = height // 8, width // 8
 
-        per_batch = self.to_batch(人物列表)
         img_batch = self.to_batch(图片列表)
-        per_count = per_batch.shape[0] if per_batch is not None else 0
         img_count = img_batch.shape[0] if img_batch is not None else 0
-
-        pattern = re.compile(r'(人物|图)(\d+)')
-        ref_sequence = pattern.findall(user_text)
-
-        unique_refs = []
-        seen = set()
-        for item in ref_sequence:
-            if item not in seen:
-                seen.add(item)
-                unique_refs.append(item)
 
         image_part = ""
         final_image_sequence = []
-
-        for (typ, num_str) in unique_refs:
-            num = int(num_str)
-            img = None
-
-            if typ == "人物" and 1 <= num <= per_count:
-                img = per_batch[num-1:num]
-            elif typ == "图" and 1 <= num <= img_count:
-                img = img_batch[num-1:num]
-
-            if img is not None:
-                tag = f"{typ}{num_str}"
-                image_part += f"{tag}: <|vision_start|><|image_pad|><|vision_end|>"
-                final_image_sequence.append(img)
+        # 遍历全部图片列表，自动生成图1、图2...标签，不再检索文案关键词
+        for idx in range(img_count):
+            num = idx + 1
+            tag = f"图{num}"
+            image_part += f"{tag}: <|vision_start|><|image_pad|><|vision_end|>"
+            final_image_sequence.append(img_batch[idx:idx+1])
 
         user_final = (image_part + " " + user_text).strip()
         image_batch = torch.cat(final_image_sequence, dim=0) if final_image_sequence else None
@@ -113,7 +92,7 @@ class FxAiQwenEditEnhancedV2:
             resized = comfy.utils.common_upscale(base, target_latent_w*8, target_latent_h*8, "lanczos", "center")
             latent = vae.encode(resized.movedim(1,-1)[:,:,:,:3])
         else:
-            latent = torch.zeros(1,4,target_latent_h,target_latent_w, device=comfy.model_management.intermediate_device())
+            latent = torch.zeros(1,4,target_latent_h, target_latent_w, device=comfy.model_management.intermediate_device())
 
         latent_out = {"samples": latent}
         if batch_size > 1:
