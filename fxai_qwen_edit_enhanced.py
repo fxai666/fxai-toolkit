@@ -5,8 +5,8 @@ import comfy.utils
 import node_helpers
 import comfy.model_management
 
-DEFAULT_SYS = "Describe the key features of the input image (color, shape, size, texture, objects, background), then explain how the user's text instruction should alter or modify the image. Generate a new image that meets the user's requirements while maintaining consistency with the original input where appropriate."
-DEFAULT_NEGATIVE = "worst quality, low quality, ugly, deformed, blurry, watermark, text, signature, username, error, extra fingers, extra limbs"
+DEFAULT_SYS = "详细描述输入图片的关键特征（色彩、造型、尺寸、纹理、物件、背景等），随后说明用户的文字指令该如何改动、调整原图，生成一张契合用户需求的新图，同时在合理范围内保留原图原有特征；执行要求：先逐项拆解原图颜色、外形轮廓、画幅大小、表面肌理、画面包含物体、环境背景六大要素并完整记述，接着逐条对照用户图文指令，列明修改点位与改动逻辑，最后产出优化后的全新图像，非改动区域严格沿用原图的风格、构图与细节设定。"
+DEFAULT_NEGATIVE = "丑陋，模糊，低分辨率，最差质量，低质量，JPEG伪影，解剖结构错误，畸形，毁容，突变，多余肢体，多余手臂，多余腿，畸形肢体，手部画得差，手部畸形，多余手指，缺少手指，手指缺失，手指融合，脸部画得差，脸部畸形，毁容的脸，斗鸡眼，长脖子，多余的眼睛，文字，词语，签名，水印，用户名，标志，边框，画框，平铺重复，画得差，出框，错误，画面裁切，畸形的身体"
 
 class FxAiQwenEditEnhanced:
     @classmethod
