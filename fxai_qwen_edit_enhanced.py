@@ -28,8 +28,9 @@ class FxAiQwenEditEnhanced:
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
     
-    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "STRING", "STRING", "IMAGE", "IMAGE")
-    RETURN_NAMES = ("positive", "negative", "latent", "final_prompt", "negative_prompt", "first_image", "image_sequence")
+    # 已删除：final_prompt、negative_prompt、first_image
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "IMAGE")
+    RETURN_NAMES = ("positive", "negative", "latent", "image_sequence")
     FUNCTION = "encode"
     CATEGORY = "凤希AI/提示词"
 
@@ -47,16 +48,9 @@ class FxAiQwenEditEnhanced:
         per_count = per_batch.shape[0] if per_batch is not None else 0
         img_count = img_batch.shape[0] if img_batch is not None else 0
 
-        # ==============================================
-        # 【你要的完美逻辑】
-        # 1. 正则取出所有图N/人物N
-        # 2. 先去重
-        # 3. 再循环生成标记 & 对齐图片
-        # ==============================================
         pattern = re.compile(r'(人物|图)(\d+)')
         ref_sequence = pattern.findall(user_text)
 
-        # 去重，保留顺序
         unique_refs = []
         seen = set()
         for item in ref_sequence:
@@ -64,7 +58,6 @@ class FxAiQwenEditEnhanced:
                 seen.add(item)
                 unique_refs.append(item)
 
-        # 生成图片标记部分
         image_part = ""
         final_image_sequence = []
 
@@ -82,27 +75,21 @@ class FxAiQwenEditEnhanced:
                 image_part += f"{tag}: <|vision_start|><|image_pad|><|vision_end|>"
                 final_image_sequence.append(img)
 
-        # 最终：图片标记 + 完整用户原文（完全不动）
         user_final = (image_part + " " + user_text).strip()
-
-        # 图片批次
         image_batch = torch.cat(final_image_sequence, dim=0) if final_image_sequence else None
         total_img = image_batch.shape[0] if image_batch is not None else 0
 
-        # 图像编码
-        images_vl, ref_latents, first_image = [], [], torch.zeros((1,1,1,3))
+        images_vl, ref_latents = [], []
         if image_batch is not None:
             for i in range(total_img):
                 one_img = image_batch[i:i+1]
                 samples = one_img.movedim(-1,1).contiguous()
                 _, _, h, w = samples.shape
 
-                # VL 编码
                 scale = math.sqrt(384*384/(w*h))
                 scaled = comfy.utils.common_upscale(samples, round(w*scale), round(h*scale), "area", "disabled")
                 images_vl.append(scaled.movedim(1,-1))
 
-                # VAE 编码
                 if vae is not None:
                     scale2 = math.sqrt(1024*1024/(w*h))
                     w2 = round(w * scale2 / 8) * 8
@@ -110,27 +97,19 @@ class FxAiQwenEditEnhanced:
                     s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
                     ref_latents.append(vae.encode(s2.movedim(1,-1)[:,:,:,:3]))
 
-                if i == 0:
-                    first_image = one_img.clone()
-
-        # 提示词模板
         template = f"<|im_start|>system\n{DEFAULT_SYS}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
         final_prompt = template.format(user_final)
 
-        # 正向
         tokens = clip.tokenize(user_final, vision_images=images_vl, llama_template=template)
         positive = clip.encode_from_tokens_scheduled(tokens)
 
-        # 负向
         neg_tokens = clip.tokenize(负面提示词.strip())
         negative = clip.encode_from_tokens_scheduled(neg_tokens)
 
-        # 参考潜变量
         if vae is not None and ref_latents:
             positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
             negative = node_helpers.conditioning_set_values(negative, {"reference_latents": ref_latents}, append=True)
 
-        # latent
         if image_batch is not None and vae is not None:
             base = image_batch[0:1].movedim(-1,1)
             resized = comfy.utils.common_upscale(base, target_latent_w*8, target_latent_h*8, "lanczos", "center")
@@ -138,15 +117,14 @@ class FxAiQwenEditEnhanced:
         else:
             latent = torch.zeros(1,4,target_latent_h,target_latent_w, device=comfy.model_management.intermediate_device())
 
-        # batch
         latent_out = {"samples": latent}
         if batch_size > 1:
             positive *= batch_size
             negative *= batch_size
             latent_out["samples"] = latent.repeat(batch_size,1,1,1)
 
+        # 已删除：final_prompt、负面提示词、first_image
         return (
             positive, negative, latent_out,
-            final_prompt, 负面提示词.strip(),
-            first_image, image_batch if image_batch is not None else torch.zeros(1,1,1,3)
+            image_batch if image_batch is not None else torch.zeros(1,1,1,3)
         )
