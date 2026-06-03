@@ -23,12 +23,9 @@ def list_audios(target_dir):
             files.append(f)
     return files
 
-# ===================== 纯Python音频加载（无组件依赖） =====================
 def _load_audio_tensor_from_file(audio_file_path):
-    audio_path = audio_file_path
-    ext = os.path.splitext(audio_path)[1].lower()
 
-    with wave.open(audio_path, "rb") as wav_file:
+    with wave.open(audio_file_path, "rb") as wav_file:
         channels = wav_file.getnchannels()
         sampwidth = wav_file.getsampwidth()
         sr = wav_file.getframerate()

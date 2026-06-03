@@ -210,7 +210,8 @@ app.registerExtension({
                 var imgInfo = images[index];
                 var src = "/view?filename=" + encodeURIComponent(imgInfo.filename) +
                           "&subfolder=" + encodeURIComponent(imgInfo.subfolder) +
-                          "&type=" + imgInfo.type;
+                          "&type=" + imgInfo.type +
+                          "&_t=" + new Date().getTime();
 
                 var imgWrapper = document.createElement('div');
                 imgWrapper.style.position = 'relative';

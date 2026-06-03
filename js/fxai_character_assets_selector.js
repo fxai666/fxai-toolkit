@@ -11,7 +11,6 @@ const CATEGORY_CONFIG = {
     "胸罩": "bra",
     "裤子": "pants",
     "裙子": "skirts",
-    "裙子": "skirts",
     "内裤": "underpants",
     "鞋袜": "shoessocks",
     "姿势": "pose",
@@ -120,14 +119,15 @@ window.FxAiCharacterAssetsSelector = function(selectStr) {
         `;
         modal.appendChild(selectedWrap);
 
-        // 刷新底部已选预览列表
+        // 刷新底部已选预览列表 + 自动编号
         function renderSelectedBar() {
             selectedWrap.innerHTML = "";
             if(selected.length === 0){
                 selectedWrap.innerHTML = '<span style="color:#999;">暂无选中素材，点击上方图片添加</span>';
                 return;
             }
-            selected.forEach(path=>{
+            // 遍历生成带序号的选中项
+            selected.forEach((path, index)=>{
                 let splitArr = path.split("/");
                 let sub = splitArr[0];
                 let fname = splitArr[1];
@@ -142,22 +142,33 @@ window.FxAiCharacterAssetsSelector = function(selectStr) {
                 const img = document.createElement("img");
                 img.src = previewUrl;
                 img.style.cssText = "width:100%;height:100%;object-fit:cover;";
+                
+                // 🔥 数字序号（左上角）
+                const numTag = document.createElement("div");
+                numTag.textContent = index + 1; // 1、2、3...
+                numTag.style.cssText = `
+                    position:absolute; top:0; left:0; width:22px; height:22px;
+                    background:#4a8fff; color:#fff; font-size:12px; font-weight:bold;
+                    text-align:center; line-height:22px; border-radius:0 0 4px 0;
+                    z-index:2;
+                `;
+
                 // 删除按钮
                 const delBtn = document.createElement("div");
                 delBtn.textContent = "×";
                 delBtn.style.cssText = `
                     position:absolute; top:0; right:0; width:18px;height:18px;
                     background:#f54242; color:#fff; text-align:center; line-height:18px;
-                    font-size:14px; cursor:pointer;
+                    font-size:14px; cursor:pointer; z-index:2;
                 `;
                 delBtn.onclick = (e)=>{
                     e.stopPropagation();
                     let idx = selected.indexOf(path);
                     if(idx>-1) selected.splice(idx,1);
                     renderSelectedBar();
-                    renderList(); // 同步刷新上方勾选边框
+                    renderList();
                 };
-                item.append(img,delBtn);
+                item.append(img, numTag, delBtn);
                 selectedWrap.appendChild(item);
             })
         }
@@ -204,7 +215,6 @@ window.FxAiCharacterAssetsSelector = function(selectStr) {
                     item.appendChild(img);
                     listContainer.appendChild(item);
 
-                    // 点击只新增，取消只能在底部栏删
                     item.onclick = () => {
                         if(!selected.includes(realPath)){
                             selected.push(realPath);

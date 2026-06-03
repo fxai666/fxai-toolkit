@@ -1,14 +1,10 @@
 import os
 import re
 import torch
-import math
 import folder_paths
-from PIL import Image
-import numpy as np
-
-# 固定统一画布尺寸
-CANVAS_W = 1024
-CANVAS_H = 1024
+from fxai_image_utils import (
+    load_single_image, fit_to_canvas, grid_concat_images, IMAGE_EXTENSIONS
+)
 
 def get_image_dir(subdir=""):
     comfy_root = folder_paths.base_path
@@ -22,39 +18,6 @@ def get_image_dir(subdir=""):
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
-# 工具函数：加载单张图片
-def load_single_image(image_path):
-    img = Image.open(image_path).convert("RGB")
-    img_np = np.array(img).astype(np.float32) / 255.0
-    img_tensor = torch.from_numpy(img_np)[None,]
-    return img_tensor
-
-# 等比例缩放到1024*1024画布，居中不拉伸
-def fit_to_canvas(tensor_img, shrink_multiple=1):
-    global CANVAS_W, CANVAS_H
-    w = CANVAS_W // shrink_multiple
-    h = CANVAS_H // shrink_multiple
-
-    img = tensor_img.squeeze(0).cpu().numpy()
-    pil_img = Image.fromarray((img * 255).astype(np.uint8))
-    src_w, src_h = pil_img.size
-
-    scale = min(w / src_w, h / src_h)
-    new_w = int(src_w * scale)
-    new_h = int(src_h * scale)
-    resized = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-
-    canvas = Image.new("RGB", (w, h), (0, 0, 0))
-    offset_x = (w - new_w) // 2
-    offset_y = (h - new_h) // 2
-    canvas.paste(resized, (offset_x, offset_y))
-
-    out_np = np.array(canvas).astype(np.float32) / 255.0
-    return torch.from_numpy(out_np)[None,]
-
-# ==========================================
-# 🔥 对接 JS 弹窗返回的路径
-# ==========================================
 class FxAiCharacterAssetsLoad:
     @classmethod
     def INPUT_TYPES(cls):
@@ -67,7 +30,6 @@ class FxAiCharacterAssetsLoad:
 
     RETURN_TYPES = ("IMAGE", "MASK", "IMAGE", "INT")
     RETURN_NAMES = ("图片列表", "遮罩列表", "网格拼接大图", "总数量")
-    
     FUNCTION = "load_images"
     CATEGORY = "凤希AI/角色"
 
@@ -93,10 +55,12 @@ class FxAiCharacterAssetsLoad:
                 continue
 
             try:
+                # 统一使用工具函数加载
                 tensor = load_single_image(full_path)
-                fixed = fit_to_canvas(tensor, 缩小倍数)
+                fixed = fit_to_canvas(tensor, shrink_multiple=缩小倍数)
                 images.append(fixed)
 
+                # 遮罩逻辑保留（batch_load 无遮罩，按需对齐）
                 _, h, w, _ = fixed.shape
                 mask = torch.ones((1, h, w), dtype=torch.float32)
                 masks.append(mask)
@@ -109,19 +73,7 @@ class FxAiCharacterAssetsLoad:
         image_batch = torch.cat(images, dim=0)
         mask_batch = torch.cat(masks, dim=0)
 
-        def make_grid(imgs):
-            n = len(imgs)
-            if n == 1:
-                return imgs[0]
-            cols = 2  # 固定每行2张，最适合角色图
-            rows = math.ceil(n / cols)
-            blank = torch.zeros_like(imgs[0])
-            imgs_copy = imgs.copy()
-            while len(imgs_copy) < rows * cols:
-                imgs_copy.append(blank)
-            rows_list = [torch.cat(imgs_copy[i*cols:(i+1)*cols], dim=2) for i in range(rows)]
-            return torch.cat(rows_list, dim=1)
-
-        merged = make_grid(images)
+        # 网格拼接（和 batch_load 对齐：auto 或 fixed_2）
+        merged = grid_concat_images(images, cols_mode="fixed_2")
         
         return (image_batch, mask_batch, merged, len(images))

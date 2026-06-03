@@ -69,9 +69,12 @@ NODE_REGISTRY = [
     ("FxAiImageBatchLoad",        "fxai_image_batch_load",      "凤希AI - 图像管理器 - 批量获取"),
     ("FxAiImageGetSingle",        "fxai_image_get_single",      "凤希AI - 图像管理器 - 获取批量单图"),
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
+    ("FxAiQwenEditEnhanced",      "fxai_qwen_edit_enhanced",    "凤希AI - 千问提示词"),
+	
+    # 角色类
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
     ("FxAiCharacterAssetsLoad",   "fxai_character_assets_load", "凤希AI - 角色资源数据解析器"),
-    ("FxAiQwenEditEnhanced",      "fxai_qwen_edit_enhanced",    "凤希AI - 千问图文正向提示词"),
+    ("FxAiCharacterBatchLoad",    "fxai_character_batch_load",  "凤希AI - 角色加载器"),
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),
@@ -104,6 +107,7 @@ NODE_REGISTRY = [
     ("FxAiTextPreview",           "fxai_text_preview",          "凤希AI - 文本预览"),
     ("FxAiImagePreview",          "fxai_image_preview",         "凤希AI - 图片预览"),
     ("FxAiReleaseResources",      "fxai_release_resources",     "凤希AI - 释放资源"),
+    ("FxAiGetImagePath",          "fxai_get_image_path",        "凤希AI - 获取图片路径"),
 
     # 潜空间类
     ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),
