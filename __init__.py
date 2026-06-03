@@ -69,7 +69,6 @@ NODE_REGISTRY = [
     ("FxAiImageBatchLoad",        "fxai_image_batch_load",      "凤希AI - 图像管理器 - 批量获取"),
     ("FxAiImageGetSingle",        "fxai_image_get_single",      "凤希AI - 图像管理器 - 获取批量单图"),
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
-    ("FxAiQwenEditEnhanced",      "fxai_qwen_edit_enhanced",    "凤希AI - 千问提示词"),
 	
     # 角色类
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
@@ -83,6 +82,8 @@ NODE_REGISTRY = [
     ("FxAiMultiPromptEditor",     "fxai_multi_prompt_editor",   "凤希AI - 分段场景 - 时间轴提示词管理器"),
     ("FxAiMultiPromptLoader",     "fxai_multi_prompt_loader",   "凤希AI - 分段场景 - 时间轴获取器"),
     ("FxAiPromptRelayEncode",     "fxai_prompt_relay_encode",   "凤希AI - 时序提示词编码器"),
+    ("FxAiQwenEditEnhanced",      "fxai_qwen_edit_enhanced",    "凤希AI - 千问提示词"),
+    ("FxAiQwenEditEnhancedV2",    "fxai_qwen_edit_enhanced_v2", "凤希AI - 千问提示词V2"),
 
     # 视频类
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
