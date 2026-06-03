@@ -11,27 +11,31 @@ class FxAiImageBatchConcat:
         }
 
     RETURN_TYPES = ("IMAGE", "INT")
-    RETURN_NAMES = ("图片列表", "总数量")
+    RETURN_NAMES = ("合并图片", "总数量")
     FUNCTION = "concat_batch"
     CATEGORY = "凤希AI/图片"
 
+    # 直接照搬它这个万能转换方法！
+    def to_batch(self, img):
+        if img is None:
+            return None
+        if isinstance(img, list):
+            return torch.cat(img, dim=0) if img else None
+        return img
+
     def concat_batch(self, 图片列表A, 图片列表B):
-        # 空列表
-        batch_list = []
+        # 统一转成标准张量
+        a_tensor = self.to_batch(图片列表A)
+        b_tensor = self.to_batch(图片列表B)
 
-        # 按顺序追加：A 在前，B 在后
-        if 图片列表A is not None:
-            batch_list.append(图片列表A)
-        
-        if 图片列表B is not None:
-            batch_list.append(图片列表B)
+        # 收集非空张量
+        tensor_list = []
+        if a_tensor is not None:
+            tensor_list.append(a_tensor)
+        if b_tensor is not None:
+            tensor_list.append(b_tensor)
 
-        # 空值判断
-        if not batch_list:
-            raise RuntimeError("图片列表A和图片列表B均为空")
-
-        # 合并成一个张量
-        combined = torch.cat(batch_list, dim=0)
-        total_count = combined.shape[0]
-
-        return (combined, total_count)
+        # 最终合并
+        combined = torch.cat(tensor_list, dim=0)
+        total = combined.shape[0]
+        return (combined, total)
