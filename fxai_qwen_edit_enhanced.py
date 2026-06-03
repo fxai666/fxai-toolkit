@@ -14,10 +14,10 @@ class FxAiQwenEditEnhanced:
         return {
             "required": {
                 "clip": ("CLIP",),
-                "用户提示词": ("STRING", {"multiline": True, "dynamicPrompts": True,"placeholder": "使用 人物N / 图N 引用图片"}),
-                "负面提示词": ("STRING", {"multiline": True, "dynamicPrompts": True, "default": DEFAULT_NEGATIVE}),
-                "width": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 8}),
-                "height": ("INT", {"default": 1024, "min": 512, "max": 4096, "step": 8}),
+                "用户提示词": ("STRING", {"forceInput": True}),
+                "负面提示词": ("STRING", {"forceInput": True}),
+                "width": ("INT", {"default": 960, "min": 512, "max": 4096, "step": 8}),
+                "height": ("INT", {"default": 1280, "min": 512, "max": 4096, "step": 8}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 64, "step": 1}),
             },
             "optional": {

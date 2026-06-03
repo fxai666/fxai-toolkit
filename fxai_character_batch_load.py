@@ -72,7 +72,6 @@ class FxAiCharacterBatchLoad:
         for idx in unique_indices:
             try:
                 img_path = image_files[idx]
-                # 仅加载，缩放逻辑交给 fit_to_canvas（和 assets_load 对齐）
                 img_tensor = load_single_image(img_path)
                 fixed_img = fit_to_canvas(img_tensor, shrink_multiple=缩小倍数)
                 images.append(fixed_img)
@@ -84,5 +83,6 @@ class FxAiCharacterBatchLoad:
             return (None, None, 0)
 
         merged_image = grid_concat_images(images, cols_mode="auto")
+        merged_image = fit_to_canvas(merged_image, shrink_multiple=缩小倍数)
         
         return (images, merged_image, len(images))
