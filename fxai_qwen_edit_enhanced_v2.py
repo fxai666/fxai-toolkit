@@ -36,7 +36,7 @@ class FxAiQwenEditEnhancedV2:
         if isinstance(img, list): return torch.cat(img, dim=0) if img else None
         return img
 
-    def encode(self, clip,vae=None, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None, unique_id=None):
+    def encode(self, clip,vae, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None, unique_id=None):
         user_text = 用户提示词.replace("\n", " ").strip()
         target_latent_h, target_latent_w = height // 8, width // 8
 
