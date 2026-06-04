@@ -12,6 +12,7 @@ import platform
 import ctypes
 from ctypes import wintypes
 import comfy.model_management
+import psutil
 
 def safe_memory_clean():
     try:
