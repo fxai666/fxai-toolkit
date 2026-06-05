@@ -9,7 +9,6 @@ import numpy as np
 import gc
 import psutil
 
-# 👇 只新增这一个导入（用于卸载模型）
 import comfy.model_management
 
 def safe_path_join(base_dir, path):
@@ -201,8 +200,7 @@ class FxAiVideoMerger:
             return ("",)
         
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
+        print(f"[凤希AI] 视频生成完毕。")
         
         release_all_resources()
-        
-        print(f"[凤希AI] 视频生成完毕。")
         return (video_path or "",)

@@ -37,7 +37,6 @@ def safe_memory_clean():
                     ctypes.windll.kernel32.CloseHandle(handle)
                 except:
                     continue
-        if system == "Windows":
             try:
                 ctypes.windll.kernel32.SetSystemFileCacheSize(-1, -1, 0)
                 ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
@@ -48,7 +47,7 @@ def safe_memory_clean():
             torch.cuda.synchronize()
 
         gc.collect(generation=2)
-		
+        print(f"[凤希AI] 释放分段占用资源成功")
     except Exception as e:
         print(f"[凤希AI] 资源释放失败：{str(e)}")
         pass
@@ -239,8 +238,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         import traceback
         traceback.print_exc()
 		
-    # 结束清理
-    safe_memory_clean()
     return save_path
 
 class FxAiVideoGeneratorV3:

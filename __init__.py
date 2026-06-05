@@ -110,11 +110,15 @@ NODE_REGISTRY = [
     ("FxAiImagePreview",          "fxai_image_preview",         "凤希AI - 图片预览"),
     ("FxAiReleaseResources",      "fxai_release_resources",     "凤希AI - 释放资源"),
     ("FxAiGetImagePath",          "fxai_get_image_path",        "凤希AI - 获取图片路径"),
+    ("FxAiStrToNumber",           "fxai_str_to_number",         "凤希AI - 字符串转数字"),
+    ("FxAiInputInt",              "fxai_input_int",             "凤希AI - 整数输入"),
+    ("FxAiInputFloat",            "fxai_input_float",           "凤希AI - 小数输入"),
 
     # 潜空间类
     ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),
     ("FxAiLatentGetFrames",       "fxai_latent_get_frames",     "凤希AI - 潜空间获取"),
     ("FxAiLatentGetFrameCount",   "fxai_latent_get_frame_count","凤希AI - 潜空间总数"),
+    ("FxAiLTX23Sampler",          "fxai_ltx23_sampler",         "凤希AI - LTX2.3采集器"),
 ]
 
 NODE_CLASS_MAPPINGS = {}
