@@ -53,7 +53,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
         title.style.cssText = "font-size: 18px; color: #fff; font-weight: bold;";
         header.appendChild(title);
 
-        // 修复：目录输入框可正常输入
+        // 目录输入框可正常输入
         const dirInput = document.createElement("input");
         dirInput.value = "sucai";
         dirInput.placeholder = "输入图片目录，默认 sucai";
@@ -119,7 +119,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
         mask.onclick = (e) => e.target === mask && close();
 
         // ==============================================
-        // 渲染已选列表（只显示图片）
+        // 下方已选图片：索引序号 放在 左上角
         // ==============================================
         function renderSelectedBar() {
             selectedWrap.innerHTML = "";
@@ -128,7 +128,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
                 return;
             }
 
-            selectedIndexes.forEach((idx, order) => {
+            selectedIndexes.forEach(idx => {
                 const file = currentFileList[idx];
                 if (!file) return;
                 const filename = file.filename || file;
@@ -144,6 +144,17 @@ window.FxAiImageAssetsSelector = function(selectStr) {
                 img.src = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(currentSubdir)}&filename=${encodeURIComponent(filename)}`);
                 img.style.cssText = "width:100%;height:100%;object-fit:cover;";
 
+                // 索引序号 → 放在左上角
+                const indexLabel = document.createElement("div");
+                indexLabel.textContent = idx;
+                indexLabel.style.cssText = `
+                    position:absolute; top:0; left:0; width:24px; height:24px;
+                    background:#4a8fff; color:#fff; font-size:14px; font-weight:bold;
+                    display:flex; align-items:center; justify-content:center;
+                    border-radius:0 0 4px 0;
+                `;
+
+                // 删除按钮
                 const del = document.createElement("div");
                 del.textContent = "×";
                 del.style.cssText = `
@@ -154,47 +165,28 @@ window.FxAiImageAssetsSelector = function(selectStr) {
                 del.onclick = () => {
                     selectedIndexes = selectedIndexes.filter(i => i !== idx);
                     renderSelectedBar();
-                    refreshImageSelectionUI(); // 只刷新选中状态，不重新加载列表
+                    refreshImageSelectionUI();
                 };
 
-                item.append(img, del);
+                item.append(img, indexLabel, del);
                 selectedWrap.appendChild(item);
             });
         }
 
         // ==============================================
-        // 优化：只刷新选中样式，不重新请求图片
+        // 只刷新选中边框，不刷新列表
         // ==============================================
         function refreshImageSelectionUI() {
             const items = listContainer.querySelectorAll(".img-item");
-            items.forEach((el, idx) => {
-                const isSelected = selectedIndexes.includes(idx.toString());
+            items.forEach((el, index) => {
+                const idxStr = String(index);
+                const isSelected = selectedIndexes.includes(idxStr);
                 el.style.border = isSelected ? "3px solid #4a8fff" : "3px solid transparent";
-                
-                let numLayer = el.querySelector(".select-num");
-                if (isSelected) {
-                    const selOrder = selectedIndexes.indexOf(idx.toString()) + 1;
-                    if (!numLayer) {
-                        numLayer = document.createElement("div");
-                        numLayer.className = "select-num";
-                        numLayer.style.cssText = `
-                            position:absolute; top:6px; left:6px; width:26px; height:26px;
-                            background:#4a8fff; color:white; border-radius:50%;
-                            display:flex; align-items:center; justify-content:center;
-                            font-weight:bold; font-size:14px;
-                        `;
-                        el.appendChild(numLayer);
-                    }
-                    numLayer.textContent = selOrder;
-                    numLayer.style.display = "flex";
-                } else {
-                    if (numLayer) numLayer.style.display = "none";
-                }
             });
         }
 
         // ==============================================
-        // 渲染图片列表（只加载一次）
+        // 渲染主图片列表
         // ==============================================
         function renderList() {
             listContainer.innerHTML = "";
@@ -234,10 +226,9 @@ window.FxAiImageAssetsSelector = function(selectStr) {
                             selectedIndexes.push(imgIndex);
                         }
                         renderSelectedBar();
-                        refreshImageSelectionUI(); // 只刷新UI，不重新加载图片
+                        refreshImageSelectionUI();
                     };
                 });
-
                 refreshImageSelectionUI();
             });
         }
