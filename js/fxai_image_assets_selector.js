@@ -19,11 +19,8 @@ function fetchFileList(subdir) {
 // ==============================================
 window.FxAiImageAssetsSelector = function(selectStr) {
     return new Promise(resolve => {
-        // 只存【图片索引数字】（第0张、第1张、第2张...）
         let selectedIndexes = [];
-        // 当前目录文件列表（用于取索引）
         let currentFileList = [];
-        // 默认目录：sucai
         let currentSubdir = "sucai";
 
         // 遮罩
@@ -46,7 +43,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
         `;
         mask.appendChild(modal);
 
-        // 标题 + 目录输入框（默认 sucai）
+        // 标题 + 目录输入框
         const header = document.createElement("div");
         header.style.cssText = "display: flex; justify-content: space-between; align-items: center;";
         modal.appendChild(header);
@@ -56,7 +53,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
         title.style.cssText = "font-size: 18px; color: #fff; font-weight: bold;";
         header.appendChild(title);
 
-        // 目录手动输入框，默认 sucai
+        // 修复：目录输入框可正常输入
         const dirInput = document.createElement("input");
         dirInput.value = "sucai";
         dirInput.placeholder = "输入图片目录，默认 sucai";
@@ -66,14 +63,14 @@ window.FxAiImageAssetsSelector = function(selectStr) {
         `;
         header.appendChild(dirInput);
 
-        // 切换目录 → 清空选中 + 刷新图片
+        // 切换目录
         const reloadDir = () => {
             currentSubdir = dirInput.value.trim();
-            selectedIndexes = []; // 切换目录 清空选中
+            selectedIndexes = [];
             renderList();
             renderSelectedBar();
         };
-        dirInput.onchange = reloadDir;
+        dirInput.onblur = reloadDir;
         dirInput.onkeydown = (e) => e.key === "Enter" && reloadDir();
 
         // 图片列表容器
@@ -113,7 +110,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
         function close() { document.body.removeChild(mask); }
         btnCancel.onclick = () => { resolve(); close(); };
         
-        // ✅ 确认：只返回 纯索引序号（逗号分隔）
+        // 确认返回序号
         btnConfirm.onclick = () => { 
             resolve(selectedIndexes.join(",")); 
             close(); 
@@ -122,7 +119,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
         mask.onclick = (e) => e.target === mask && close();
 
         // ==============================================
-        // 渲染已选序号
+        // 渲染已选列表（只显示图片）
         // ==============================================
         function renderSelectedBar() {
             selectedWrap.innerHTML = "";
@@ -132,26 +129,21 @@ window.FxAiImageAssetsSelector = function(selectStr) {
             }
 
             selectedIndexes.forEach((idx, order) => {
+                const file = currentFileList[idx];
+                if (!file) return;
+                const filename = file.filename || file;
+
                 const item = document.createElement("div");
                 item.style.cssText = `
                     width:70px; height:70px; position:relative;
                     border:2px solid #4a8fff; border-radius:4px;
-                    flex-shrink:0; background:#111;
-                    display:flex; align-items:center; justify-content:center;
-                    color:#fff; font-size:20px; font-weight:bold;
-                `;
-                item.textContent = idx;
-
-                // 选中顺序编号
-                const orderTag = document.createElement("div");
-                orderTag.textContent = order + 1;
-                orderTag.style.cssText = `
-                    position:absolute; top:0; left:0; width:22px; height:22px;
-                    background:#4a8fff; color:#fff; font-size:12px;
-                    text-align:center; line-height:22px; border-radius:0 0 4px 0;
+                    flex-shrink:0; background:#111; overflow:hidden;
                 `;
 
-                // 删除按钮
+                const img = document.createElement("img");
+                img.src = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(currentSubdir)}&filename=${encodeURIComponent(filename)}`);
+                img.style.cssText = "width:100%;height:100%;object-fit:cover;";
+
                 const del = document.createElement("div");
                 del.textContent = "×";
                 del.style.cssText = `
@@ -162,40 +154,68 @@ window.FxAiImageAssetsSelector = function(selectStr) {
                 del.onclick = () => {
                     selectedIndexes = selectedIndexes.filter(i => i !== idx);
                     renderSelectedBar();
-                    renderList();
+                    refreshImageSelectionUI(); // 只刷新选中状态，不重新加载列表
                 };
 
-                item.append(orderTag, del);
+                item.append(img, del);
                 selectedWrap.appendChild(item);
             });
         }
 
         // ==============================================
-        // 渲染图片列表（核心：用数组索引当序号）
+        // 优化：只刷新选中样式，不重新请求图片
+        // ==============================================
+        function refreshImageSelectionUI() {
+            const items = listContainer.querySelectorAll(".img-item");
+            items.forEach((el, idx) => {
+                const isSelected = selectedIndexes.includes(idx.toString());
+                el.style.border = isSelected ? "3px solid #4a8fff" : "3px solid transparent";
+                
+                let numLayer = el.querySelector(".select-num");
+                if (isSelected) {
+                    const selOrder = selectedIndexes.indexOf(idx.toString()) + 1;
+                    if (!numLayer) {
+                        numLayer = document.createElement("div");
+                        numLayer.className = "select-num";
+                        numLayer.style.cssText = `
+                            position:absolute; top:6px; left:6px; width:26px; height:26px;
+                            background:#4a8fff; color:white; border-radius:50%;
+                            display:flex; align-items:center; justify-content:center;
+                            font-weight:bold; font-size:14px;
+                        `;
+                        el.appendChild(numLayer);
+                    }
+                    numLayer.textContent = selOrder;
+                    numLayer.style.display = "flex";
+                } else {
+                    if (numLayer) numLayer.style.display = "none";
+                }
+            });
+        }
+
+        // ==============================================
+        // 渲染图片列表（只加载一次）
         // ==============================================
         function renderList() {
             listContainer.innerHTML = "";
             fetchFileList(currentSubdir).then(files => {
-                currentFileList = files; // 保存当前文件列表
+                currentFileList = files;
                 
                 files.forEach((file, index) => {
                     const filename = file.filename || file;
-                    // ✅ 序号 = 数组索引（第0张、第1张、第2张...）
                     const imgIndex = index.toString();
-                    const isSelected = selectedIndexes.includes(imgIndex);
 
                     const item = document.createElement("div");
+                    item.className = "img-item";
                     item.style.cssText = `
                         width:128px; height:128px; position:relative; border-radius:6px;
-                        overflow:hidden; cursor:pointer; border:3px solid ${isSelected ? "#4a8fff" : "transparent"};
+                        overflow:hidden; cursor:pointer; border:3px solid transparent;
                     `;
 
-                    // 预览图
                     const img = document.createElement("img");
                     img.src = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(currentSubdir)}&filename=${encodeURIComponent(filename)}`);
                     img.style.cssText = "width:100%; height:100%; object-fit:cover;";
 
-                    // 显示：索引序号
                     const tag = document.createElement("div");
                     tag.textContent = `索引：${imgIndex}`;
                     tag.style.cssText = `
@@ -206,7 +226,7 @@ window.FxAiImageAssetsSelector = function(selectStr) {
                     item.append(img, tag);
                     listContainer.appendChild(item);
 
-                    // 点击选中/取消
+                    // 点击切换选中
                     item.onclick = () => {
                         if (selectedIndexes.includes(imgIndex)) {
                             selectedIndexes = selectedIndexes.filter(i => i !== imgIndex);
@@ -214,13 +234,15 @@ window.FxAiImageAssetsSelector = function(selectStr) {
                             selectedIndexes.push(imgIndex);
                         }
                         renderSelectedBar();
-                        renderList();
+                        refreshImageSelectionUI(); // 只刷新UI，不重新加载图片
                     };
                 });
+
+                refreshImageSelectionUI();
             });
         }
 
-        // 初始化加载
+        // 初始化
         renderList();
         renderSelectedBar();
     });
