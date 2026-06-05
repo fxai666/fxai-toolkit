@@ -296,6 +296,16 @@ function addLine(node, promptDefault , propDefault ) {
     propInput.style.marginTop = "6px";
     propInput.style.flexShrink = "0";
     propInput.value = propDefault;
+    propInput.onclick = function(){
+        FxAiImageAssetsSelector(this.value).then(result => {
+            if(result!==undefined)
+            {
+                this.value=result;
+                item.propValue = propInput.value;
+                updateHidden(node);
+            }
+        });
+    }
 
     var upBtn = document.createElement("button");
     upBtn.textContent = "↑";

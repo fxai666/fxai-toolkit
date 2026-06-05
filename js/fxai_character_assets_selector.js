@@ -197,9 +197,7 @@ window.FxAiCharacterAssetsSelector = function(selectStr) {
             listContainer.innerHTML = "";
             fetchFileList(currentSubdir).then(files => {
                 files.forEach(filename => {
-                    const previewUrl = api.apiURL(
-                        `/fxai/image/v2/preview?subdir=${encodeURIComponent(currentSubdir)}&filename=${encodeURIComponent(filename)}`
-                    );
+                    const previewUrl = api.apiURL(`/fxai/image/v2/preview?subdir=${encodeURIComponent(currentSubdir)}&filename=${encodeURIComponent(filename)}`);
                     const realPath = `${currentSubdir}/${filename}`;
                     const isSelected = selected.includes(realPath);
 
