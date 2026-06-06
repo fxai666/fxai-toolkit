@@ -12,11 +12,10 @@ import platform
 import ctypes
 from ctypes import wintypes
 import comfy.model_management
-from comfy.execution_context import execution_context
 import psutil
 
 # ============================
-# 终极内存清理（专治：采样器不归还内存 + 虚拟内存持续上涨）
+# 终极内存清理（兼容所有版本ComfyUI）
 # ============================
 def safe_memory_clean():
     try:
@@ -26,11 +25,6 @@ def safe_memory_clean():
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 torch.cuda.ipc_collect()
-
-        try:
-            execution_context.current_context = None
-        except:
-            pass
 
         try:
             comfy.model_management.soft_empty_cache()
@@ -57,8 +51,8 @@ def safe_memory_clean():
 # 工具函数
 # ============================
 def safe_path_join(base_dir, path):
-    base_dir = os.path.abspath(base_dir)
-    full_path = os.path.abspath(os.path.join(base_dir, path))
+    base_dir = os.path.abspath(base_dir).lower()
+    full_path = os.path.abspath(os.path.join(base_dir, path)).lower()
     if not full_path.startswith(base_dir):
         return None
     return full_path
@@ -249,6 +243,9 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
             except BrokenPipeError:
                 print("[凤希AI] FFmpeg管道断开，停止写入")
                 break
+            except Exception as e:
+                print(f"[凤希AI] 视频帧写入失败: {str(e)}")
+                break
 
         try:
             proc.stdin.close()
@@ -344,3 +341,12 @@ class FxAiVideoGeneratorV3:
         safe_memory_clean()
         
         return (transition_frames_out, video_path, target_dir, actual_frames)
+
+# 注册节点
+NODE_CLASS_MAPPINGS = {
+    "FxAiVideoGeneratorV3": FxAiVideoGeneratorV3
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "FxAiVideoGeneratorV3": "凤希AI 视频生成器 V3"
+}
