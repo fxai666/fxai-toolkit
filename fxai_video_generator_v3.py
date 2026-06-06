@@ -24,33 +24,10 @@ def safe_memory_clean():
 
         comfy.model_management.soft_empty_cache()
 
-        system = platform.system()
-        if system == "Windows":
-            for process in psutil.process_iter(['pid', 'name']):
-                try:
-                    handle = ctypes.windll.kernel32.OpenProcess(
-                        wintypes.DWORD(0x001F0FFF),
-                        wintypes.BOOL(False),
-                        wintypes.DWORD(process.info['pid'])
-                    )
-                    ctypes.windll.psapi.EmptyWorkingSet(handle)
-                    ctypes.windll.kernel32.CloseHandle(handle)
-                except:
-                    continue
-            try:
-                ctypes.windll.kernel32.SetSystemFileCacheSize(-1, -1, 0)
-                ctypes.windll.kernel32.SetProcessWorkingSetSize(-1, -1, -1)
-            except:
-                pass
-
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-
         gc.collect(generation=2)
-        print(f"[凤希AI] 释放分段占用资源成功")
+        print(f"[凤希AI] 安全释放资源完成")
     except Exception as e:
         print(f"[凤希AI] 资源释放失败：{str(e)}")
-        pass
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -95,6 +72,8 @@ def get_fixed_temp_audio_path():
 
 # 音频张量转WAV
 def audio_tensor_to_wav_ffmpeg(audio_dict):
+    temp_path = ""
+    proc = None
     try:
         waveform = audio_dict["waveform"]
         sample_rate = audio_dict["sample_rate"]
@@ -132,41 +111,60 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         )
         proc.stdin.write(raw_pcm)
         proc.stdin.close()
-        proc.wait()
+        proc.wait(timeout=20)
         
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
         
         return temp_path
+    
     except Exception as e:
         print(f"[凤希AI FFmpeg音频转换失败] {str(e)}")
-        import traceback
-        traceback.print_exc()
         return ""
+    
+    finally:
+        if proc is not None:
+            try:
+                proc.stdin.close()
+            except:
+                pass
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except:
+                pass
+        # 清理临时变量
+        del waveform, waveform_np, audio_data, raw_pcm
+        safe_memory_clean()
 
 # 视频合成
 def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
-    # 清理
     safe_memory_clean()
-
-    num = custom_num if custom_num >= 0 else get_last_number(save_dir)
-    filename = f"{num:03d}.mp4"
-    save_path = safe_path_join(save_dir, filename)
-
-    img_np = (images.cpu().numpy() * 255).astype(np.uint8)
-    total_len = img_np.shape[0]
-    img_np = img_np[: total_len - transition_frames]
-
-    if len(img_np) == 0:
-        print("[凤希AI视频合成失败] 没有有效帧")
-        return ""
+    proc = None
+    img_np = None
 
     try:
+        num = custom_num if custom_num >= 0 else get_last_number(save_dir)
+        filename = f"{num:03d}.mp4"
+        save_path = safe_path_join(save_dir, filename)
+
+        img_np = (images.cpu().numpy() * 255).astype(np.uint8)
+        del images
+        safe_memory_clean()
+
+        total_len = img_np.shape[0]
+        img_np = img_np[: total_len - transition_frames]
+
+        if len(img_np) == 0:
+            print("[凤希AI视频合成失败] 没有有效帧")
+            return ""
+
         height, width = img_np[0].shape[0], img_np[0].shape[1]
         
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
+        # 构建FFmpeg命令
         if audio and os.path.exists(audio):
             cmd = [
                 'ffmpeg', '-y',
@@ -219,26 +217,42 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
             try:
                 proc.stdin.write(batch_data)
             except BrokenPipeError:
+                print("[凤希AI] FFmpeg管道断开，停止写入")
                 break
+
+        # 视频帧数据立即释放
+        del img_np, batch_data
+        safe_memory_clean()
 
         try:
             proc.stdin.close()
         except:
             pass
-
-        proc.wait()
+        proc.wait(timeout=180)
 
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
 			
         print(f"[凤希AI视频] 成功保存：{save_path}")
+        return save_path
 
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
-        import traceback
-        traceback.print_exc()
-		
-    return save_path
+        return ""
+
+    finally:
+        if proc is not None:
+            try:
+                proc.stdin.close()
+            except:
+                pass
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except:
+                pass
+        del img_np
+        safe_memory_clean()
 
 class FxAiVideoGeneratorV3:
     @classmethod
@@ -292,6 +306,7 @@ class FxAiVideoGeneratorV3:
             transition_frames=过渡帧数
         )
         
+        del 图片序列, video_frames
         safe_memory_clean()
         
         return (transition_frames_out, video_path, target_dir, actual_frames)
