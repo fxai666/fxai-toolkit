@@ -29,6 +29,13 @@ def get_fixed_temp_audio_path():
     return os.path.join(temp_dir, "fxai_merge_temp_audio.wav")
 
 def audio_tensor_to_wav_ffmpeg(audio_dict):
+    proc = None
+    waveform = None
+    waveform_np = None
+    audio_data = None
+    raw_pcm = None
+    temp_path = ""
+
     try:
         waveform = audio_dict["waveform"]
         sample_rate = audio_dict["sample_rate"]
@@ -81,6 +88,21 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         print(f"[凤希AI音频转换失败] {e}")
         return ""
 
+    finally:
+        if proc is not None:
+            try:
+                proc.stdin.close()
+            except:
+                pass
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except:
+                pass
+
+        del waveform, waveform_np, audio_data, raw_pcm
+        gc.collect()
+
 def replace_video_audio(video_path, audio_path):
     if not os.path.exists(video_path) or not os.path.exists(audio_path):
         return video_path
@@ -93,7 +115,8 @@ def replace_video_audio(video_path, audio_path):
         )
         subprocess.run(cmd, shell=True, check=True, capture_output=True)
         shutil.move(temp_video, video_path)
-    except:
+    except Exception as e:
+        # print(f"[凤希AI替换音频失败] {e}")
         if os.path.exists(temp_video):
             os.remove(temp_video)
     return video_path
@@ -112,31 +135,50 @@ def get_video_files(source_dir, max_count=0):
     return [safe_path_join(source_dir, f) for f in files]
 
 def merge_videos(source_dir, output_name, max_count=0, audio=None):
-    videos = get_video_files(source_dir, max_count)
-    output_dir = get_merge_output_dir()
-    output_name = re.sub(r'[\\/*?:"<>|]', "", output_name.strip())
-    output_path = safe_path_join(output_dir, f"{output_name}.mp4")
+    videos = []
+    list_path = None
+    output_path = None
+    audio_wav = None
 
-    if not videos:
-        print("[凤希AI视频合并] 无视频")
+    try:
+        videos = get_video_files(source_dir, max_count)
+        output_dir = get_merge_output_dir()
+        output_name = re.sub(r'[\\/*?:"<>|]', "", output_name.strip())
+        output_path = safe_path_join(output_dir, f"{output_name}.mp4")
+
+        if not videos:
+            print("[凤希AI视频合并] 无视频")
+            return None
+        
+        elif len(videos) == 1:
+            shutil.copy2(videos[0], output_path)
+        
+        else:
+            list_path = os.path.join(source_dir, "merge_list.txt")
+            with open(list_path, "w", encoding="utf-8") as f:
+                for p in videos:
+                    f.write(f"file '{p}'\n")
+                    
+            cmd = f'ffmpeg -y -hide_banner -loglevel quiet -nostats -f concat -safe 0 -i "{list_path}" -c copy "{output_path}"'
+            subprocess.run(cmd, shell=True, check=True)
+
+        # 音频处理
+        if audio and isinstance(audio, dict) and "waveform" in audio:
+            audio_wav = audio_tensor_to_wav_ffmpeg(audio)
+            if audio_wav:
+                replace_video_audio(output_path, audio_wav)
+
+        return output_path
+
+    except Exception as e:
+        print(f"[凤希AI视频合并失败] {e}")
         return None
-    elif len(videos) == 1:
-        shutil.copy2(videos[0], output_path)
-    else:
-        list_path = os.path.join(source_dir, "merge_list.txt")
-        with open(list_path, "w", encoding="utf-8") as f:
-            for p in videos:
-                f.write(f"file '{p}'\n")
-        cmd = f'ffmpeg -y -hide_banner -loglevel quiet -nostats -f concat -safe 0 -i "{list_path}" -c copy "{output_path}"'
-        subprocess.run(cmd, shell=True, check=True)
-        os.remove(list_path)
 
-    if audio and isinstance(audio, dict) and "waveform" in audio:
-        audio_wav = audio_tensor_to_wav_ffmpeg(audio)
-        if audio_wav:
-            replace_video_audio(output_path, audio_wav)
+    finally:
+        if list_path and os.path.exists(list_path):
+            os.remove(list_path)
 
-    return output_path
+        gc.collect()
 
 def release_all_resources():
     try:
@@ -150,6 +192,7 @@ def release_all_resources():
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
 
+        # 清理子进程
         try:
             current_pid = os.getpid()
             process = psutil.Process(current_pid)
@@ -159,8 +202,7 @@ def release_all_resources():
                     child.kill()
                 except:
                     pass
-        except Exception as e:
-            print(f"[凤希AI] 资源释放失败：{str(e)}")
+        except:
             pass
 
         gc.collect()
@@ -168,7 +210,6 @@ def release_all_resources():
 
     except Exception as e:
         print(f"[凤希AI] 资源释放失败：{str(e)}")
-        pass
 
 # ==========================================================================
 

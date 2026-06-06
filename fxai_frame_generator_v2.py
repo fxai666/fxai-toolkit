@@ -44,9 +44,6 @@ class FxAiFrameGeneratorV2:
         top = (h - target_h) // 2
         return img.crop((left, top, left + target_w, top + target_h))
 
-    # ==============================
-    # ✅ 最高画质缩放 + 封装精简版
-    # ==============================
     def resize_image(self, image_tensor, target_w, target_h):
         if image_tensor is None:
             return None

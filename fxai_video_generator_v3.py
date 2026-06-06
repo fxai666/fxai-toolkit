@@ -12,20 +12,50 @@ import platform
 import ctypes
 from ctypes import wintypes
 import comfy.model_management
+from comfy.execution_context import execution_context
 import psutil
 
+# ============================
+# 终极内存清理（专治：采样器不归还内存 + 虚拟内存持续上涨）
+# ============================
 def safe_memory_clean():
     try:
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
-        comfy.model_management.soft_empty_cache()
-        gc.collect(generation=2)
-    except Exception as e:
-        print(f"[凤希AI] 资源释放失败：{str(e)}")
+        with torch.no_grad():
+            torch.clear_autocast_cache()
+            torch.cpu.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
 
-# 安全路径校验
+        try:
+            execution_context.current_context = None
+        except:
+            pass
+
+        try:
+            comfy.model_management.soft_empty_cache()
+        except:
+            pass
+
+        gc.collect(generation=2)
+        gc.collect(generation=1)
+        gc.collect()
+
+        if platform.system() == "Windows":
+            try:
+                kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+                psapi = ctypes.WinDLL("psapi", use_last_error=True)
+                hProcess = kernel32.GetCurrentProcess()
+                psapi.EmptyWorkingSet(hProcess)
+            except:
+                pass
+
+    except Exception as e:
+        print(f"[凤希AI] 内存释放异常: {str(e)}")
+
+# ============================
+# 工具函数
+# ============================
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
     full_path = os.path.abspath(os.path.join(base_dir, path))
@@ -33,7 +63,6 @@ def safe_path_join(base_dir, path):
         return None
     return full_path
 
-# 获取下一个编号
 def get_last_number(target_dir):
     used = set()
     if os.path.isdir(target_dir):
@@ -46,7 +75,6 @@ def get_last_number(target_dir):
         next_num += 1
     return next_num
 
-# 获取视频保存目录
 def get_video_dir(subdir=""):
     comfy_root = folder_paths.base_path
     base_dir = "fxai/video"
@@ -59,14 +87,15 @@ def get_video_dir(subdir=""):
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
 
-# 获取全局临时音频路径
 def get_fixed_temp_audio_path():
     comfy_root = folder_paths.base_path
     temp_dir = os.path.join(comfy_root, "fxai/video/temp")
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
 
-# 音频张量转WAV
+# ============================
+# 音频处理
+# ============================
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     temp_path = ""
     proc = None
@@ -134,15 +163,16 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
                 proc.wait(timeout=5)
             except:
                 pass
-        # 统一释放
         del waveform, waveform_np, audio_data, raw_pcm
         safe_memory_clean()
 
+# ============================
 # 视频合成
+# ============================
 def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
     safe_memory_clean()
     proc = None
-    img_np = None  # 开头初始化
+    img_np = None
     batch_data = None
 
     try:
@@ -166,7 +196,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
-        # FFmpeg命令
         if audio and os.path.exists(audio):
             cmd = [
                 'ffmpeg', '-y',
@@ -197,7 +226,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 '-r', str(fps),
                 '-i', '-',
                 '-c:v', 'libx264',
-                '-preset', 'slow',
                 '-crf', '17',
                 '-pix_fmt', 'yuv420p',
                 '-movflags', '+faststart',
@@ -222,7 +250,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 print("[凤希AI] FFmpeg管道断开，停止写入")
                 break
 
-        # ✅ 这里：完全不删除，交给 finally 统一处理！
         try:
             proc.stdin.close()
         except:
@@ -240,7 +267,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         return ""
 
     finally:
-        # 关闭进程
         if proc is not None:
             try:
                 proc.stdin.close()
@@ -252,7 +278,6 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
             except:
                 pass
 
-        # ✅ 终极统一释放：无论是否报错，都安全执行
         if img_np is not None:
             del img_np
         if batch_data is not None:
@@ -260,6 +285,9 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         
         safe_memory_clean()
 
+# ============================
+# 节点主类
+# ============================
 class FxAiVideoGeneratorV3:
     @classmethod
     def INPUT_TYPES(cls):
