@@ -17,13 +17,10 @@ import psutil
 def safe_memory_clean():
     try:
         gc.collect()
-
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
-
         comfy.model_management.soft_empty_cache()
-
         gc.collect(generation=2)
     except Exception as e:
         print(f"[凤希AI] 资源释放失败：{str(e)}")
@@ -73,6 +70,11 @@ def get_fixed_temp_audio_path():
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     temp_path = ""
     proc = None
+    waveform = None
+    waveform_np = None
+    audio_data = None
+    raw_pcm = None
+    
     try:
         waveform = audio_dict["waveform"]
         sample_rate = audio_dict["sample_rate"]
@@ -132,7 +134,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
                 proc.wait(timeout=5)
             except:
                 pass
-        # 清理临时变量
+        # 统一释放
         del waveform, waveform_np, audio_data, raw_pcm
         safe_memory_clean()
 
@@ -140,7 +142,8 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
 def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
     safe_memory_clean()
     proc = None
-    img_np = None
+    img_np = None  # 开头初始化
+    batch_data = None
 
     try:
         num = custom_num if custom_num >= 0 else get_last_number(save_dir)
@@ -163,7 +166,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
-        # 构建FFmpeg命令
+        # FFmpeg命令
         if audio and os.path.exists(audio):
             cmd = [
                 'ffmpeg', '-y',
@@ -219,10 +222,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 print("[凤希AI] FFmpeg管道断开，停止写入")
                 break
 
-        # 视频帧数据立即释放
-        del img_np, batch_data
-        safe_memory_clean()
-
+        # ✅ 这里：完全不删除，交给 finally 统一处理！
         try:
             proc.stdin.close()
         except:
@@ -240,6 +240,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
         return ""
 
     finally:
+        # 关闭进程
         if proc is not None:
             try:
                 proc.stdin.close()
@@ -250,9 +251,13 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 proc.wait(timeout=5)
             except:
                 pass
-        # 现在 img_np 一定已定义，不会报错
+
+        # ✅ 终极统一释放：无论是否报错，都安全执行
         if img_np is not None:
             del img_np
+        if batch_data is not None:
+            del batch_data
+        
         safe_memory_clean()
 
 class FxAiVideoGeneratorV3:
