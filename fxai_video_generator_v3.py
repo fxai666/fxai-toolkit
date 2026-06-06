@@ -25,7 +25,6 @@ def safe_memory_clean():
         comfy.model_management.soft_empty_cache()
 
         gc.collect(generation=2)
-        print(f"[凤希AI] 安全释放资源完成")
     except Exception as e:
         print(f"[凤希AI] 资源释放失败：{str(e)}")
 
@@ -141,7 +140,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
 def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
     safe_memory_clean()
     proc = None
-    img_np = None
+    img_np = None  # 预先定义，防止报错
 
     try:
         num = custom_num if custom_num >= 0 else get_last_number(save_dir)
@@ -251,7 +250,9 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 proc.wait(timeout=5)
             except:
                 pass
-        del img_np
+        # ✅ 修复：只有变量存在时才删除
+        if img_np is not None:
+            del img_np
         safe_memory_clean()
 
 class FxAiVideoGeneratorV3:
