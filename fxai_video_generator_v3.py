@@ -21,7 +21,6 @@ def safe_memory_clean():
     try:
         with torch.no_grad():
             torch.clear_autocast_cache()
-            torch.cpu.empty_cache()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 torch.cuda.ipc_collect()
