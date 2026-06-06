@@ -140,7 +140,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
 def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
     safe_memory_clean()
     proc = None
-    img_np = None  # 预先定义，防止报错
+    img_np = None
 
     try:
         num = custom_num if custom_num >= 0 else get_last_number(save_dir)
@@ -250,7 +250,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 proc.wait(timeout=5)
             except:
                 pass
-        # ✅ 修复：只有变量存在时才删除
+        # 现在 img_np 一定已定义，不会报错
         if img_np is not None:
             del img_np
         safe_memory_clean()
