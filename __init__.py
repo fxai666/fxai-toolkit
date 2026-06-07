@@ -70,12 +70,13 @@ NODE_REGISTRY = [
     ("FxAiImageGetSingle",        "fxai_image_get_single",      "凤希AI - 图像管理器 - 获取批量单图"),
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
     ("FxAiImageBatchConcat",      "fxai_image_batch_concat",    "凤希AI - 图片列表合并"),
-    ("FxAiImageBatchConcat",      "fxai_image_batch_concat",    "凤希AI - 图片列表合并"),
+    ("FxAiImageLoopTile",         "fxai_image_loop_tile",       "凤希AI - 图片循环序列"),
 	
     # 角色类
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
     ("FxAiCharacterAssetsLoad",   "fxai_character_assets_load", "凤希AI - 角色资源数据解析器"),
     ("FxAiCharacterBatchLoad",    "fxai_character_batch_load",  "凤希AI - 角色加载器"),
+    ("FxAiCharacterImageSelector","fxai_character_image_selector","凤希AI - 角色资源选择器"),
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),
@@ -121,10 +122,10 @@ NODE_REGISTRY = [
     ("FxAiLatentGetFrames",       "fxai_latent_get_frames",     "凤希AI - 潜空间获取"),
     ("FxAiLatentGetFrameCount",   "fxai_latent_get_frame_count","凤希AI - 潜空间总数"),
     ("FxAiLTX23Sampler",          "fxai_ltx23_sampler",         "凤希AI - LTX2.3采集器"),
-
 	
     # 模型/LoRA
     ("FxAiLoraLoader",            "fxai_lora_loader",           "凤希AI - LoRa加载器"),
+    ("FxAiLtxvGuideFrames",       "fxai_ltxv_guide_frames",     "凤希AI - LTXV多帧引导器"),
 ]
 
 NODE_CLASS_MAPPINGS = {}

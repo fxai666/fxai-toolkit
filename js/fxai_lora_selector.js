@@ -104,6 +104,7 @@ window.FxAiLoraSelector = function(selectedStr) {
         searchBox.placeholder = "多关键词用空格分隔搜索...";
         searchBox.style.cssText = "padding:8px 12px; border-radius:6px; border:none; background:#333; color:#fff; font-size:14px; outline:none;";
         modal.appendChild(searchBox);
+        searchBox.focus();
 
         // 表格容器
         var tableContainer = document.createElement("div");

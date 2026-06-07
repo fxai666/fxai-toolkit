@@ -23,12 +23,13 @@ app.registerExtension({
             this.wrap = document.createElement("div");
             this.wrap.style.position = "relative";
             this.wrap.style.height = "100%";
-            this.wrap.style.margin = "5px 0";
-            this.wrap.style.paddingBottom = "50px";
+            this.wrap.style.paddingBottom = "30px";
             this.wrap.style.boxSizing = "border-box";
             // 滚动容器
             this.scrollBox = document.createElement("div");
             this.scrollBox.style.height = "100%";
+            this.scrollBox.style.minHeight = "50px";
+            this.scrollBox.style.minHeight = "150px";
             this.scrollBox.style.overflowY = "auto";
             this.scrollBox.style.overflowX = "hidden";
             this.scrollBox.style.paddingRight = "5px";
@@ -44,12 +45,10 @@ app.registerExtension({
             // 固定底部居中按钮
             var btnWrap = document.createElement("div");
             btnWrap.style.position = "absolute";
-            btnWrap.style.bottom = "8px";
             btnWrap.style.left = "50%";
             btnWrap.style.transform = "translateX(-50%)";
             btnWrap.style.zIndex = "10";
             btnWrap.style.display = "flex";
-            btnWrap.style.gap = "10px";
             var selectBtn = document.createElement("button");
             selectBtn.textContent = "📁 选择 LoRA";
             selectBtn.style.padding = "6px 14px";

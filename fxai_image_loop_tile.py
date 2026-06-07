@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from .fxai_image_utils import ImageSizeController  # 直接调用你的工具类
+from fxai_image_utils import ImageSizeController  # 直接调用你的工具类
 
 
 class FxAiImageLoopTile:
@@ -8,9 +8,9 @@ class FxAiImageLoopTile:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "输出宽度": ("INT", {"default": 736, "min": 32, "max": 8192, "step": 32}),
+                "输出宽度": ("INT", {"default": 704, "min": 32, "max": 8192, "step": 32}),
                 "输出高度": ("INT", {"default": 1280, "min": 32, "max": 8192, "step": 32}),
-                "总帧数": ("INT", {"default": 17, "min": 1, "max": 1000, "step": 1}),
+                "总帧数": ("INT", {"default": 241, "min": 1, "max": 1800, "step": 1}),
                 "图片序列": ("IMAGE",),
             },
         }
@@ -18,7 +18,7 @@ class FxAiImageLoopTile:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("输出序列",)
     FUNCTION = "process"
-    CATEGORY = "凤希AI/工具"
+    CATEGORY = "凤希AI/图片"
 
     def process(self, 输出宽度, 输出高度, 总帧数, 图片序列):
         # 初始化你的工具类（使用界面设置的宽高）

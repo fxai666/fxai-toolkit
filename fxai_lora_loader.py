@@ -28,7 +28,6 @@ def get_config_path(lora_name):
 
 def load_config(lora_name):
     path = get_config_path(lora_name)
-    # 默认配置
     default = {
         "enabled": True,
         "model_strength": 1.0,
@@ -39,39 +38,31 @@ def load_config(lora_name):
         "fade_end": 1.0
     }
     if not path or not os.path.exists(path):
-        return {}  # 没有配置文件 → 返回空对象（符合你的要求）
+        return {}
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)  # 有配置 → 返回真实配置
+            return json.load(f)
     except:
         return {}
 
 # ====================== API 接口 ======================
-# 1. 获取所有 LoRA 文件 + 对应配置（对象格式：{lora名: 配置, ...}）
 async def api_get_lora_files(request):
-    # 获取所有 LoRA 文件
     loras = folder_paths.get_filename_list("loras")
     loras_sorted = sorted(loras, key=lambda x: x.lower())
-    
-    # 构建返回对象：key = lora名称，value = 配置对象
     result = {}
     for lora_name in loras_sorted:
         result[lora_name] = load_config(lora_name)
-    
     return web.json_response(result)
 
-# 2. 根据名称读取配置（保留，兼容前端）
 async def api_get_lora_config(request):
     name = request.query.get("name", "")
     return web.json_response(load_config(name))
 
-# 注册接口
 server.PromptServer.instance.routes.get("/fxai/lora/files")(api_get_lora_files)
 server.PromptServer.instance.routes.get("/fxai/lora/config")(api_get_lora_config)
 
 # ====================== 主节点 ======================
 class FxAiLoraLoader:
-    NAME = "凤希AI - LoRA加载器"
     CATEGORY = "凤希AI/LoRA"
     RETURN_TYPES = ("MODEL", "CLIP", "STRING")
     RETURN_NAMES = ("MODEL", "CLIP", "触发词")
@@ -80,23 +71,23 @@ class FxAiLoraLoader:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "optional": {
+            "required": {
                 "model": ("MODEL",),
+            },
+            "optional": {
                 "clip": ("CLIP",),
                 "lora_data": ("STRING", {"default": "[]", "multiline": True}),
             }
         }
 
-    def run(self, model=None, clip=None, lora_data="[]"):
-        print(f"{lora_data},{os}")
+    def run(self, model, clip=None, lora_data="[]"):
         triggers = []
         try:
             items = json.loads(lora_data)
         except:
             items = []
-        print(items);
+
         for item in items:
-            # 所有配置 100% 来自前端传递
             lora_name = item.get("lora_name", "")
             enabled = item.get("enabled", True)
             model_str = item.get("model_strength", 1.0)
@@ -109,29 +100,28 @@ class FxAiLoraLoader:
             if not enabled or not lora_name:
                 continue
 
-            # 计算最终强度
             if invert:
                 model_str = -model_str
                 clip_str = -clip_str
             model_str *= fade_start
             clip_str *= fade_end
 
-            # 应用 LoRA
-            if model and clip:
-                try:
-                    model, clip = LoraLoader().load_lora(
-                        model, clip, lora_name, model_str, clip_str
-                    )
-                except Exception as e:
-                    print(f"[LoRA错误] {lora_name}: {e}")
+            try:
+                lora_path = folder_paths.get_full_path("loras", lora_name)
+                if lora_path is None or not os.path.exists(lora_path):
+                    raise FileNotFoundError(f"LoRA 文件不存在：{lora_name}，请在以下网盘进行下载\n夸克：https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7\n迅雷：https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3")
+                
+                model, clip = LoraLoader().load_lora(
+                    model, clip, lora_name, model_str, clip_str
+                )
+            except Exception as e:
+                raise RuntimeError(f"[凤希AI LoRA加载失败] {lora_name}\n失败原因：{str(e)}") from e
 
-            # 收集触发词
             if isinstance(trigger_words, list):
                 triggers.extend(trigger_words)
             else:
                 triggers.append(str(trigger_words))
 
-        # 去重拼接
         triggers_clean = list(set([t.strip() for t in triggers if t.strip()]))
         trigger_out = ", ".join(triggers_clean)
         return (model, clip, trigger_out)
