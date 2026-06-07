@@ -12,12 +12,13 @@ import ctypes
 import folder_paths
 import comfy.model_management
 
-# Windows强制释放进程工作集内存
+# Windows强制释放进程工作集内存（专业版，一次到位）
 def force_release_process_memory():
     if os.name == 'nt':
         try:
-            # Windows API: EmptyWorkingSet 强制将进程内存页换出到磁盘
-            ctypes.windll.psapi.EmptyWorkingSet(ctypes.windll.kernel32.GetCurrentProcess())
+            process = ctypes.windll.kernel32.GetCurrentProcess()
+            ctypes.windll.psapi.EmptyWorkingSet(process)
+            ctypes.windll.kernel32.SetProcessWorkingSetSize(process, -1, -1)
         except:
             pass
 
@@ -39,26 +40,30 @@ def get_fixed_temp_audio_path():
     return os.path.join(temp_dir, "fxai_merge_temp_audio.wav")
 
 # ==============================================
-# 🔥 终极清理：杀死当前程序所有子进程/孙进程
+# 🔥 一次到位：杀死所有子进程（ffmpeg 必杀死）
 # ==============================================
 def kill_all_child_processes():
     try:
         current_pid = os.getpid()
         parent = psutil.Process(current_pid)
         children = parent.children(recursive=True)
+
+        # 直接暴力kill，一次到位
         for child in children:
             try:
-                child.terminate()
+                child.kill()
             except:
                 pass
-        time.sleep(0.4)
-        for child in children:
-            if child.is_running():
-                try:
-                    child.kill()
-                except:
-                    pass
-        time.sleep(0.2)
+
+        time.sleep(0.3)
+
+        # 最终补刀
+        for child in parent.children(recursive=True):
+            try:
+                child.kill()
+            except:
+                pass
+
     except:
         pass
 
@@ -71,7 +76,6 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
     temp_path = ""
 
     try:
-        # 执行前强制清空所有残留进程
         kill_all_child_processes()
         
         waveform = audio_dict["waveform"]
@@ -111,7 +115,6 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             temp_path
         ]
 
-        # 关键修复：使用communicate()一次性写入并等待，避免管道缓冲区残留
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
@@ -119,7 +122,6 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             stderr=subprocess.DEVNULL,
             close_fds=True
         )
-        # 直接communicate写入，自动关闭stdin并等待进程结束
         proc.communicate(input=raw_pcm, timeout=300)
 
         return temp_path if proc.returncode == 0 else ""
@@ -129,19 +131,18 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         return ""
 
     finally:
-        if proc is not None:
+        if proc:
             try:
                 proc.terminate()
-                proc.wait(timeout=3)
+                proc.wait(timeout=2)
             except:
                 try:
                     proc.kill()
                 except:
                     pass
-        # 强制释放大内存对象
+        # 一次释放 + 一次GC（科学够用，无需多次）
         del waveform, waveform_np, audio_data, raw_pcm, proc
         gc.collect()
-        # Windows下强制释放进程工作集内存
         force_release_process_memory()
 
 def replace_video_audio(video_path, audio_path):
@@ -160,7 +161,6 @@ def replace_video_audio(video_path, audio_path):
             '-c:v', 'copy', '-c:a', 'aac', '-ac', '2',
             '-map', '0:v:0', '-map', '1:a:0', '-shortest', temp_video
         ]
-        # 关键修复：使用check=True + communicate确保进程结束，无缓冲区残留
         subprocess.run(cmd, check=True, capture_output=True, close_fds=True)
         shutil.move(temp_video, video_path)
     except Exception as e:
@@ -235,23 +235,32 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
         force_release_process_memory()
 
 # ==============================================
-# 🔥 终极资源释放：显存+内存+所有子进程
+# 🔥 一次到位终极释放：显存 + 内存 + 进程
 # ==============================================
 def release_all_resources():
     try:
-        print("[凤希AI] 🔥 正在彻底清理：显存 + 内存 + 所有子进程...")
+        print("[凤希AI] 🔥 正在彻底清理资源...")
+
+        # 卸载模型
         comfy.model_management.unload_all_models()
         comfy.model_management.soft_empty_cache()
 
+        # 清理CUDA
         if torch.cuda.is_available():
             torch.cuda.synchronize()
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
 
+        # 杀死所有子进程（ffmpeg）
         kill_all_child_processes()
+
+        # 一次GC足够
         gc.collect()
+
+        # 强制释放系统内存（虚拟内存也会降）
         force_release_process_memory()
-        print("[凤希AI] ✅ 已完全清空所有资源！")
+
+        print("[凤希AI] ✅ 资源已完全释放")
 
     except Exception as e:
         print(f"[凤希AI] 资源释放失败：{str(e)}")

@@ -88,12 +88,13 @@ class FxAiLoraLoader:
         }
 
     def run(self, model=None, clip=None, lora_data="[]"):
+        print(f"{lora_data}")
         triggers = []
         try:
             items = json.loads(lora_data)
         except:
             items = []
-
+        print(items);
         for item in items:
             # 所有配置 100% 来自前端传递
             lora_name = item.get("lora_name", "")

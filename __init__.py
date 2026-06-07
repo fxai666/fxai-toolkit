@@ -70,6 +70,7 @@ NODE_REGISTRY = [
     ("FxAiImageGetSingle",        "fxai_image_get_single",      "凤希AI - 图像管理器 - 获取批量单图"),
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
     ("FxAiImageBatchConcat",      "fxai_image_batch_concat",    "凤希AI - 图片列表合并"),
+    ("FxAiImageBatchConcat",      "fxai_image_batch_concat",    "凤希AI - 图片列表合并"),
 	
     # 角色类
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
