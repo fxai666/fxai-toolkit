@@ -7,9 +7,19 @@ import torch
 import numpy as np
 import gc
 import psutil
+import ctypes
 
 import folder_paths
 import comfy.model_management
+
+# Windows强制释放进程工作集内存
+def force_release_process_memory():
+    if os.name == 'nt':
+        try:
+            # Windows API: EmptyWorkingSet 强制将进程内存页换出到磁盘
+            ctypes.windll.psapi.EmptyWorkingSet(ctypes.windll.kernel32.GetCurrentProcess())
+        except:
+            pass
 
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
@@ -101,16 +111,16 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             temp_path
         ]
 
+        # 关键修复：使用communicate()一次性写入并等待，避免管道缓冲区残留
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            close_fds=True
         )
-        proc.stdin.write(raw_pcm)
-        proc.stdin.flush()
-        proc.stdin.close()
-        proc.wait()
+        # 直接communicate写入，自动关闭stdin并等待进程结束
+        proc.communicate(input=raw_pcm, timeout=300)
 
         return temp_path if proc.returncode == 0 else ""
 
@@ -121,10 +131,6 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
     finally:
         if proc is not None:
             try:
-                proc.stdin.close()
-            except:
-                pass
-            try:
                 proc.terminate()
                 proc.wait(timeout=3)
             except:
@@ -132,8 +138,11 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
                     proc.kill()
                 except:
                     pass
-        del waveform, waveform_np, audio_data, raw_pcm
+        # 强制释放大内存对象
+        del waveform, waveform_np, audio_data, raw_pcm, proc
         gc.collect()
+        # Windows下强制释放进程工作集内存
+        force_release_process_memory()
 
 def replace_video_audio(video_path, audio_path):
     if not os.path.exists(video_path) or not os.path.exists(audio_path):
@@ -151,11 +160,15 @@ def replace_video_audio(video_path, audio_path):
             '-c:v', 'copy', '-c:a', 'aac', '-ac', '2',
             '-map', '0:v:0', '-map', '1:a:0', '-shortest', temp_video
         ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        # 关键修复：使用check=True + communicate确保进程结束，无缓冲区残留
+        subprocess.run(cmd, check=True, capture_output=True, close_fds=True)
         shutil.move(temp_video, video_path)
     except Exception as e:
         if os.path.exists(temp_video):
             os.remove(temp_video)
+    finally:
+        gc.collect()
+        force_release_process_memory()
     return video_path
 
 def get_video_files(source_dir, max_count=0):
@@ -202,7 +215,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
                 '-f', 'concat', '-safe', '0', '-i', list_path,
                 '-c', 'copy', output_path
             ]
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, close_fds=True)
 
         if audio and isinstance(audio, dict) and "waveform" in audio:
             audio_wav = audio_tensor_to_wav_ffmpeg(audio)
@@ -219,6 +232,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
         if list_path and os.path.exists(list_path):
             os.remove(list_path)
         gc.collect()
+        force_release_process_memory()
 
 # ==============================================
 # 🔥 终极资源释放：显存+内存+所有子进程
@@ -236,6 +250,7 @@ def release_all_resources():
 
         kill_all_child_processes()
         gc.collect()
+        force_release_process_memory()
         print("[凤希AI] ✅ 已完全清空所有资源！")
 
     except Exception as e:
