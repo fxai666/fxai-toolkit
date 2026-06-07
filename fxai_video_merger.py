@@ -2,13 +2,13 @@ import os
 import re
 import time
 import shutil
-import folder_paths
 import subprocess
 import torch
 import numpy as np
 import gc
 import psutil
 
+import folder_paths
 import comfy.model_management
 
 def safe_path_join(base_dir, path):
@@ -28,6 +28,30 @@ def get_fixed_temp_audio_path():
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_merge_temp_audio.wav")
 
+# ==============================================
+# 🔥 终极清理：杀死当前程序所有子进程/孙进程
+# ==============================================
+def kill_all_child_processes():
+    try:
+        current_pid = os.getpid()
+        parent = psutil.Process(current_pid)
+        children = parent.children(recursive=True)
+        for child in children:
+            try:
+                child.terminate()
+            except:
+                pass
+        time.sleep(0.4)
+        for child in children:
+            if child.is_running():
+                try:
+                    child.kill()
+                except:
+                    pass
+        time.sleep(0.2)
+    except:
+        pass
+
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     proc = None
     waveform = None
@@ -37,6 +61,9 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
     temp_path = ""
 
     try:
+        # 执行前强制清空所有残留进程
+        kill_all_child_processes()
+        
         waveform = audio_dict["waveform"]
         sample_rate = audio_dict["sample_rate"]
 
@@ -60,6 +87,8 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         raw_pcm = audio_data.tobytes()
 
         temp_path = get_fixed_temp_audio_path()
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
         cmd = [
             'ffmpeg', '-y',
@@ -79,6 +108,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             stderr=subprocess.DEVNULL
         )
         proc.stdin.write(raw_pcm)
+        proc.stdin.flush()
         proc.stdin.close()
         proc.wait()
 
@@ -96,10 +126,12 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
                 pass
             try:
                 proc.terminate()
-                proc.wait(timeout=5)
+                proc.wait(timeout=3)
             except:
-                pass
-
+                try:
+                    proc.kill()
+                except:
+                    pass
         del waveform, waveform_np, audio_data, raw_pcm
         gc.collect()
 
@@ -107,16 +139,21 @@ def replace_video_audio(video_path, audio_path):
     if not os.path.exists(video_path) or not os.path.exists(audio_path):
         return video_path
 
+    kill_all_child_processes()
     temp_video = video_path.replace(".mp4", "_temp.mp4")
+    if os.path.exists(temp_video):
+        os.remove(temp_video)
+        
     try:
-        cmd = (
-            f'ffmpeg -y -hide_banner -loglevel quiet -nostats -i "{video_path}" -i "{audio_path}" '
-            f'-c:v copy -c:a aac -ac 2 -map 0:v:0 -map 1:a:0 -shortest "{temp_video}"'
-        )
-        subprocess.run(cmd, shell=True, check=True, capture_output=True)
+        cmd = [
+            'ffmpeg', '-y', '-hide_banner', '-loglevel', 'quiet', '-nostats',
+            '-i', video_path, '-i', audio_path,
+            '-c:v', 'copy', '-c:a', 'aac', '-ac', '2',
+            '-map', '0:v:0', '-map', '1:a:0', '-shortest', temp_video
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
         shutil.move(temp_video, video_path)
     except Exception as e:
-        # print(f"[凤希AI替换音频失败] {e}")
         if os.path.exists(temp_video):
             os.remove(temp_video)
     return video_path
@@ -141,6 +178,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
     audio_wav = None
 
     try:
+        kill_all_child_processes()
         videos = get_video_files(source_dir, max_count)
         output_dir = get_merge_output_dir()
         output_name = re.sub(r'[\\/*?:"<>|]', "", output_name.strip())
@@ -159,10 +197,13 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
                 for p in videos:
                     f.write(f"file '{p}'\n")
                     
-            cmd = f'ffmpeg -y -hide_banner -loglevel quiet -nostats -f concat -safe 0 -i "{list_path}" -c copy "{output_path}"'
-            subprocess.run(cmd, shell=True, check=True)
+            cmd = [
+                'ffmpeg', '-y', '-hide_banner', '-loglevel', 'quiet', '-nostats',
+                '-f', 'concat', '-safe', '0', '-i', list_path,
+                '-c', 'copy', output_path
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
 
-        # 音频处理
         if audio and isinstance(audio, dict) and "waveform" in audio:
             audio_wav = audio_tensor_to_wav_ffmpeg(audio)
             if audio_wav:
@@ -177,13 +218,14 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
     finally:
         if list_path and os.path.exists(list_path):
             os.remove(list_path)
-
         gc.collect()
 
+# ==============================================
+# 🔥 终极资源释放：显存+内存+所有子进程
+# ==============================================
 def release_all_resources():
     try:
-        print("[凤希AI] 开始彻底释放内存/显存/进程资源...")
-
+        print("[凤希AI] 🔥 正在彻底清理：显存 + 内存 + 所有子进程...")
         comfy.model_management.unload_all_models()
         comfy.model_management.soft_empty_cache()
 
@@ -192,21 +234,9 @@ def release_all_resources():
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
 
-        # 清理子进程
-        try:
-            current_pid = os.getpid()
-            process = psutil.Process(current_pid)
-            children = process.children(recursive=True)
-            for child in children:
-                try:
-                    child.kill()
-                except:
-                    pass
-        except:
-            pass
-
+        kill_all_child_processes()
         gc.collect()
-        print("[凤希AI] 所有资源已完全释放 ✅")
+        print("[凤希AI] ✅ 已完全清空所有资源！")
 
     except Exception as e:
         print(f"[凤希AI] 资源释放失败：{str(e)}")
@@ -239,9 +269,11 @@ class FxAiVideoMerger:
         
         if not os.path.isdir(源视频文件夹路径):
             return ("",)
+
+        release_all_resources()
         
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
-        print(f"[凤希AI] 视频生成完毕。")
+        print(f"[凤希AI] ✅ 视频生成完毕。")
         
         release_all_resources()
         return (video_path or "",)

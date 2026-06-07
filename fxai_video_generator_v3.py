@@ -14,9 +14,6 @@ from ctypes import wintypes
 import comfy.model_management
 import psutil
 
-# ============================
-# 终极内存清理（兼容所有版本ComfyUI）
-# ============================
 def safe_memory_clean():
     try:
         with torch.no_grad():
