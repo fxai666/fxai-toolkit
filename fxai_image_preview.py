@@ -25,7 +25,7 @@ class FxAiImagePreview:
     RETURN_TYPES = ()
     FUNCTION = "preview"
     OUTPUT_NODE = True
-    CATEGORY = "凤希AI/工具"
+    CATEGORY = "凤希AI/图片"
 
     def preview(self, 图片, unique_id=None):
         # 空值判断

@@ -1,7 +1,7 @@
 import os
 import torch
 import folder_paths
-from fxai_image_utils import load_single_image, fit_to_canvas
+from fxai_image_utils import load_single_image, ImageSizeController  # 新增导入
 
 def get_image_path(full_relative_path):
     comfy_root = folder_paths.base_path
@@ -37,10 +37,12 @@ class FxAiCharacterImageSelector:
 
     def load_images(self, selected_files, 宽度, 高度, unique_id=None):
         images = []
-
+        print(f"{selected_files}");
         if not selected_files.strip():
             return (torch.zeros((1, 64, 64, 3)), )
 
+        size_controller = ImageSizeController(canvas_w=宽度, canvas_h=高度)
+        
         path_list = [p.strip() for p in selected_files.split(",") if p.strip()]
 
         for rel_path in path_list:
@@ -49,8 +51,8 @@ class FxAiCharacterImageSelector:
             if not os.path.exists(full_path):
                 continue
 
-            img = load_single_image(full_path)
-            img = fit_to_canvas(img, canvas_w=宽度, canvas_h=高度)
+            img = size_controller.load_single_image(full_path)
+            img = size_controller.fit_to_canvas(img)
             images.append(img)
 
         if images:

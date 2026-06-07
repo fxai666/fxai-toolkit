@@ -44,11 +44,17 @@ class ImageSizeController:
         # 动态计算目标画布尺寸（基于实例化的宽高）
         target_w = self.canvas_w // shrink_multiple
         target_h = self.canvas_h // shrink_multiple
+        
+        # 获取原图尺寸
+        _, src_h, src_w, _ = tensor_img.shape
+        
+        # 核心优化：判断尺寸是否已匹配，匹配则直接返回原张量
+        if src_w == target_w and src_h == target_h:
+            return tensor_img
 
         # 张量转PIL图片
         img = tensor_img.squeeze(0).cpu().numpy()
         pil_img = Image.fromarray((img * 255).astype(np.uint8))
-        src_w, src_h = pil_img.size
 
         # 等比例缩放（避免拉伸）
         scale = min(target_w / src_w, target_h / src_h)
