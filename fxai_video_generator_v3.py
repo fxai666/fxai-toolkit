@@ -14,6 +14,27 @@ from ctypes import wintypes
 import comfy.model_management
 import psutil
 
+def kill_all_child_processes():
+    try:
+        current_pid = os.getpid()
+        parent = psutil.Process(current_pid)
+        children = parent.children(recursive=True)
+        for child in children:
+            try:
+                child.terminate()
+            except:
+                pass
+        time.sleep(0.4)
+        for child in children:
+            if child.is_running():
+                try:
+                    child.kill()
+                except:
+                    pass
+        time.sleep(0.2)
+    except:
+        pass
+
 def safe_memory_clean():
     try:
         with torch.no_grad():
@@ -40,6 +61,7 @@ def safe_memory_clean():
             except:
                 pass
 
+    kill_all_child_processes()
     except Exception as e:
         print(f"[凤希AI] 内存释放异常: {str(e)}")
 
@@ -337,12 +359,3 @@ class FxAiVideoGeneratorV3:
         safe_memory_clean()
         
         return (transition_frames_out, video_path, target_dir, actual_frames)
-
-# 注册节点
-NODE_CLASS_MAPPINGS = {
-    "FxAiVideoGeneratorV3": FxAiVideoGeneratorV3
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "FxAiVideoGeneratorV3": "凤希AI 视频生成器 V3"
-}
