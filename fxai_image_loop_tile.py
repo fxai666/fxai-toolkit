@@ -1,7 +1,6 @@
-import cv2
-import numpy as np
 import torch
-from PIL import Image
+import numpy as np
+from .fxai_image_utils import ImageSizeController  # 直接调用你的工具类
 
 
 class FxAiImageLoopTile:
@@ -11,7 +10,7 @@ class FxAiImageLoopTile:
             "required": {
                 "输出宽度": ("INT", {"default": 736, "min": 32, "max": 8192, "step": 32}),
                 "输出高度": ("INT", {"default": 1280, "min": 32, "max": 8192, "step": 32}),
-                "总帧数": ("INT", {"default": 17, "min": 1, "max": 1000, "step": 8}),
+                "总帧数": ("INT", {"default": 17, "min": 1, "max": 1000, "step": 1}),
                 "图片序列": ("IMAGE",),
             },
         }
@@ -22,46 +21,30 @@ class FxAiImageLoopTile:
     CATEGORY = "凤希AI/工具"
 
     def process(self, 输出宽度, 输出高度, 总帧数, 图片序列):
-        processed_images = []
-        total = 图片序列.shape[0]
+        # 初始化你的工具类（使用界面设置的宽高）
+        img_ctrl = ImageSizeController(canvas_w=输出宽度, canvas_h=输出高度)
         
-        for i in range(total):
-            img = 图片序列[i]
-            resized = self._prepare_image(img, (输出宽度, 输出高度))
-            processed_images.append(resized)
+        processed = []
+        # 遍历所有图片 → 全部用你的工具类处理（等比例+居中裁剪，不变形）
+        for i in range(图片序列.shape[0]):
+            # 单张图片张量格式 [1, H, W, 3]
+            img = 图片序列[i:i+1]
+            # 直接调用你的 fit_to_canvas 处理尺寸 ✅
+            processed_img = img_ctrl.fit_to_canvas(img)
+            processed.append(processed_img)
 
-        frames = self._expand_frames(processed_images, 总帧数)
-        output = torch.from_numpy(np.stack(frames).astype(np.float32) / 255.0)
+        # 合并处理后的图片
+        processed = torch.cat(processed, dim=0)
+        
+        # 转 numpy 用于循环平铺
+        frames_np = (processed.cpu().numpy() * 255).astype(np.uint8)
+        
+        # 原版循环平铺逻辑（不变）
+        final_frames = self._expand_frames(frames_np, 总帧数)
+        
+        # 转回 ComfyUI 标准张量
+        output = torch.from_numpy(np.stack(final_frames).astype(np.float32) / 255.0)
         return (output,)
-
-    @staticmethod
-    def _tensor_to_rgb(image):
-        if isinstance(image, torch.Tensor):
-            if image.ndim == 4:
-                image = image[0]
-            image = image.detach().cpu().numpy()
-
-        image = np.asarray(image)
-        if image.dtype != np.uint8:
-            image = np.clip(image * 255.0, 0, 255).astype(np.uint8)
-
-        if image.ndim == 2:
-            image = np.stack([image, image, image], axis=-1)
-        elif image.shape[-1] == 4:
-            image = image[..., :3]
-
-        return np.ascontiguousarray(image)
-
-    @staticmethod
-    def _prepare_image(image, target_size):
-        img_array = FxAiImageLoopTile._tensor_to_rgb(image)
-        pil_img = Image.fromarray(img_array).convert("RGB")
-        img_array = np.array(pil_img)
-        
-        if img_array.shape[1] == target_size[0] and img_array.shape[0] == target_size[1]:
-            return np.ascontiguousarray(img_array)
-        
-        return cv2.resize(img_array, target_size, interpolation=cv2.INTER_LANCZOS4)
 
     @staticmethod
     def _expand_frames(images, target_frames):
@@ -74,3 +57,12 @@ class FxAiImageLoopTile:
             repeat = base + (1 if idx < rem else 0)
             frames.extend([img] * repeat)
         return frames
+
+
+NODE_CLASS_MAPPINGS = {
+    "FxAiImageLoopTile": FxAiImageLoopTile,
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "FxAiImageLoopTile": "凤希AI 图片循环平铺",
+}
