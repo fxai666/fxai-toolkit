@@ -61,7 +61,7 @@ def safe_memory_clean():
             except:
                 pass
 
-    kill_all_child_processes()
+        kill_all_child_processes()
     except Exception as e:
         print(f"[凤希AI] 内存释放异常: {str(e)}")
 
