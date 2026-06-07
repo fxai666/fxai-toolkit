@@ -104,3 +104,4 @@ _global_size_controller = ImageSizeController()
 load_single_image = _global_size_controller.load_single_image
 fit_to_canvas = _global_size_controller.fit_to_canvas
 grid_concat_images = _global_size_controller.grid_concat_images
+IMAGE_EXTENSIONS = ImageSizeController.IMAGE_EXTENSIONS

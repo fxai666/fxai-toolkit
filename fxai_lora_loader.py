@@ -88,7 +88,7 @@ class FxAiLoraLoader:
         }
 
     def run(self, model=None, clip=None, lora_data="[]"):
-        print(f"{lora_data},{os.name}")
+        print(f"{lora_data},{os}")
         triggers = []
         try:
             items = json.loads(lora_data)
