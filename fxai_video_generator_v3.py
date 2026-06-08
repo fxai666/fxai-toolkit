@@ -196,7 +196,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
     print(f"[凤希AI视频] 成功保存：{save_path}")
     return save_path
 
-class FxAiVideoGeneratorV2:
+class FxAiVideoGeneratorV3:
     @classmethod
     def INPUT_TYPES(cls):
         return {
