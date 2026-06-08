@@ -101,7 +101,7 @@ class ImageSizeController:
         # ===================== 你说的正确算法 =====================
         scale_w = target_w / src_w   # 目标宽 / 原图宽
         scale_h = target_h / src_h   # 目标高 / 原图高
-        scale = max(scale_w, scale_h)# 取大的那个缩放！
+        scale = min(scale_w, scale_h)# 取大的那个缩放！
 
         # 等比缩放
         new_w = int(src_w * scale)
