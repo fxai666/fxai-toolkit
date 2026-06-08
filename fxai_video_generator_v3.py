@@ -77,8 +77,8 @@ def safe_memory_clean():
 # 工具函数
 # -----------------------------------------------------------------------------
 def safe_path_join(base_dir, path):
-    base_dir = os.path.abspath(base_dir).lower()
-    full_path = os.path.abspath(os.path.join(base_dir, path)).lower()
+    base_dir = os.path.abspath(base_dir)
+    full_path = os.path.abspath(os.path.join(base_dir, path))
     return full_path if full_path.startswith(base_dir) else None
 
 def get_last_number(target_dir):
@@ -156,7 +156,6 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             stderr=subprocess.DEVNULL,
             close_fds=True
         )
-        # ✅ 一次性写入+等待，不残留
         proc.communicate(input=raw_pcm, timeout=300)
 
         if proc.returncode != 0:
