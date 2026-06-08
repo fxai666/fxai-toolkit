@@ -15,8 +15,8 @@ class FxAiMaxRatioSize:
         return {
             "required": {
                 "最大边长": ("INT", {"default": 1300, "min": 64, "max": 4096, "step": 1}),
-                "宽比例": ("INT", {"default": 4, "min": 1, "max": 20, "step": 1}),
-                "高比例": ("INT", {"default": 3, "min": 1, "max": 20, "step": 1}),
+                "宽比例": ("INT", {"default": 3, "min": 1, "max": 20, "step": 1}),
+                "高比例": ("INT", {"default": 4, "min": 1, "max": 20, "step": 1}),
                 "对齐基数": ("INT", {"default": 32, "min": 2, "max": 128, "step": 1}),
             }
         }
@@ -24,7 +24,7 @@ class FxAiMaxRatioSize:
     RETURN_TYPES = ("INT", "INT", "INT")
     RETURN_NAMES = ("宽度", "高度", "对齐基数")
     FUNCTION = "process"
-    CATEGORY = "凤希AI/图片"
+    CATEGORY = "凤希AI/工具"
 
     def process(self, 最大边长, 宽比例, 高比例, 对齐基数):
         try:

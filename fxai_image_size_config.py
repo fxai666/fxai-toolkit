@@ -66,7 +66,7 @@ class FxAiImageSizeConfig:
     RETURN_TYPES = ("IMAGE", "INT", "INT","INT")
     RETURN_NAMES = ("输出图片", "宽度", "高度","基数")
     FUNCTION = "process"
-    CATEGORY = "凤希AI/图片"
+    CATEGORY = "凤希AI/工具"
 
     def process(self, 图片, 最大边长, 对齐基数):
         try:
