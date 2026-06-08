@@ -6,6 +6,7 @@ import subprocess
 import torch
 import numpy as np
 import folder_paths
+import gc
 
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
