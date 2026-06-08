@@ -55,6 +55,3 @@ class FxAiLTX23Sampler:
             sigmas=sigmas, sampler_callback=sampler_callback
         )
         return ({"samples":out_samples},)
-
-NODE_CLASS_MAPPINGS = {"LTX23_IDConsistSampler":LTX23_IDConsistSampler}
-NODE_DISPLAY_NAME_MAPPINGS = {"LTX23_IDConsistSampler":"LTX23音画同步+人物锁定采样器"}
