@@ -99,8 +99,9 @@ NODE_REGISTRY = [
     ("FxAiVideoToVR",             "fxai_video_tovr",            "凤希AI - 视频转VR"),
 
     # 控制/工具类
-    ("FxAiSizeConfig",            "fxai_size_config",           "凤希AI - 宽高设置"),
-    ("FxAiImageSizeConfig",       "fxai_image_size_config",     "凤希AI - 设置宽高 - 最大边长"),
+    ("FxAiSizeConfig",            "fxai_size_config",           "凤希AI - 宽高"),
+    ("FxAiImageSizeConfig",       "fxai_image_size_config",     "凤希AI - 宽高-最大边长"),
+    ("FxAiMaxRatioSize",          "fxai_max_ratio_size",        "凤希AI - 宽高-按比例"),
     ("FxAiIntToFloat",            "fxai_int_to_float",          "凤希AI - 整数转小数"),
     ("FxAIGeneratorController",   "fxai_generator_controller",  "凤希AI - 生成控制器"),
     ("FxAiFrameGenerator",        "fxai_frame_generator",       "凤希AI - 首尾帧生成器"),
