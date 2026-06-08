@@ -15,8 +15,8 @@ class FxAiImageLoopTile:
             },
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("输出序列",)
+    RETURN_TYPES = ("IMAGE","INT",)
+    RETURN_NAMES = ("输出序列","总帧数",)
     FUNCTION = "process"
     CATEGORY = "凤希AI/图片"
 
@@ -40,7 +40,7 @@ class FxAiImageLoopTile:
         
         # 转回 ComfyUI 标准张量
         output = torch.from_numpy(np.stack(final_frames).astype(np.float32) / 255.0)
-        return (output,)
+        return (output,总帧数,)
 
     @staticmethod
     def _expand_frames(images, target_frames):
@@ -53,12 +53,3 @@ class FxAiImageLoopTile:
             repeat = base + (1 if idx < rem else 0)
             frames.extend([img] * repeat)
         return frames
-
-
-NODE_CLASS_MAPPINGS = {
-    "FxAiImageLoopTile": FxAiImageLoopTile,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "FxAiImageLoopTile": "凤希AI 图片循环平铺",
-}

@@ -21,6 +21,7 @@ const CATEGORY_CONFIG = {
     "装备": "equipment",
     "场景": "scene",
     "家具": "furniture",
+    "宠物": "pet",
     "座驾": "vehicle",
     "产品": "products",
     "其他": "other"
