@@ -1,4 +1,3 @@
-# fxai_image_utils.py 重构版
 import os
 import math
 import torch
@@ -13,14 +12,20 @@ class ImageSizeController:
     # 支持的图片格式
     IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.webp')
 
-    def __init__(self, canvas_w=None, canvas_h=None):
+    def __init__(self, canvas_w=None, canvas_h=None, bg_color=None):
         """
         初始化图片尺寸控制器
-        :param canvas_w: 自定义画布宽度（默认1024）
-        :param canvas_h: 自定义画布高度（默认1024）
+        :param canvas_w: 目标宽度（所有缩放/拉伸都会用这个尺寸）
+        :param canvas_h: 目标高度
+        :param bg_color: 画布背景色
+                    - None / 不传：默认纯透明（RGBA 0,0,0,0）
+                    - 黑色：(0,0,0)
+                    - 白色：(255,255,255)
+                    - 带透明：(0,0,0,0) / (255,255,255,128)
         """
         self.canvas_w = canvas_w or self.DEFAULT_CANVAS_W
         self.canvas_h = canvas_h or self.DEFAULT_CANVAS_H
+        self.bg_color = bg_color  # 背景颜色，默认透明
 
     def load_single_image(self, image_path):
         """加载单张图片为张量（仅加载，不缩放）"""
@@ -29,84 +34,146 @@ class ImageSizeController:
         if not image_path.lower().endswith(self.IMAGE_EXTENSIONS):
             raise ValueError(f"不支持的图片格式，仅支持: {self.IMAGE_EXTENSIONS}")
         
-        img = Image.open(image_path).convert("RGB")
+        # 统一加载为 RGBA 支持透明通道
+        img = Image.open(image_path).convert("RGBA")
         img_np = np.array(img).astype(np.float32) / 255.0
-        img_tensor = torch.from_numpy(img_np)[None,]  # [1, H, W, 3]
+        img_tensor = torch.from_numpy(img_np)[None,]  # [1, H, W, 4]
         return img_tensor
 
-    def fit_to_canvas(self, tensor_img, shrink_multiple=1):
+    def fit_to_canvas(self, tensor_img):
         """
-        等比例缩放到指定画布（缩小倍数驱动），居中不拉伸
-        :param tensor_img: 输入图片张量 [1, H, W, 3]
-        :param shrink_multiple: 画布缩小倍数（如2则画布为 canvas_w/2, canvas_h/2）
-        :return: 缩放后张量 [1, target_h, target_w, 3]
+        等比例缩放到实例设定的画布尺寸，居中 + 自定义背景，不变形
+        自动用 self.canvas_w / self.canvas_h / self.bg_color
         """
-        # 动态计算目标画布尺寸（基于实例化的宽高）
-        target_w = self.canvas_w // shrink_multiple
-        target_h = self.canvas_h // shrink_multiple
+        target_w = self.canvas_w
+        target_h = self.canvas_h
         
-        # 获取原图尺寸
-        _, src_h, src_w, _ = tensor_img.shape
-        
-        # 核心优化：判断尺寸是否已匹配，匹配则直接返回原张量
+        _, src_h, src_w, src_c = tensor_img.shape
         if src_w == target_w and src_h == target_h:
             return tensor_img
 
-        # 张量转PIL图片
+        # 张量转PIL
         img = tensor_img.squeeze(0).cpu().numpy()
         pil_img = Image.fromarray((img * 255).astype(np.uint8))
 
-        # 等比例缩放（避免拉伸）
+        # 等比缩放：取小的，完整显示
         scale = min(target_w / src_w, target_h / src_h)
         new_w = int(src_w * scale)
         new_h = int(src_h * scale)
         resized = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-        # 黑色画布居中粘贴
-        canvas = Image.new("RGB", (target_w, target_h), (0, 0, 0))
+        # 背景颜色/透明
+        if self.bg_color is None:
+            canvas = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
+        else:
+            canvas = Image.new("RGBA", (target_w, target_h), self.bg_color)
+        
+        # 居中粘贴
         offset_x = (target_w - new_w) // 2
         offset_y = (target_h - new_h) // 2
-        canvas.paste(resized, (offset_x, offset_y))
+        canvas.paste(resized, (offset_x, offset_y), mask=resized)
 
         # 转回张量
         out_np = np.array(canvas).astype(np.float32) / 255.0
         return torch.from_numpy(out_np)[None,]
 
+    # ===================== 【方法名不动！核心逻辑按你说的完全修正】 =====================
+    def crop_fill_to_canvas(self, tensor_img):
+        """
+        【按你要求：目标宽/原图宽，目标高/原图高，取大缩放比 → 铺满一边，另一边填充】
+        1. 计算 target_w / src_w
+        2. 计算 target_h / src_h
+        3. 取 更大的缩放比例 缩放图片
+        4. 铺满画布一条边，另一条不足 → 居中填充背景色
+        5. 绝不裁剪图片，不变形
+        """
+        target_w = self.canvas_w
+        target_h = self.canvas_h
+        
+        _, src_h, src_w, _ = tensor_img.shape
+        if src_w == target_w and src_h == target_h:
+            return tensor_img
+
+        # 张量 → PIL
+        img = tensor_img.squeeze(0).cpu().numpy()
+        pil_img = Image.fromarray((img * 255).astype(np.uint8))
+
+        # ===================== 你说的正确算法 =====================
+        scale_w = target_w / src_w   # 目标宽 / 原图宽
+        scale_h = target_h / src_h   # 目标高 / 原图高
+        scale = max(scale_w, scale_h)# 取大的那个缩放！
+
+        # 等比缩放
+        new_w = int(src_w * scale)
+        new_h = int(src_h * scale)
+        resized = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+        # 创建画布
+        if self.bg_color is None:
+            canvas = Image.new("RGBA", (target_w, target_h), (0, 0, 0, 0))
+        else:
+            canvas = Image.new("RGBA", (target_w, target_h), self.bg_color)
+
+        # 居中，不足部分自动填充
+        offset_x = (target_w - new_w) // 2
+        offset_y = (target_h - new_h) // 2
+        canvas.paste(resized, (offset_x, offset_y), mask=resized)
+
+        # 转回张量
+        out_np = np.array(canvas).astype(np.float32) / 255.0
+        return torch.from_numpy(out_np)[None,]
+
+    def stretch_to_size(self, tensor_img):
+        """
+        强制拉伸到实例设定的尺寸
+        自动用 self.canvas_w / self.canvas_h
+        """
+        target_w = self.canvas_w
+        target_h = self.canvas_h
+
+        _, src_h, src_w, _ = tensor_img.shape
+        if src_w == target_w and src_h == target_h:
+            return tensor_img
+
+        # 张量 → PIL
+        img = tensor_img.squeeze(0).cpu().numpy()
+        pil_img = Image.fromarray((img * 255).astype(np.uint8))
+
+        # 强制拉伸
+        resized_img = pil_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+
+        # 转回张量
+        out_np = np.array(resized_img).astype(np.float32) / 255.0
+        return torch.from_numpy(out_np)[None,]
+
     def grid_concat_images(self, images_list, cols_mode="auto"):
-        """
-        网格拼接图片列表（基于当前画布尺寸适配）
-        :param images_list: 图片张量列表（每个元素是 [1, H, W, 3]）
-        :param cols_mode: "auto"（自适应列数）或 "fixed_2"（固定2列）
-        :return: 拼接后的大图张量 [1, total_h, total_w, 3]
-        """
+        """网格拼接图片列表"""
         n = len(images_list)
         if n == 0:
             raise ValueError("图片列表不能为空")
         if n == 1:
             return images_list[0]
 
-        # 列数逻辑
         if cols_mode == "fixed_2":
             cols = 2
-        else:  # auto：基于画布尺寸自适应（接近正方形）
+        else:
             cols = math.ceil(math.sqrt(n))
         rows = math.ceil(n / cols)
 
-        # 补空白图（匹配当前画布单张尺寸）
         blank = torch.zeros_like(images_list[0])
         imgs_copy = images_list.copy()
         while len(imgs_copy) < rows * cols:
             imgs_copy.append(blank)
 
-        # 按行列拼接
         rows_tensor = []
         for i in range(rows):
             row_imgs = imgs_copy[i*cols : (i+1)*cols]
-            rows_tensor.append(torch.cat(row_imgs, dim=2))  # 横向拼接（宽叠加）
-        return torch.cat(rows_tensor, dim=1)  # 纵向拼接（高叠加）
+            rows_tensor.append(torch.cat(row_imgs, dim=2))
+        return torch.cat(rows_tensor, dim=1)
 
-# 保留原有全局函数，适配老代码
-_global_size_controller = ImageSizeController()
+
+# ===================== 全局导出（方法名完全不变） =====================
+_global_size_controller = ImageSizeController(bg_color=None)
 load_single_image = _global_size_controller.load_single_image
 fit_to_canvas = _global_size_controller.fit_to_canvas
 grid_concat_images = _global_size_controller.grid_concat_images

@@ -3,10 +3,43 @@ import json
 import re
 import folder_paths
 import server
+import torch
+import safetensors
 from aiohttp import web
 from nodes import LoraLoader
 
-# ====================== 工具函数（保留配置文件系统）======================
+# ====================== LoRA 触发词提取 ======================
+def extract_lora_trigger_words(lora_path):
+    try:
+        ext = os.path.splitext(lora_path)[1].lower()
+        if ext == ".safetensors":
+            with safetensors.safe_open(lora_path, framework="pt") as f:
+                meta = f.metadata()
+        elif ext in (".bin", ".ckpt"):
+            ckpt = torch.load(lora_path, map_location="cpu", weights_only=True)
+            meta = ckpt.get("metadata", {})
+        else:
+            return []
+
+        tags = []
+        prefix = meta.get("ss_caption_prefix", "").strip()
+        if prefix:
+            tags.append(prefix)
+        
+        freq = meta.get("ss_tag_frequency", "")
+        if freq and not prefix:
+            try:
+                freq_dict = json.loads(freq)
+                top_tags = [k for k, v in freq_dict.items() if v >= 5]
+                tags.extend(top_tags[:5])
+            except:
+                pass
+
+        return list(set(tags))
+    except:
+        return []
+
+# ====================== 工具函数 ======================
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
     full_path = os.path.abspath(os.path.join(base_dir, path))
@@ -28,7 +61,7 @@ def get_config_path(lora_name):
 
 def load_config(lora_name):
     path = get_config_path(lora_name)
-    default = {
+    default_config = {
         "enabled": True,
         "model_strength": 1.0,
         "clip_strength": 1.0,
@@ -37,13 +70,32 @@ def load_config(lora_name):
         "fade_start": 1.0,
         "fade_end": 1.0
     }
-    if not path or not os.path.exists(path):
-        return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return {}
+
+    # 1. 有配置文件 → 直接加载
+    if path and os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                user_config = json.load(f)
+                default_config.update(user_config)
+            return default_config
+        except:
+            pass
+
+    # 2. 没有配置文件 → 提取触发词 + 自动创建JSON
+    lora_path = folder_paths.get_full_path("loras", lora_name)
+    if lora_path:
+        triggers = extract_lora_trigger_words(lora_path)
+        default_config["trigger_words"] = triggers
+
+    # 自动写入文件（只执行一次！）
+    if path:
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(default_config, f, ensure_ascii=False, indent=2)
+        except:
+            pass
+
+    return default_config
 
 # ====================== API 接口 ======================
 async def api_get_lora_files(request):
@@ -109,7 +161,7 @@ class FxAiLoraLoader:
             try:
                 lora_path = folder_paths.get_full_path("loras", lora_name)
                 if lora_path is None or not os.path.exists(lora_path):
-                    raise FileNotFoundError(f"LoRA 文件不存在：{lora_name}，请在以下网盘进行下载\n夸克：https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7\n迅雷：https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3")
+                    raise FileNotFoundError(f"LoRA 文件不存在：{lora_name}，请在以下网盘进行下载\n夸克：https://pan.quark.cn/s/a1213641f8c2#/list/share/5e7665b0a764d4d9a9adbd2ec4b71f7\n迅雷：https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3")
                 
                 model, clip = LoraLoader().load_lora(
                     model, clip, lora_name, model_str, clip_str

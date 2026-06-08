@@ -41,7 +41,7 @@ class FxAiCharacterImageSelector:
         if not selected_files.strip():
             return (torch.zeros((1, 64, 64, 3)), )
 
-        size_controller = ImageSizeController(canvas_w=宽度, canvas_h=高度)
+        size_controller = ImageSizeController(canvas_w=宽度, canvas_h=高度,bg_color=(255,255,255))
         
         path_list = [p.strip() for p in selected_files.split(",") if p.strip()]
 
@@ -52,7 +52,7 @@ class FxAiCharacterImageSelector:
                 continue
 
             img = size_controller.load_single_image(full_path)
-            img = size_controller.fit_to_canvas(img)
+            img = size_controller.crop_fill_to_canvas(img)
             images.append(img)
 
         if images:

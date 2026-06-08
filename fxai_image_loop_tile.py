@@ -10,7 +10,7 @@ class FxAiImageLoopTile:
             "required": {
                 "输出宽度": ("INT", {"default": 704, "min": 32, "max": 8192, "step": 32}),
                 "输出高度": ("INT", {"default": 1280, "min": 32, "max": 8192, "step": 32}),
-                "总帧数": ("INT", {"default": 241, "min": 1, "max": 1800, "step": 1}),
+                "总帧数": ("INT", {"default": 241, "min": 1, "max": 1800, "step": 8}),
                 "图片序列": ("IMAGE",),
             },
         }
@@ -21,16 +21,12 @@ class FxAiImageLoopTile:
     CATEGORY = "凤希AI/图片"
 
     def process(self, 输出宽度, 输出高度, 总帧数, 图片序列):
-        # 初始化你的工具类（使用界面设置的宽高）
-        img_ctrl = ImageSizeController(canvas_w=输出宽度, canvas_h=输出高度)
+        img_ctrl = ImageSizeController(canvas_w=输出宽度, canvas_h=输出高度,bg_color=(255,255,255))
         
         processed = []
-        # 遍历所有图片 → 全部用你的工具类处理（等比例+居中裁剪，不变形）
         for i in range(图片序列.shape[0]):
-            # 单张图片张量格式 [1, H, W, 3]
             img = 图片序列[i:i+1]
-            # 直接调用你的 fit_to_canvas 处理尺寸 ✅
-            processed_img = img_ctrl.fit_to_canvas(img)
+            processed_img = img_ctrl.crop_fill_to_canvas(img)
             processed.append(processed_img)
 
         # 合并处理后的图片
