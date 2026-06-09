@@ -8,6 +8,7 @@ var updatedListBindFlag = new WeakMap();
 // 🔥 核心配置：这里定义你的标签和对应的文件夹名称
 // ==============================================
 const CATEGORY_CONFIG = {
+    "角色": "avatar",
     "套装": "clothes",
     "首饰": "jewelry",
     "上衣": "tops",

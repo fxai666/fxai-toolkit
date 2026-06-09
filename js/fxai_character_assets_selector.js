@@ -5,6 +5,7 @@ import { api } from "../../scripts/api.js";
 // 🔥 分类配置（不变）
 // ==============================================
 const CATEGORY_CONFIG = {
+    "角色": "avatar",
     "套装": "clothes",
     "首饰": "jewelry",
     "上衣": "tops",
