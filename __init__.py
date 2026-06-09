@@ -127,6 +127,9 @@ NODE_REGISTRY = [
     # 模型/LoRA
     ("FxAiLoraLoader",            "fxai_lora_loader",           "凤希AI - LoRa加载器"),
     ("FxAiLtxvGuideFrames",       "fxai_ltxv_guide_frames",     "凤希AI - LTXV多帧引导器"),
+	
+    # 影视
+    ("FxAiScreenManager",         "fxai_screen_manager",       "凤希AI - 影视场景管理 - 学习交流Q群：775649071"),
 ]
 
 NODE_CLASS_MAPPINGS = {}
