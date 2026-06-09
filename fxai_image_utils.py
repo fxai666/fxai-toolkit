@@ -40,7 +40,7 @@ class ImageSizeController:
         img_tensor = torch.from_numpy(img_np)[None,]  # [1, H, W, 4]
         return img_tensor
 
-    def fit_to_canvas(self, tensor_img):
+    def fit_to_canvas(self, tensor_img, shrink_multiple=1):
         """
         等比例缩放到实例设定的画布尺寸，居中 + 自定义背景，不变形
         自动用 self.canvas_w / self.canvas_h / self.bg_color
