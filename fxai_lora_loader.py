@@ -128,16 +128,19 @@ class FxAiLoraLoader:
             },
             "optional": {
                 "clip": ("CLIP",),
+                "提示词": ("STRING", {"forceInput": True}),
                 "lora_data": ("STRING", {"default": "[]", "multiline": True}),
             }
         }
 
-    def run(self, model, clip=None, lora_data="[]"):
+    def run(self, model, clip=None,提示词=None, lora_data="[]"):
         triggers = []
         try:
             items = json.loads(lora_data)
         except:
             items = []
+        if  提示词 is not None:
+            triggers.append(提示词)
 
         for item in items:
             lora_name = item.get("lora_name", "")
