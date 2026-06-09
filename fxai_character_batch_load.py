@@ -1,8 +1,10 @@
 import os
 import torch
 from fxai_image_utils import (
-    load_single_image, fit_to_canvas, grid_concat_images, IMAGE_EXTENSIONS
+    load_single_image, grid_concat_images, IMAGE_EXTENSIONS
 )
+from fxai_image_utils import scale_down_by_factor
+
 
 class FxAiCharacterBatchLoad:
     @classmethod
@@ -67,13 +69,12 @@ class FxAiCharacterBatchLoad:
                 unique_indices.append(idx)
                 seen.add(idx)
         
-        # 加载图片（统一使用工具函数）
         images = []
         for idx in unique_indices:
             try:
                 img_path = image_files[idx]
                 img_tensor = load_single_image(img_path)
-                fixed_img = scale_factor(img_tensor, 缩小倍数)
+                fixed_img = scale_down_by_factor(img_tensor, 缩小倍数)
                 images.append(fixed_img)
             except Exception as e:
                 print(f"加载图片失败 {image_files[idx]}: {str(e)}")
@@ -83,6 +84,6 @@ class FxAiCharacterBatchLoad:
             return (None, None, 0)
 
         merged_image = grid_concat_images(images, cols_mode="auto")
-        merged_image = scale_factor(merged_image, 缩小倍数)
+        merged_image = scale_down_by_factor(merged_image, 缩小倍数)
         
         return (images, merged_image, len(images))

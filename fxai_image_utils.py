@@ -149,41 +149,37 @@ class ImageSizeController:
         """
         按指定倍数等比例缩小图片（只缩小，不放大，保证不变形）
         :param tensor_img: 输入图片张量 [1, H, W, 4]
-        :param scale_factor: 缩小倍数（必须 > 1，例如 2=缩小2倍，4=缩小4倍）
+        :param scale_factor: 缩小倍数（必须 ≥ 1，例如 1=不缩放，2=缩小2倍，4=缩小4倍）
         :return: 缩小后的图片张量
         """
-        # 校验缩小倍数必须大于1
-        if not isinstance(scale_factor, (int, float)) or scale_factor <= 1.0:
-            raise ValueError("缩小倍数必须是大于 1 的数字，例如 2、2.5、4")
+        if scale_factor == 1.0:
+            return tensor_img
+        if not isinstance(scale_factor, (int, float)) or scale_factor < 1.0:
+            raise ValueError("缩小倍数必须是大于等于 1 的数字，例如 1、2、2.5、4")
 
         _, src_h, src_w, _ = tensor_img.shape
         
-        # 计算缩小后的尺寸（等比例）
         new_w = int(src_w / scale_factor)
         new_h = int(src_h / scale_factor)
         
-        # 防止尺寸变成0
         new_w = max(1, new_w)
         new_h = max(1, new_h)
 
-        # 张量转PIL
         img = tensor_img.squeeze(0).cpu().numpy()
         pil_img = Image.fromarray((img * 255).astype(np.uint8))
 
-        # 高质量缩小
         resized_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
-        # 转回张量格式
         out_np = np.array(resized_img).astype(np.float32) / 255.0
         return torch.from_numpy(out_np)[None,]
 
     def grid_concat_images(self, images_list, cols_mode="auto"):
-        """网格拼接图片列表"""
+        """网格拼接图片列表（自动统一尺寸 + 补全网格空白）"""
         n = len(images_list)
         if n == 0:
             raise ValueError("图片列表不能为空")
-        if n == 1:
-            return images_list[0]
+
+        processed = [self.crop_fill_to_canvas(img) for img in images_list]
 
         if cols_mode == "fixed_2":
             cols = 2
@@ -191,17 +187,17 @@ class ImageSizeController:
             cols = math.ceil(math.sqrt(n))
         rows = math.ceil(n / cols)
 
-        blank = torch.zeros_like(images_list[0])
-        imgs_copy = images_list.copy()
-        while len(imgs_copy) < rows * cols:
-            imgs_copy.append(blank)
+        blank = torch.zeros_like(processed[0])
+        while len(processed) < rows * cols:
+            processed.append(blank)
 
+        # 第四步：拼接
         rows_tensor = []
         for i in range(rows):
-            row_imgs = imgs_copy[i*cols : (i+1)*cols]
+            row_imgs = processed[i*cols : (i+1)*cols]
             rows_tensor.append(torch.cat(row_imgs, dim=2))
-        return torch.cat(rows_tensor, dim=1)
 
+        return torch.cat(rows_tensor, dim=1)
 
 # ===================== 全局导出（方法名完全不变） =====================
 _global_size_controller = ImageSizeController(bg_color=None)

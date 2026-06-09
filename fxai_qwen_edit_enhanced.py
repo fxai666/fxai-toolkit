@@ -33,8 +33,10 @@ class FxAiQwenEditEnhanced:
     CATEGORY = "凤希AI/提示词"
 
     def to_batch(self, img):
-        if img is None: return None
-        if isinstance(img, list): return torch.cat(img, dim=0) if img else None
+        if img is None:
+            return None
+        if isinstance(img, list):
+            return img
         return img
 
     def encode(self, clip, 用户提示词, 负面提示词, width, height, batch_size, vae=None, 人物列表=None, 图片列表=None, unique_id=None):
@@ -43,8 +45,17 @@ class FxAiQwenEditEnhanced:
 
         per_batch = self.to_batch(人物列表)
         img_batch = self.to_batch(图片列表)
-        per_count = per_batch.shape[0] if per_batch is not None else 0
-        img_count = img_batch.shape[0] if img_batch is not None else 0
+        
+        # 修复：支持列表获取数量
+        if isinstance(per_batch, list):
+            per_count = len(per_batch)
+        else:
+            per_count = per_batch.shape[0] if per_batch is not None else 0
+
+        if isinstance(img_batch, list):
+            img_count = len(img_batch)
+        else:
+            img_count = img_batch.shape[0] if img_batch is not None else 0
 
         pattern = re.compile(r'(人物|图)(\d+)')
         ref_sequence = pattern.findall(user_text)
@@ -64,9 +75,16 @@ class FxAiQwenEditEnhanced:
             img = None
 
             if typ == "人物" and 1 <= num <= per_count:
-                img = per_batch[num-1:num]
+                if isinstance(per_batch, list):
+                    img = per_batch[num-1]
+                else:
+                    img = per_batch[num-1:num]
+                    
             elif typ == "图" and 1 <= num <= img_count:
-                img = img_batch[num-1:num]
+                if isinstance(img_batch, list):
+                    img = img_batch[num-1]
+                else:
+                    img = img_batch[num-1:num]
 
             if img is not None:
                 tag = f"{typ}{num_str}"
@@ -74,26 +92,28 @@ class FxAiQwenEditEnhanced:
                 final_image_sequence.append(img)
 
         user_final = (image_part + " " + user_text).strip()
-        image_batch = torch.cat(final_image_sequence, dim=0) if final_image_sequence else None
-        total_img = image_batch.shape[0] if image_batch is not None else 0
+        
+        # ===================== 终极修复：不再强行拼接不同尺寸图片 =====================
+        images_vl = []
+        ref_latents = []
+        
+        # 直接遍历列表，一张张处理，支持任意尺寸！
+        for img in final_image_sequence:
+            one_img = img
+            samples = one_img.movedim(-1,1).contiguous()
+            _, _, h, w = samples.shape
 
-        images_vl, ref_latents = [], []
-        if image_batch is not None:
-            for i in range(total_img):
-                one_img = image_batch[i:i+1]
-                samples = one_img.movedim(-1,1).contiguous()
-                _, _, h, w = samples.shape
+            scale = math.sqrt(384*384/(w*h))
+            scaled = comfy.utils.common_upscale(samples, round(w*scale), round(h*scale), "area", "disabled")
+            images_vl.append(scaled.movedim(1,-1))
 
-                scale = math.sqrt(384*384/(w*h))
-                scaled = comfy.utils.common_upscale(samples, round(w*scale), round(h*scale), "area", "disabled")
-                images_vl.append(scaled.movedim(1,-1))
-
-                if vae is not None:
-                    scale2 = math.sqrt(1024*1024/(w*h))
-                    w2 = round(w * scale2 / 8) * 8
-                    h2 = round(h * scale2 / 8) * 8
-                    s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
-                    ref_latents.append(vae.encode(s2.movedim(1,-1)[:,:,:,:3]))
+            if vae is not None:
+                scale2 = math.sqrt(1024*1024/(w*h))
+                w2 = round(w * scale2 / 8) * 8
+                h2 = round(h * scale2 / 8) * 8
+                s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
+                ref_latents.append(vae.encode(s2.movedim(1,-1)[:,:,:,:3]))
+        # ================================================================================
 
         template = f"<|im_start|>system\n{DEFAULT_SYS}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
 
@@ -107,12 +127,13 @@ class FxAiQwenEditEnhanced:
             positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
             negative = node_helpers.conditioning_set_values(negative, {"reference_latents": ref_latents}, append=True)
 
-        if image_batch is not None and vae is not None:
-            base = image_batch[0:1].movedim(-1,1)
+        #  latent 处理
+        latent = torch.zeros(1,4,target_latent_h,target_latent_w, device=comfy.model_management.intermediate_device())
+        if vae is not None and final_image_sequence:
+            first_img = final_image_sequence[0]
+            base = first_img.movedim(-1,1)
             resized = comfy.utils.common_upscale(base, target_latent_w*8, target_latent_h*8, "lanczos", "center")
             latent = vae.encode(resized.movedim(1,-1)[:,:,:,:3])
-        else:
-            latent = torch.zeros(1,4,target_latent_h,target_latent_w, device=comfy.model_management.intermediate_device())
 
         latent_out = {"samples": latent}
         if batch_size > 1:
@@ -120,7 +141,10 @@ class FxAiQwenEditEnhanced:
             negative *= batch_size
             latent_out["samples"] = latent.repeat(batch_size,1,1,1)
 
+        # 输出列表，不再需要张量 batch
+        out_images = final_image_sequence if final_image_sequence else [torch.zeros(1,1,1,3)]
+        
         return (
             positive, negative, latent_out,
-            image_batch if image_batch is not None else torch.zeros(1,1,1,3)
+            out_images
         )

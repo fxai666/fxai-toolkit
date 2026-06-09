@@ -3,8 +3,9 @@ import re
 import torch
 import folder_paths
 from fxai_image_utils import (
-    load_single_image, fit_to_canvas, grid_concat_images, IMAGE_EXTENSIONS
+    load_single_image, grid_concat_images, IMAGE_EXTENSIONS
 )
+from fxai_image_utils import scale_down_by_factor
 
 def get_image_dir(subdir=""):
     comfy_root = folder_paths.base_path
@@ -55,12 +56,10 @@ class FxAiCharacterAssetsLoad:
                 continue
 
             try:
-                # 统一使用工具函数加载
                 tensor = load_single_image(full_path)
                 fixed = scale_down_by_factor(tensor, 缩小倍数)
                 images.append(fixed)
 
-                # 遮罩逻辑保留（batch_load 无遮罩，按需对齐）
                 _, h, w, _ = fixed.shape
                 mask = torch.ones((1, h, w), dtype=torch.float32)
                 masks.append(mask)
@@ -70,10 +69,11 @@ class FxAiCharacterAssetsLoad:
         if not images:
             return (None, None, None, 0)
 
-        image_batch = torch.cat(images, dim=0)
-        mask_batch = torch.cat(masks, dim=0)
+        # ===================== 关键修改：不做 torch.cat，直接返回列表 =====================
+        image_batch = images
+        mask_batch = masks
+        # =================================================================================
 
-        # 网格拼接（和 batch_load 对齐：auto 或 fixed_2）
         merged = grid_concat_images(images, cols_mode="fixed_2")
         
         return (image_batch, mask_batch, merged, len(images))

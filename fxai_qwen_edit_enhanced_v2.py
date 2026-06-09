@@ -32,8 +32,10 @@ class FxAiQwenEditEnhancedV2:
     CATEGORY = "凤希AI/提示词"
 
     def to_batch(self, img):
-        if img is None: return None
-        if isinstance(img, list): return torch.cat(img, dim=0) if img else None
+        if img is None:
+            return None
+        if isinstance(img, list):
+            return img
         return img
 
     def encode(self, clip,vae, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None, unique_id=None):
@@ -41,38 +43,50 @@ class FxAiQwenEditEnhancedV2:
         target_latent_h, target_latent_w = height // 8, width // 8
 
         img_batch = self.to_batch(图片列表)
-        img_count = img_batch.shape[0] if img_batch is not None else 0
+        if isinstance(img_batch, list):
+            img_count = len(img_batch)
+        else:
+            img_count = img_batch.shape[0] if img_batch is not None else 0
 
         image_part = ""
         final_image_sequence = []
-        # 遍历全部图片列表，自动生成图1、图2...标签，不再检索文案关键词
+
+        # 遍历全部图片，自动生成图1、图2...（支持列表+张量，任意尺寸）
         for idx in range(img_count):
             num = idx + 1
             tag = f"图{num}"
             image_part += f"{tag}: <|vision_start|><|image_pad|><|vision_end|>"
-            final_image_sequence.append(img_batch[idx:idx+1])
+            
+            # 支持列表 / 张量两种格式
+            if isinstance(img_batch, list):
+                img = img_batch[idx]
+            else:
+                img = img_batch[idx:idx+1]
+                
+            final_image_sequence.append(img)
 
         user_final = (image_part + " " + user_text).strip()
-        image_batch = torch.cat(final_image_sequence, dim=0) if final_image_sequence else None
-        total_img = image_batch.shape[0] if image_batch is not None else 0
 
+        # ===================== 终极修复：不再cat不同尺寸图片 =====================
         images_vl, ref_latents = [], []
-        if image_batch is not None:
-            for i in range(total_img):
-                one_img = image_batch[i:i+1]
-                samples = one_img.movedim(-1,1).contiguous()
-                _, _, h, w = samples.shape
+        
+        # 直接一张张处理（任意尺寸都可以）
+        for img in final_image_sequence:
+            one_img = img
+            samples = one_img.movedim(-1,1).contiguous()
+            _, _, h, w = samples.shape
 
-                scale = math.sqrt(384*384/(w*h))
-                scaled = comfy.utils.common_upscale(samples, round(w*scale), round(h*scale), "area", "disabled")
-                images_vl.append(scaled.movedim(1,-1))
+            scale = math.sqrt(384*384/(w*h))
+            scaled = comfy.utils.common_upscale(samples, round(w*scale), round(h*scale), "area", "disabled")
+            images_vl.append(scaled.movedim(1,-1))
 
-                if vae is not None:
-                    scale2 = math.sqrt(1024*1024/(w*h))
-                    w2 = round(w * scale2 / 8) * 8
-                    h2 = round(h * scale2 / 8) * 8
-                    s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
-                    ref_latents.append(vae.encode(s2.movedim(1,-1)[:,:,:,:3]))
+            if vae is not None:
+                scale2 = math.sqrt(1024*1024/(w*h))
+                w2 = round(w * scale2 / 8) * 8
+                h2 = round(h * scale2 / 8) * 8
+                s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
+                ref_latents.append(vae.encode(s2.movedim(1,-1)[:,:,:,:3]))
+        # ==========================================================================
 
         template = f"<|im_start|>system\n{DEFAULT_SYS}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
 
@@ -87,12 +101,13 @@ class FxAiQwenEditEnhancedV2:
             positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
             negative = node_helpers.conditioning_set_values(negative, {"reference_latents": ref_latents}, append=True)
 
-        if image_batch is not None and vae is not None:
-            base = image_batch[0:1].movedim(-1,1)
+        #  latent 处理
+        latent = torch.zeros(1,4,target_latent_h, target_latent_w, device=comfy.model_management.intermediate_device())
+        if vae is not None and final_image_sequence:
+            first_img = final_image_sequence[0]
+            base = first_img.movedim(-1,1)
             resized = comfy.utils.common_upscale(base, target_latent_w*8, target_latent_h*8, "lanczos", "center")
             latent = vae.encode(resized.movedim(1,-1)[:,:,:,:3])
-        else:
-            latent = torch.zeros(1,4,target_latent_h, target_latent_w, device=comfy.model_management.intermediate_device())
 
         latent_out = {"samples": latent}
         if batch_size > 1:
@@ -100,7 +115,10 @@ class FxAiQwenEditEnhancedV2:
             negative *= batch_size
             latent_out["samples"] = latent.repeat(batch_size,1,1,1)
 
+        # 输出列表，不输出batch，彻底解决尺寸问题
+        out_images = final_image_sequence if final_image_sequence else [torch.zeros(1,1,1,3)]
+        
         return (
             positive, negative, latent_out,
-            image_batch if image_batch is not None else torch.zeros(1,1,1,3)
+            out_images
         )

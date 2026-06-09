@@ -134,7 +134,6 @@ class FxAiImageBatchLoad:
             try:
                 img_path = image_files[idx]
                 img = load_single_image(img_path, 缩小倍数)
-                # 统一转为1024*1024固定尺寸，无变形
                 fixed_img = fit_to_canvas(img)
                 _, h, w, _ = fixed_img.shape
                 mask = torch.ones((1, h, w), dtype=torch.float32)
