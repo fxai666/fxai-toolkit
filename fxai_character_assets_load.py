@@ -57,7 +57,7 @@ class FxAiCharacterAssetsLoad:
             try:
                 # 统一使用工具函数加载
                 tensor = load_single_image(full_path)
-                fixed = fit_to_canvas(tensor, shrink_multiple=缩小倍数)
+                fixed = scale_down_by_factor(tensor, 缩小倍数)
                 images.append(fixed)
 
                 # 遮罩逻辑保留（batch_load 无遮罩，按需对齐）

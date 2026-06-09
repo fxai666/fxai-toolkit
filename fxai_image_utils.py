@@ -40,7 +40,7 @@ class ImageSizeController:
         img_tensor = torch.from_numpy(img_np)[None,]  # [1, H, W, 4]
         return img_tensor
 
-    def fit_to_canvas(self, tensor_img, shrink_multiple=1):
+    def fit_to_canvas(self, tensor_img):
         """
         等比例缩放到实例设定的画布尺寸，居中 + 自定义背景，不变形
         自动用 self.canvas_w / self.canvas_h / self.bg_color
@@ -77,7 +77,6 @@ class ImageSizeController:
         out_np = np.array(canvas).astype(np.float32) / 255.0
         return torch.from_numpy(out_np)[None,]
 
-    # ===================== 【方法名不动！核心逻辑按你说的完全修正】 =====================
     def crop_fill_to_canvas(self, tensor_img):
         """
         【按你要求：目标宽/原图宽，目标高/原图高，取大缩放比 → 铺满一边，另一边填充】
@@ -101,7 +100,7 @@ class ImageSizeController:
         # ===================== 你说的正确算法 =====================
         scale_w = target_w / src_w   # 目标宽 / 原图宽
         scale_h = target_h / src_h   # 目标高 / 原图高
-        scale = min(scale_w, scale_h)# 取大的那个缩放！
+        scale = max(scale_w, scale_h)# 取大的那个缩放！
 
         # 等比缩放
         new_w = int(src_w * scale)
@@ -146,6 +145,38 @@ class ImageSizeController:
         out_np = np.array(resized_img).astype(np.float32) / 255.0
         return torch.from_numpy(out_np)[None,]
 
+    def scale_down_by_factor(self, tensor_img, scale_factor):
+        """
+        按指定倍数等比例缩小图片（只缩小，不放大，保证不变形）
+        :param tensor_img: 输入图片张量 [1, H, W, 4]
+        :param scale_factor: 缩小倍数（必须 > 1，例如 2=缩小2倍，4=缩小4倍）
+        :return: 缩小后的图片张量
+        """
+        # 校验缩小倍数必须大于1
+        if not isinstance(scale_factor, (int, float)) or scale_factor <= 1.0:
+            raise ValueError("缩小倍数必须是大于 1 的数字，例如 2、2.5、4")
+
+        _, src_h, src_w, _ = tensor_img.shape
+        
+        # 计算缩小后的尺寸（等比例）
+        new_w = int(src_w / scale_factor)
+        new_h = int(src_h / scale_factor)
+        
+        # 防止尺寸变成0
+        new_w = max(1, new_w)
+        new_h = max(1, new_h)
+
+        # 张量转PIL
+        img = tensor_img.squeeze(0).cpu().numpy()
+        pil_img = Image.fromarray((img * 255).astype(np.uint8))
+
+        # 高质量缩小
+        resized_img = pil_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+        # 转回张量格式
+        out_np = np.array(resized_img).astype(np.float32) / 255.0
+        return torch.from_numpy(out_np)[None,]
+
     def grid_concat_images(self, images_list, cols_mode="auto"):
         """网格拼接图片列表"""
         n = len(images_list)
@@ -176,5 +207,8 @@ class ImageSizeController:
 _global_size_controller = ImageSizeController(bg_color=None)
 load_single_image = _global_size_controller.load_single_image
 fit_to_canvas = _global_size_controller.fit_to_canvas
+crop_fill_to_canvas = _global_size_controller.crop_fill_to_canvas
+stretch_to_size = _global_size_controller.stretch_to_size
+scale_down_by_factor = _global_size_controller.scale_down_by_factor
 grid_concat_images = _global_size_controller.grid_concat_images
 IMAGE_EXTENSIONS = ImageSizeController.IMAGE_EXTENSIONS

@@ -73,7 +73,7 @@ class FxAiCharacterBatchLoad:
             try:
                 img_path = image_files[idx]
                 img_tensor = load_single_image(img_path)
-                fixed_img = fit_to_canvas(img_tensor, shrink_multiple=缩小倍数)
+                fixed_img = scale_factor(img_tensor, 缩小倍数)
                 images.append(fixed_img)
             except Exception as e:
                 print(f"加载图片失败 {image_files[idx]}: {str(e)}")
@@ -83,6 +83,6 @@ class FxAiCharacterBatchLoad:
             return (None, None, 0)
 
         merged_image = grid_concat_images(images, cols_mode="auto")
-        merged_image = fit_to_canvas(merged_image, shrink_multiple=缩小倍数)
+        merged_image = scale_factor(merged_image, 缩小倍数)
         
         return (images, merged_image, len(images))
