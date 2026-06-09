@@ -225,7 +225,7 @@ class FxAiVideoMerger:
 
     def run(self, 源视频文件夹路径, 文件数量=1, 名称前缀="fxai_", 音频=None, 刷新标记=None):
         time_str = time.strftime("%Y%m%d_%H%M%S")
-        final_name = f"{名称_prefix}{time_str}"
+        final_name = f"{名称前缀_prefix}{time_str}"
         
         if not os.path.isdir(源视频文件夹路径):
             print("[凤希AI] 错误：路径不是文件夹")
