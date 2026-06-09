@@ -25,6 +25,7 @@ const CATEGORY_CONFIG = {
     "宠物": "pet",
     "座驾": "vehicle",
     "产品": "products",
+    "素材": "sucai",
     "其他": "other"
 };
 

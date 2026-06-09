@@ -28,8 +28,7 @@ app.registerExtension({
             // 滚动容器
             this.scrollBox = document.createElement("div");
             this.scrollBox.style.height = "100%";
-            this.scrollBox.style.minHeight = "50px";
-            this.scrollBox.style.minHeight = "150px";
+            this.scrollBox.style.minHeight = "100px";
             this.scrollBox.style.overflowY = "auto";
             this.scrollBox.style.overflowX = "hidden";
             this.scrollBox.style.paddingRight = "5px";

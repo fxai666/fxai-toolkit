@@ -16,7 +16,7 @@ class FxAiScreenManager:
     RETURN_TYPES = ("INT", "LIST", "LIST")
     RETURN_NAMES = ("总行数", "场景数据", "分段时长")
     FUNCTION = "execute"
-    CATEGORY = "凤希AI/影视"
+    CATEGORY = "凤希AI/影视剧场"
 
     def execute(self, lines_data="[]", 刷新标记=0) -> tuple[int, List[Dict[str, Any]], List[float]]:
         try:
