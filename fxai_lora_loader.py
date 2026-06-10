@@ -117,7 +117,7 @@ server.PromptServer.instance.routes.get("/fxai/lora/config")(api_get_lora_config
 class FxAiLoraLoader:
     CATEGORY = "凤希AI/LoRA"
     RETURN_TYPES = ("MODEL", "CLIP", "STRING")
-    RETURN_NAMES = ("MODEL", "CLIP", "触发词")
+    RETURN_NAMES = ("MODEL", "CLIP", "提示词")
     FUNCTION = "run"
 
     @classmethod

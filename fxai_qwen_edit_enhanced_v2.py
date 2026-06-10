@@ -15,7 +15,7 @@ class FxAiQwenEditEnhancedV2:
                 "clip": ("CLIP",),
                 "vae": ("VAE",),
                 "width": ("INT", {"default": 960, "min": 512, "max": 4096, "step": 8}),
-                "height": ("INT", {"default": 1280, "min": 512, "max": 4096, "step": 8}),
+                "height": ("INT", {"default": 1280, "min": 512, "max": 4096, "step": 1}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 64, "step": 1}),
             },
             "optional": {
@@ -26,8 +26,8 @@ class FxAiQwenEditEnhancedV2:
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
     
-    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT", "IMAGE")
-    RETURN_NAMES = ("positive", "negative", "latent", "图片序列")
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
+    RETURN_NAMES = ("positive", "negative", "latent")
     FUNCTION = "encode"
     CATEGORY = "凤希AI/提示词"
 
@@ -38,87 +38,87 @@ class FxAiQwenEditEnhancedV2:
             return img
         return img
 
-    def encode(self, clip,vae, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None, unique_id=None):
+    def encode(self, clip, vae, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None, unique_id=None):
         user_text = 用户提示词.replace("\n", " ").strip()
         target_latent_h, target_latent_w = height // 8, width // 8
 
         img_batch = self.to_batch(图片列表)
-        if isinstance(img_batch, list):
-            img_count = len(img_batch)
-        else:
-            img_count = img_batch.shape[0] if img_batch is not None else 0
+        # 计算图片总数
+        img_count = 0
+        if img_batch is not None:
+            img_count = len(img_batch) if isinstance(img_batch, list) else img_batch.shape[0]
+
+        # 正则提取所有图数字
+        pat = re.compile(r'图(\d+)')
+        all_matches = pat.findall(user_text)
+        # 去重、转数字、升序
+        seen_num = set()
+        use_nums = []
+        for s in all_matches:
+            num = int(s)
+            if num not in seen_num:
+                seen_num.add(num)
+                use_nums.append(num)
+        # 过滤有效序号 1~img_count
+        valid_nums = [n for n in use_nums if 1 <= n <= img_count]
 
         image_part = ""
         final_image_sequence = []
-
-        # 遍历全部图片，自动生成图1、图2...（支持列表+张量，任意尺寸）
-        for idx in range(img_count):
-            num = idx + 1
+        # 只加载用户文字里提到的图，自动去重
+        for num in valid_nums:
             tag = f"图{num}"
             image_part += f"{tag}: <|vision_start|><|image_pad|><|vision_end|>"
-            
-            # 支持列表 / 张量两种格式
+            # 取出对应图片
             if isinstance(img_batch, list):
-                img = img_batch[idx]
+                img = img_batch[num - 1]
             else:
-                img = img_batch[idx:idx+1]
-                
+                img = img_batch[num - 1:num]
             final_image_sequence.append(img)
 
         user_final = (image_part + " " + user_text).strip()
 
-        # ===================== 终极修复：不再cat不同尺寸图片 =====================
         images_vl, ref_latents = [], []
-        
-        # 直接一张张处理（任意尺寸都可以）
         for img in final_image_sequence:
             one_img = img
             samples = one_img.movedim(-1,1).contiguous()
             _, _, h, w = samples.shape
 
-            scale = math.sqrt(384*384/(w*h))
-            scaled = comfy.utils.common_upscale(samples, round(w*scale), round(h*scale), "area", "disabled")
-            images_vl.append(scaled.movedim(1,-1))
+            scale = math.sqrt(384 * 384 / (w * h))
+            scaled = comfy.utils.common_upscale(samples, round(w * scale), round(h * scale), "area", "disabled")
+            images_vl.append(scaled.movedim(1, -1))
 
-            if vae is not None:
-                scale2 = math.sqrt(1024*1024/(w*h))
-                w2 = round(w * scale2 / 8) * 8
-                h2 = round(h * scale2 / 8) * 8
-                s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
-                ref_latents.append(vae.encode(s2.movedim(1,-1)[:,:,:,:3]))
-        # ==========================================================================
+            scale2 = math.sqrt(1024 * 1024 / (w * h))
+            w2 = round(w * scale2 / 8) * 8
+            h2 = round(h * scale2 / 8) * 8
+            s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
+            ref_latents.append(vae.encode(s2.movedim(1, -1)[:, :, :, :3]))
 
         template = f"<|im_start|>system\n{DEFAULT_SYS}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
-
         tokens = clip.tokenize(user_final, vision_images=images_vl, llama_template=template)
         positive = clip.encode_from_tokens_scheduled(tokens)
-        if 负面提示词 is None:
-           负面提示词 = "丑陋，模糊，低分辨率，最差质量，低质量，JPEG伪影，解剖结构错误，畸形，毁容，突变，多余肢体，多余手臂，多余腿，畸形肢体，手部画得差，手部畸形，多余手指，缺少手指，手指缺失，手指融合，脸部画得差，脸部畸形，毁容的脸，斗鸡眼，长脖子，多余的眼睛，文字，词语，签名，水印，用户名，标志，边框，画框，平铺重复，画得差，出框，错误，画面裁切，畸形的身体"
+
+        if not 负面提示词:
+            负面提示词 = "丑陋，模糊，低分辨率，最差质量，低质量，JPEG伪影，解剖结构错误，畸形，毁容，突变，多余肢体，多余手臂，多余腿，畸形肢体，手部画得差，手部畸形，多余手指，缺少手指，手指缺失，手指融合，脸部画得差，脸部畸形，毁容的脸，斗鸡眼，长脖子，多余的眼睛，文字，词语，签名，水印，用户名，标志，边框，画框，平铺重复，画得差，出框，错误，画面裁切，畸形的身体"
         neg_tokens = clip.tokenize(负面提示词.strip())
         negative = clip.encode_from_tokens_scheduled(neg_tokens)
 
         if vae is not None and ref_latents:
             positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
-            negative = node_helpers.conditioning_set_values(negative, {"reference_latents": ref_latents}, append=True)
 
-        #  latent 处理
-        latent = torch.zeros(1,4,target_latent_h, target_latent_w, device=comfy.model_management.intermediate_device())
+        device = comfy.model_management.intermediate_device()
+        latent = torch.zeros(1, 4, target_latent_h, target_latent_w, device=device)
         if vae is not None and final_image_sequence:
             first_img = final_image_sequence[0]
-            base = first_img.movedim(-1,1)
-            resized = comfy.utils.common_upscale(base, target_latent_w*8, target_latent_h*8, "lanczos", "center")
-            latent = vae.encode(resized.movedim(1,-1)[:,:,:,:3])
+            base = first_img.movedim(-1, 1)
+            resized = comfy.utils.common_upscale(base, target_latent_w * 8, target_latent_h * 8, "lanczos", "center")
+            latent = vae.encode(resized.movedim(1, -1)[:, :, :, :3])
 
-        latent_out = {"samples": latent}
         if batch_size > 1:
             positive *= batch_size
             negative *= batch_size
-            latent_out["samples"] = latent.repeat(batch_size,1,1,1)
+            latent_samples = latent.repeat(batch_size, 1, 1, 1)
+        else:
+            latent_samples = latent
 
-        # 输出列表，不输出batch，彻底解决尺寸问题
-        out_images = final_image_sequence if final_image_sequence else [torch.zeros(1,1,1,3)]
-        
-        return (
-            positive, negative, latent_out,
-            out_images
-        )
+        latent_out = {"samples": latent_samples}
+        return (positive, negative, latent_out)

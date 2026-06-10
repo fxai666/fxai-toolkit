@@ -92,7 +92,7 @@ app.registerExtension({
                         var text = "";
                         var audioNo = 0;
                         var audioStart = 0;
-                        var imgNo = 0;
+                        var imgSrc = "";
                         var tailNeedle = -1;
                         var transition = 1;
                         
@@ -101,13 +101,13 @@ app.registerExtension({
                             text = item[1] || "";
                             if(item.length >=3) audioNo = Number(item[2]) || 0;
                             if(item.length >=4) audioStart = Number(item[3]) || 0;
-                            if(item.length >=5) imgNo = Number(item[4]) || 0;
+                            if(item.length >=5) imgSrc = item[4] || "";
                             if(item.length >=6) tailNeedle = Number(item[5]) || -1;
                             if(item.length >=7) transition = Number(item[6]) || 1;
                         } else {
                             text = item || "";
                         }
-                        addLine(this, text, duration, audioNo, audioStart, imgNo, tailNeedle, transition);
+                        addLine(this, text, duration, audioNo, audioStart, imgSrc, tailNeedle, transition);
                     }
                 }
             } catch (e) {
@@ -308,12 +308,12 @@ function createHeader(node) {
     node.scrollContainer.appendChild(header);
 }
 
-function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAudioStart, defaultImgNo, defaultTailNeedle, defaultTransition) {
+function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAudioStart, defaultImgSrc, defaultTailNeedle, defaultTransition) {
     if (defaultValue === undefined) defaultValue = "";
     if (defaultDuration === undefined) defaultDuration = 15;
     if (defaultAudioNo === undefined) defaultAudioNo = -1;
     if (defaultAudioStart === undefined) defaultAudioStart = 0;
-    if (defaultImgNo === undefined) defaultImgNo = -1;
+    if (defaultImgSrc === undefined) defaultImgSrc = "";
     if (defaultTailNeedle === undefined) defaultTailNeedle = -1;
     if (defaultTransition === undefined) defaultTransition = 1;
 
@@ -406,10 +406,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     audiostartInput.value = defaultAudioStart;
 
     var imgnoInput = document.createElement("input");
-    imgnoInput.type = "number";
-    imgnoInput.min = "-1";
-    imgnoInput.step = "1";
-    imgnoInput.placeholder = "编号";
+    imgnoInput.type = "text";
     imgnoInput.style.width = "60px";
     imgnoInput.style.height = "28px";
     imgnoInput.style.padding = "0 6px";
@@ -420,7 +417,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     imgnoInput.style.textAlign = "center";
     imgnoInput.style.flexShrink = "0";
     imgnoInput.style.marginTop = "2px";
-    imgnoInput.value = defaultImgNo;
+    imgnoInput.value = defaultImgSrc;
 
     var tailNeedleInput = document.createElement("input");
     tailNeedleInput.type = "number";
@@ -518,7 +515,7 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
         duration: defaultDuration,
         audiono: defaultAudioNo,
         audiostart: defaultAudioStart,
-        imgno: defaultImgNo,
+        imgno: defaultImgSrc,
         tailNeedle: defaultTailNeedle,
         transition: defaultTransition,
         label: lineNumLabel
@@ -554,12 +551,15 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
         updateHidden(node);
     });
 
-    imgnoInput.addEventListener("input", function() {
-        var val = parseInt(imgnoInput.value);
-        if (val < -1) val = -1;
-        imgnoInput.value = val;
-        item.imgno = val;
-        updateHidden(node);
+    imgnoInput.addEventListener("click", function() {
+        FxAiCharacterAssetsSelector(this.value).then(val => {
+            if(val!==undefined)
+            {
+                imgnoInput.value = val;
+                item.imgno = val;
+                updateHidden(node);
+            }
+        });
     });
 
     tailNeedleInput.addEventListener("input", function() {

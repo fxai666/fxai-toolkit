@@ -129,7 +129,7 @@ NODE_REGISTRY = [
     ("FxAiLtxvGuideFrames",       "fxai_ltxv_guide_frames",     "凤希AI - LTXV多帧引导器"),
 	
     # 影视
-    ("FxAiScreenManager",         "fxai_screen_manager",       "凤希AI - 影视剧场管理 - 学习交流Q群：775649071"),
+    ("FxAiScreenManager",         "fxai_screen_manager",       "凤希AI - 影视剧场流场景管理 - 学习交流Q群：775649071"),
     ("FxAiScreenLoad",            "fxai_screen_load",          "凤希AI - 影视剧场数据解析"),
 ]
 

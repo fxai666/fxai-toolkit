@@ -29,8 +29,8 @@ class FxAiCharacterAssetsLoad:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "MASK", "IMAGE", "INT")
-    RETURN_NAMES = ("图片列表", "遮罩列表", "网格拼接大图", "总数量")
+    RETURN_TYPES = ("IMAGE","IMAGE", "INT")
+    RETURN_NAMES = ("图片列表","网格拼接大图", "总数量")
     FUNCTION = "load_images"
     CATEGORY = "凤希AI/角色"
 
@@ -40,7 +40,6 @@ class FxAiCharacterAssetsLoad:
             return (None, None, None, 0)
 
         images = []
-        masks = []
 
         for rel_path in path_list:
             parts = rel_path.split("/", 1)
@@ -60,20 +59,12 @@ class FxAiCharacterAssetsLoad:
                 fixed = scale_down_by_factor(tensor, 缩小倍数)
                 images.append(fixed)
 
-                _, h, w, _ = fixed.shape
-                mask = torch.ones((1, h, w), dtype=torch.float32)
-                masks.append(mask)
             except Exception as e:
                 print(f"[凤希] 加载失败：{full_path} => {e}")
 
         if not images:
             return (None, None, None, 0)
 
-        # ===================== 关键修改：不做 torch.cat，直接返回列表 =====================
-        image_batch = images
-        mask_batch = masks
-        # =================================================================================
-
         merged = grid_concat_images(images, cols_mode="fixed_2")
         
-        return (image_batch, mask_batch, merged, len(images))
+        return (images, merged, len(images))
