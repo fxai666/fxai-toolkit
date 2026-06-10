@@ -226,10 +226,9 @@ class FxAiVideoGeneratorV3:
         
         target_dir = get_video_dir(目录)
         
-        # 新增：优先使用视频帧序列，否则使用原图片序列
         if 视频帧序列 is not None and len(视频帧序列) > 0:
             video_frames = 视频帧序列
-            total_frames = len(视频_frames)
+            total_frames = len(视频帧序列)
         else:
             video_frames = 图片序列
             total_frames = len(图片序列)
