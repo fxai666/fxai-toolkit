@@ -1,5 +1,4 @@
 import torch
-import re
 import math
 import comfy.utils
 import node_helpers
@@ -46,7 +45,7 @@ class FxAiQwenEditEnhanced:
         per_batch = self.to_batch(人物列表)
         img_batch = self.to_batch(图片列表)
 
-        # 安全计数
+        # 统计数量
         per_count = 0
         if per_batch is not None:
             per_count = len(per_batch) if isinstance(per_batch, list) else per_batch.shape[0]
@@ -55,40 +54,32 @@ class FxAiQwenEditEnhanced:
         if img_batch is not None:
             img_count = len(img_batch) if isinstance(img_batch, list) else img_batch.shape[0]
 
-        pattern = re.compile(r'(人物|图)(\d+)')
-        ref_sequence = pattern.findall(user_text)
-
-        unique_refs = []
-        seen_ref = set()
-        for ref_item in ref_sequence:
-            if ref_item not in seen_ref:
-                seen_ref.add(ref_item)
-                unique_refs.append(ref_item)
-
         image_part = ""
         final_image_sequence = []
 
-        for (typ, num_str) in unique_refs:
-            num = int(num_str)
-            target_img = None
+        for idx in range(per_count):
+            num = idx + 1
+            tag = f"人物{num}"
+            image_part += f"{tag}: <|vision_start|><|image_pad|><|vision_end|>"
 
-            if typ == "人物":
-                if 1 <= num <= per_count:
-                    if isinstance(per_batch, list):
-                        target_img = per_batch[num - 1]
-                    else:
-                        target_img = per_batch[num - 1:num]
-            elif typ == "图":
-                if 1 <= num <= img_count:
-                    if isinstance(img_batch, list):
-                        target_img = img_batch[num - 1]
-                    else:
-                        target_img = img_batch[num - 1:num]
+            if isinstance(per_batch, list):
+                cur_img = per_batch[idx]
+            else:
+                cur_img = per_batch[idx:idx+1]
 
-            if target_img is not None:
-                tag_name = f"{typ}{num_str}"
-                image_part += f"{tag_name}: <|vision_start|><|image_pad|><|vision_end|>"
-                final_image_sequence.append(target_img)
+            final_image_sequence.append(cur_img)
+
+        for idx in range(img_count):
+            num = idx + 1
+            tag = f"图{num}"
+            image_part += f"{tag}: <|vision_start|><|image_pad|><|vision_end|>"
+
+            if isinstance(img_batch, list):
+                cur_img = img_batch[idx]
+            else:
+                cur_img = img_batch[idx:idx+1]
+
+            final_image_sequence.append(cur_img)
 
         user_final_prompt = (image_part + " " + user_text).strip()
 
@@ -98,7 +89,7 @@ class FxAiQwenEditEnhanced:
             samples = img.movedim(-1, 1).contiguous()
             _, _, h, w = samples.shape
 
-            # Qwen视觉输入 384基准缩放
+            # Qwen视觉输入缩放 384基准
             scale_vision = math.sqrt(384 * 384 / (w * h))
             vis_scaled = comfy.utils.common_upscale(samples, round(w * scale_vision), round(h * scale_vision), "area", "disabled")
             images_vl.append(vis_scaled.movedim(1, -1))
@@ -117,18 +108,18 @@ class FxAiQwenEditEnhanced:
         tokens = clip.tokenize(user_final_prompt, vision_images=images_vl, llama_template=chat_template)
         positive = clip.encode_from_tokens_scheduled(tokens)
 
-        # 负面词兜底
+        # 负面提示词兜底
         neg_input = 负面提示词.strip()
         if not neg_input:
             neg_input = "丑陋，模糊，低分辨率，最差质量，低质量，JPEG伪影，解剖结构错误，畸形，毁容，突变，多余肢体，多余手臂，多余腿，畸形肢体，手部画得差，手部畸形，多余手指，缺少手指，手指缺失，手指融合，脸部画得差，脸部畸形，毁容的脸，斗鸡眼，长脖子，多余的眼睛，文字，词语，签名，水印，用户名，标志，边框，画框，平铺重复，画得差，出框，错误，画面裁切，畸形的身体"
         neg_tokens = clip.tokenize(neg_input)
         negative = clip.encode_from_tokens_scheduled(neg_tokens)
 
-        # 仅正向附加参考latent，负向不挂载
+        # 绑定参考latent到正向条件
         if vae is not None and ref_latents:
             positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
 
-        # 初始化latent画布
+        # 初始化输出latent画布
         dev = comfy.model_management.intermediate_device()
         latent_base = torch.zeros(1, 4, target_latent_h, target_latent_w, device=dev)
         if vae is not None and len(final_image_sequence) > 0:
@@ -137,7 +128,7 @@ class FxAiQwenEditEnhanced:
             resize_full = comfy.utils.common_upscale(img_tensor, target_latent_w * 8, target_latent_h * 8, "lanczos", "center")
             latent_base = vae.encode(resize_full.movedim(1, -1)[:, :, :, :3])
 
-        # batch扩容优化
+        # batch批量扩展
         if batch_size > 1:
             positive *= batch_size
             negative *= batch_size
