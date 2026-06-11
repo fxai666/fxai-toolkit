@@ -107,25 +107,17 @@ import { api } from "../../scripts/api.js";
                         });
                     }
 
-                    // ==============================
-                    // 按钮选择：保存字符串！不存数组！
-                    // ==============================
                     btn.onclick = function () {
                         FxAiCharacterAssetsSelector(this.value).then(result => {
                             if (result !== undefined) {
                                 var w = self.widgets.find(x => x.name === "selected_files");
-                                // ✅ 直接存字符串，不 split！
                                 w.value = result;
                                 app.graph.setDirtyCanvas(true);
-                                // 用字符串去渲染预览
                                 renderPreviews(w.value);
                             }
                         });
                     };
 
-                    // ==============================
-                    // 初始化加载（读取字符串）
-                    // ==============================
                     setTimeout(() => {
                         const widget = self.widgets.find(x => x.name === "selected_files");
                         if (widget && widget.value) {

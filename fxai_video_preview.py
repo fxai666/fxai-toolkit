@@ -1,5 +1,5 @@
 import os
-import server
+from server import PromptServer
 from aiohttp import web
 from datetime import datetime
 
@@ -23,8 +23,11 @@ async def get_preview(request):
 
     return web.FileResponse(path, headers=headers)
 
-server.PromptServer.instance.routes.get("/fxai/video/preview")(get_preview)
 
+try:
+    PromptServer.instance.routes.get("/fxai/video/preview")(get_preview)
+except Exception as e:
+    print(f"❌ 凤希AI视频预览接口挂载失败：{e}")
 class FxAiVideoPreview:
     @classmethod
     def INPUT_TYPES(s):

@@ -150,13 +150,16 @@ function addUI(node) {
     btnDiv.style.gap = "8px";
     btnDiv.style.marginBottom = "8px";
     container.appendChild(btnDiv);
-
+    
+    var selectBtn = document.createElement("button");
+    selectBtn.textContent = "📁 选择目录";
     var uploadBtn = document.createElement("button");
     uploadBtn.textContent = "📤 选择图片上传";
     var refreshBtn = document.createElement("button");
     refreshBtn.textContent = "🔄 刷新";
     var applyBtn = document.createElement("button");
     applyBtn.textContent = "✅ 确认操作";
+    btnDiv.appendChild(selectBtn);
     btnDiv.appendChild(uploadBtn);
     btnDiv.appendChild(refreshBtn);
     btnDiv.appendChild(applyBtn);
@@ -318,6 +321,16 @@ function addUI(node) {
                 console.error("更新列表失败:", err);
                 resolve();
             });
+        });
+    }
+
+    selectBtn.onclick=function(){
+        FxAiFolderSelector("image").then(result => {
+            if(result!==undefined)
+            {
+                subdirWidget.value = result;
+                updateList();
+            }
         });
     }
 
