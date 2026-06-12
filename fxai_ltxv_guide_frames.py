@@ -1,7 +1,6 @@
 from comfy_extras.nodes_lt import get_noise_mask, LTXVAddGuide, _append_guide_attention_entry
 import comfy
 import torch
-from fxai_image_utils import ImageSizeController
 
 class FxAiLtxvGuideFrames:
     @classmethod
@@ -12,7 +11,7 @@ class FxAiLtxvGuideFrames:
                 "负向条件": ("CONDITIONING",),
                 "视频VAE": ("VAE",),
                 "视频潜变量": ("LATENT",),
-                "引导图批量": ("IMAGE",),
+                "引导图批量": ("IMAGE",),  # 图片数组 批量输入
                 "指定帧索引": ("INT", {"default": 0, "min": -9999, "max": 9999}),
                 "引导强度": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
             }
@@ -27,37 +26,20 @@ class FxAiLtxvGuideFrames:
         scale_factors = 视频VAE.downscale_index_formula
         latent_image = 视频潜变量["samples"]
         noise_mask = get_noise_mask(视频潜变量)
-        vae_device = 视频VAE.device
 
-        # latent shape: [B, C, T, H, W]
-        b, c, latent_length, latent_h, latent_w = latent_image.shape
-        # LTXV缩放取单数值（时间轴缩放忽略，只用空间缩放）
-        space_scale = scale_factors[1] if isinstance(scale_factors, tuple) else scale_factors
-        target_img_w = latent_w * space_scale
-        target_img_h = latent_h * space_scale
-        print(f"{target_img_w},{target_img_h}")
+        _, _, latent_length, latent_height, latent_width = latent_image.shape
 
-        img_ctrl = ImageSizeController(canvas_w=int(target_img_w), canvas_h=int(target_img_h), bg_color=(255,255,255))
-
-        # 统一转为单帧[1,H,W,C]列表
-        if isinstance(引导图批量, list):
-            frame_list = []
-            for f in 引导图批量:
-                if f.dim() == 3:
-                    frame_list.append(f.unsqueeze(0))
-                elif f.dim() == 4:
-                    frame_list.append(f)
-        else:
-            frame_list = [引导图批量[i:i+1] for i in range(引导图批量.shape[0])]
-
-        if not frame_list:
-            return (正向条件, 负向条件, {"samples": latent_image, "noise_mask": noise_mask})
-
-        for frame in frame_list:
-            resized_img = img_ctrl.crop_fill_to_canvas(frame)
-            resized_img = resized_img.to(vae_device)
-
-            image_1, t = LTXVAddGuide.encode(视频VAE, latent_w, latent_h, resized_img, scale_factors)
+        for img in 引导图批量:
+            print("循环取出img shape", img.shape)
+            # 新增：剔除多余维度、强制3通道
+            while len(img.shape) > 3:
+                img = img.squeeze(0)
+            if img.shape[-1] == 4:
+                img = img[..., :3]
+            
+            img = img.unsqueeze(0)
+            print("循环取出img shape", img.shape)
+            image_1, t = LTXVAddGuide.encode(视频VAE, latent_width, latent_height, img, scale_factors)
 
             frame_idx, latent_idx = LTXVAddGuide.get_latent_index(正向条件, latent_length, len(image_1), 指定帧索引, scale_factors)
             assert latent_idx + t.shape[2] <= latent_length, "引导帧超出视频长度范围"

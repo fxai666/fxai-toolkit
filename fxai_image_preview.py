@@ -28,32 +28,39 @@ class FxAiImagePreview:
     CATEGORY = "凤希AI/图片"
 
     def preview(self, 图片, unique_id=None):
-        # 空值判断
         if 图片 is None or not unique_id:
             return {"ui": {}, "result": ()}
 
         ui = {}
         images = []
+        img_index = 0
 
-        # 遍历 batch 中每一张图片，使用不同文件名保存
-        for i, batch in enumerate(图片):
-            # 每张图片使用独立文件名，避免覆盖
-            cache_name = f"cache_{unique_id}_{i}"
-            img_filename = f"{cache_name}.png"
-            img_path = os.path.join(CACHE_DIR, img_filename)
+        tensor_list = []
+        if isinstance(图片, list):
+            for t in 图片:
+                if isinstance(t, torch.Tensor) and len(t.shape) == 4:
+                    tensor_list.append(t)
+        elif isinstance(图片, torch.Tensor) and len(图片.shape) == 4:
+            tensor_list.append(图片)
 
-            # 张量转图片
-            np_img = batch.cpu().numpy()
-            np_img = (np.clip(np_img, 0, 1) * 255).astype(np.uint8)
-            img = Image.fromarray(np_img)
-            img.save(img_path)
+        # 遍历所有批次张量，逐图保存
+        for batch_tensor in tensor_list:
+            for _, single_img_tensor in enumerate(batch_tensor):
+                cache_name = f"cache_{unique_id}_{img_index}"
+                img_filename = f"{cache_name}.png"
+                img_path = os.path.join(CACHE_DIR, img_filename)
 
-            # 加入 UI 显示列表
-            images.append({
-                "filename": img_filename,
-                "subfolder": "persist_preview",
-                "type": "temp"
-            })
+                np_img = single_img_tensor.cpu().numpy()
+                np_img = (np.clip(np_img, 0, 1) * 255).astype(np.uint8)
+                img = Image.fromarray(np_img)
+                img.save(img_path)
+
+                images.append({
+                    "filename": img_filename,
+                    "subfolder": "persist_preview",
+                    "type": "temp"
+                })
+                img_index += 1
 
         ui["images"] = images
         return {"ui": ui, "result": ()}

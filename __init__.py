@@ -72,12 +72,14 @@ NODE_REGISTRY = [
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
     ("FxAiImageBatchConcat",      "fxai_image_batch_concat",    "凤希AI - 图片列表合并"),
     ("FxAiImageLoopTile",         "fxai_image_loop_tile",       "凤希AI - 图片循环序列"),
+    ("FxAiImageUniformSize",      "fxai_image_uniform_size",    "凤希AI - 图片大小统一"),
 	
     # 角色类
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
     ("FxAiCharacterAssetsLoad",   "fxai_character_assets_load", "凤希AI - 角色资源数据解析器"),
     ("FxAiCharacterBatchLoad",    "fxai_character_batch_load",  "凤希AI - 角色加载器"),
     ("FxAiCharacterImageSelector","fxai_character_image_selector","凤希AI - 角色资源图片选择器"),
+    ("FxAiCharacterImageByIndex", "fxai_character_image_byindex","凤希AI - 角色资源单张图片获取"),
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),

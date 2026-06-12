@@ -10,7 +10,7 @@ class FxAiImageLoopTile:
             "required": {
                 "输出宽度": ("INT", {"default": 704, "min": 32, "max": 8192, "step": 32}),
                 "输出高度": ("INT", {"default": 1280, "min": 32, "max": 8192, "step": 8}),
-                "总帧数": ("INT", {"default": 241, "min": 1, "max": 1800, "step": 8}),
+                "总帧数": ("INT", {"default": 41, "min": 1, "max": 1800, "step": 8}),
                 "图片序列": ("IMAGE",),
             },
         }
