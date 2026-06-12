@@ -129,6 +129,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=None, transition_fr
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
         if audio and os.path.exists(audio):
+            dur_str = f"{(total_frames / fps):.6f}"
             cmd = [
                 'ffmpeg', '-y',
                 '-f', 'rawvideo',
@@ -138,11 +139,12 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=None, transition_fr
                 '-r', str(fps),
                 '-i', '-',
                 '-i', audio,
+                '-filter:a', f'atrim=d={dur_str},apad=d={dur_str}',
                 '-c:v', 'libx264',
                 '-preset', 'slow',
                 '-crf', '17',
                 '-pix_fmt', 'yuv420p',
-                '-c:a', 'copy',
+                '-c:a', 'aac',
                 '-b:a', '192k',
                 '-frames:v', str(total_frames),
                 '-movflags', '+faststart',
