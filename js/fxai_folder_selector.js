@@ -20,7 +20,7 @@ window.FxAiFolderSelector = function (initSubdir) {
 
         // 弹窗
         var modal = document.createElement("div");
-        modal.style.cssText = "width: 600px; max-width: 95vw; height: 600px; max-height: 90vh; background: #222; border-radius: 10px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;";
+        modal.style.cssText = "width: 700px;height: 600px; background: #222; border-radius: 10px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;";
         mask.appendChild(modal);
 
         // 头部
@@ -53,9 +53,9 @@ window.FxAiFolderSelector = function (initSubdir) {
         searchWrap.appendChild(searchInput);
         searchWrap.appendChild(searchClearBtn);
 
-        // 目录列表容器
+        // 目录列表容器 修改为网格三列布局
         var folderWrap = document.createElement("div");
-        folderWrap.style.cssText = "flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding:4px;";
+        folderWrap.style.cssText = "flex:1; overflow-y:auto; display: grid; grid-template-columns: repeat(3, 1fr); gap:8px; padding:4px;";
         modal.appendChild(folderWrap);
 
         // 底部按钮栏
@@ -79,14 +79,8 @@ window.FxAiFolderSelector = function (initSubdir) {
         }
 
         btnCancel.onclick = function () {
-            resolve(null);
+            resolve();
             closeModal();
-        };
-
-        mask.onclick = function (e) {
-            if (e.target === mask) {
-                closeModal();
-            }
         };
 
         btnConfirm.onclick = function () {
@@ -94,7 +88,6 @@ window.FxAiFolderSelector = function (initSubdir) {
             closeModal();
         };
 
-        // 加载目录接口
         function loadFolderData(subdir) {
             var url = api.apiURL("/fxai/folder/list?subdir=" + encodeURIComponent(subdir));
             fetch(url).then(function (res) {
@@ -138,7 +131,8 @@ window.FxAiFolderSelector = function (initSubdir) {
                 var name = showList[i];
                 var item = document.createElement("div");
                 item.className = "folder-item";
-                item.style.cssText = "padding:10px 12px; background:#2b2b2b; border-radius:4px; color:#fff; cursor:pointer; display:flex; align-items:center; gap:8px; border:2px solid transparent;";
+                // 调整item宽高适配网格
+                item.style.cssText = "padding:10px 5px; background:#2b2b2b; border-radius:4px; color:#fff; cursor:pointer; display:flex; align-items:center; gap:8px; border:2px solid transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;";
                 item.innerHTML = "📂 " + name;
 
                 // 单击选中
@@ -151,7 +145,6 @@ window.FxAiFolderSelector = function (initSubdir) {
                     selectedFolderName = this.innerText.replace("📂 ", "");
                 };
 
-                // 双击进入文件夹
                 item.ondblclick = function () {
                     btnConfirm.onclick();
                 };
@@ -159,10 +152,9 @@ window.FxAiFolderSelector = function (initSubdir) {
                 folderWrap.appendChild(item);
             }
 
-            // 空状态提示
             if (showList.length === 0) {
                 var emptyTip = document.createElement("div");
-                emptyTip.style.cssText = "color:#999; padding:20px; text-align:center;";
+                emptyTip.style.cssText = "color:#999; padding:20px; text-align:center; grid-column: 1 / -1;";
                 emptyTip.textContent = searchKeyword ? "未匹配到相关文件夹" : "暂无子文件夹";
                 folderWrap.appendChild(emptyTip);
             }

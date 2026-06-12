@@ -1,7 +1,7 @@
 import os
 import torch
 import folder_paths
-from fxai_image_utils import load_single_image, ImageSizeController  # 新增导入
+from fxai_image_utils import load_single_image
 
 def get_image_path(full_relative_path):
     comfy_root = folder_paths.base_path
@@ -10,9 +10,6 @@ def get_image_path(full_relative_path):
     return target_path
 
 class FxAiCharacterImageSelector:
-    def __init__(self):
-        self.images = None
-
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -22,8 +19,6 @@ class FxAiCharacterImageSelector:
                     "multiline": False,
                     "layout": "hidden"
                 }),
-                "宽度": ("INT", {"default": 1024, "min": 64, "max": 2048, "step": 8}),
-                "高度": ("INT", {"default": 1024, "min": 64, "max": 2048, "step": 8}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID"
@@ -31,33 +26,26 @@ class FxAiCharacterImageSelector:
         }
 
     RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("图片序列",)
+    RETURN_NAMES = ("图片列表",)
     FUNCTION = "load_images"
     CATEGORY = "凤希AI/角色"
 
-    def load_images(self, selected_files, 宽度, 高度, unique_id=None):
+    def load_images(self, selected_files, unique_id=None):
         images = []
-        print(f"{selected_files}");
         if not selected_files.strip():
-            return (torch.zeros((1, 64, 64, 3)), )
+            raise RuntimeError("没有图片，请选择图片文件")
 
-        size_controller = ImageSizeController(canvas_w=宽度, canvas_h=高度,bg_color=(255,255,255))
-        
         path_list = [p.strip() for p in selected_files.split(",") if p.strip()]
 
         for rel_path in path_list:
             full_path = get_image_path(rel_path)
-
             if not os.path.exists(full_path):
+                print(f"文件不存在，跳过: {full_path}")
                 continue
+            img_tensor = load_single_image(full_path)
+            images.append(img_tensor)
 
-            img = size_controller.load_single_image(full_path)
-            img = size_controller.crop_fill_to_canvas(img)
-            images.append(img)
+        if not images:
+            raise RuntimeError("没有图片，请选择图片文件")
 
-        if images:
-            self.images = torch.cat(images, dim=0)
-        else:
-            self.images = torch.zeros((1, 64, 64, 3))
-
-        return (self.images,)
+        return (images,)

@@ -1,9 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-// ==============================================
-// 核心：获取当前目录文件列表
-// ==============================================
 function fetchFileList(subdir) {
     return new Promise(resolve => {
         const url = api.apiURL("/fxai/image/v2/list?subdir=" + encodeURIComponent(subdir));
@@ -14,9 +11,6 @@ function fetchFileList(subdir) {
     });
 }
 
-// ==============================================
-// 图片选择器（纯索引序号）
-// ==============================================
 window.FxAiImageAssetsSelector = function(selectStr) {
     return new Promise(resolve => {
         let selectedIndexes = [];
