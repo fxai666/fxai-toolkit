@@ -102,7 +102,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         return ""
 
 # 视频合成：使用rawvideo管道 + 批量写入（最快+最高质量）
-def save_video(images, save_dir, fps=24, custom_num=0, audio=None, transition_frames=1):
+def save_video(images, save_dir, audio, fps=24, custom_num=0, transition_frames=1):
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -123,49 +123,40 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=None, transition_fr
 
     try:
         height, width = img_np[0].shape[0], img_np[0].shape[1]
+        video_duration = total_frames / fps
         
-        # 音频处理
-        if isinstance(audio, dict) and "waveform" in audio:
-            audio = audio_tensor_to_wav_ffmpeg(audio)
+        waveform = audio["waveform"]
+        sample_rate = audio["sample_rate"]
+        max_sample_count = int(video_duration * sample_rate)
+        
+        if waveform.size(-1) > max_sample_count:
+            waveform = waveform[..., :max_sample_count]
+            audio = {
+                "waveform": waveform,
+                "sample_rate": sample_rate
+            }
 
-        if audio and os.path.exists(audio):
-            dur_str = f"{(total_frames / fps):.6f}"
-            cmd = [
-                'ffmpeg', '-y',
-                '-f', 'rawvideo',
-                '-vcodec', 'rawvideo',
-                '-s', f'{width}x{height}',
-                '-pix_fmt', 'rgb24',
-                '-r', str(fps),
-                '-i', '-',
-                '-i', audio,
-                '-filter:a', f'atrim=d={dur_str},apad=d={dur_str}',
-                '-c:v', 'libx264',
-                '-preset', 'slow',
-                '-crf', '17',
-                '-pix_fmt', 'yuv420p',
-                '-c:a', 'aac',
-                '-b:a', '192k',
-                '-frames:v', str(total_frames),
-                '-movflags', '+faststart',
-                save_path
-            ]
-        else:
-            cmd = [
-                'ffmpeg', '-y',
-                '-f', 'rawvideo',
-                '-vcodec', 'rawvideo',
-                '-s', f'{width}x{height}',
-                '-pix_fmt', 'rgb24',
-                '-r', str(fps),
-                '-i', '-',
-                '-c:v', 'libx264',
-                '-preset', 'slow',
-                '-crf', '17',
-                '-pix_fmt', 'yuv420p',
-                '-movflags', '+faststart',
-                save_path
-            ]
+        audio = audio_tensor_to_wav_ffmpeg(audio)
+
+        cmd = [
+            'ffmpeg', '-y',
+            '-f', 'rawvideo',
+            '-vcodec', 'rawvideo',
+            '-s', f'{width}x{height}',
+            '-pix_fmt', 'rgb24',
+            '-r', str(fps),
+            '-i', '-',
+            '-i', audio,
+            '-c:v', 'libx264',
+            '-preset', 'slow',
+            '-crf', '17',
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'copy',
+            '-b:a', '192k',
+            '-frames:v', str(total_frames),
+            '-movflags', '+faststart',
+            save_path
+        ]
 
         proc = subprocess.Popen(
             cmd,
@@ -203,12 +194,12 @@ class FxAiVideoGeneratorV3:
         return {
             "required": {
                 "图片序列": ("IMAGE",),
+                "音频": ("AUDIO",),
                 "目录": ("STRING", {"default": "sucai"}),
                 "帧率FPS": ("INT", {"default": 24, "min": 1}),
                 "视频序号": ("INT", {"default": 0, "min": 0}),
             },
             "optional": {
-                "音频": ("AUDIO",),
                 "过渡帧数": ("INT", {"default": 1, "min": 1}),
                 "过渡帧引导": ("IMAGE",),
                 "视频帧序列": ("IMAGE",),
@@ -220,7 +211,7 @@ class FxAiVideoGeneratorV3:
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
 
-    def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频=None, 过渡帧数=1, 过渡帧引导=None, 视频帧序列=None):
+    def run(self,图片序列,目录, 帧率FPS, 视频序号, 音频, 过渡帧数=1, 过渡帧引导=None, 视频帧序列=None):
         if 图片序列 is None and 视频帧序列 is None:
             return (图片序列, "", "", 0)
         
@@ -247,9 +238,9 @@ class FxAiVideoGeneratorV3:
         video_path = save_video(
             images=video_frames,
             save_dir=target_dir,
+            audio=音频,
             fps=帧率FPS,
             custom_num=视频序号,
-            audio=音频,
             transition_frames=过渡帧数
         )
         
