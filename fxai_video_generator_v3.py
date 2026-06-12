@@ -147,6 +147,7 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=None, transition_fr
                 '-c:a', 'copy',
                 '-b:a', '192k',
                 '-frames:v', str(total_frames),
+                '-t', f"{video_duration:.6f}",
                 '-movflags', '+faststart',
                 save_path
             ]
