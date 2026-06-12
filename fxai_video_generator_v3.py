@@ -8,7 +8,6 @@ import subprocess
 import tempfile
 import io
 import gc
-
 # 安全路径校验
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
@@ -16,7 +15,6 @@ def safe_path_join(base_dir, path):
     if not full_path.startswith(base_dir):
         return None
     return full_path
-
 # 获取下一个编号
 def get_last_number(target_dir):
     used = set()
@@ -29,7 +27,6 @@ def get_last_number(target_dir):
     while next_num in used:
         next_num += 1
     return next_num
-
 # 获取视频保存目录
 def get_video_dir(subdir=""):
     comfy_root = folder_paths.base_path
@@ -42,14 +39,12 @@ def get_video_dir(subdir=""):
     
     os.makedirs(target_dir, exist_ok=True)
     return target_dir
-
 # 获取全局临时音频路径
 def get_fixed_temp_audio_path():
     comfy_root = folder_paths.base_path
     temp_dir = os.path.join(comfy_root, "fxai/video/temp")
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
-
 # 音频张量转WAV（不变）
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     try:
@@ -100,33 +95,27 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         import traceback
         traceback.print_exc()
         return ""
-
-# 视频合成：使用rawvideo管道 + 批量写入（最快+最高质量）
 def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_frames=1):
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-
     num = custom_num if custom_num >= 0 else get_last_number(save_dir)
     filename = f"{num:03d}.mp4"
     save_path = safe_path_join(save_dir, filename)
-
-    # 转numpy + 移除指定数量的过渡帧
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
     total_len = img_np.shape[0]
     img_np = img_np[: total_len - transition_frames]
-
     if len(img_np) == 0:
         print("[凤希AI视频合成失败] 没有有效帧")
         return ""
-
+    
+    total_frames = len(img_np)
     try:
         height, width = img_np[0].shape[0], img_np[0].shape[1]
         
         # 音频处理
         if isinstance(audio, dict) and "waveform" in audio:
             audio = audio_tensor_to_wav_ffmpeg(audio)
-
         # 构建ffmpeg命令
         if audio and os.path.exists(audio):
             cmd = [
@@ -144,7 +133,9 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
                 '-b:a', '192k',
-                '-shortest',
+                '-frames:v', str(total_frames),
+                '-avoid_negative_ts', 'make_zero',
+                '-fflags', '+igndts',
                 '-movflags', '+faststart',
                 save_path
             ]
@@ -161,31 +152,32 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 '-preset', 'slow',
                 '-crf', '17',
                 '-pix_fmt', 'yuv420p',
+                '-frames:v', str(total_frames),
+                '-avoid_negative_ts', 'make_zero',
+                '-fflags', '+igndts',
                 '-movflags', '+faststart',
                 save_path
             ]
-
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             bufsize=1024*1024*10
         )
-
-        # 分批写入，降低内存峰值
         batch_size = 20
         for i in range(0, len(img_np), batch_size):
             batch = img_np[i:i+batch_size]
             batch_data = b''.join([img.tobytes() for img in batch])
             proc.stdin.write(batch_data)
-
         proc.stdin.close()
         proc.wait()
-
+        
         if proc.returncode != 0:
+            err_msg = proc.stderr.read().decode("utf-8", errors="replace")
+            print(f"[凤希AI FFmpeg 错误信息]: {err_msg}")
             raise subprocess.CalledProcessError(proc.returncode, cmd)
-
+            
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
         import traceback
@@ -213,14 +205,11 @@ class FxAiVideoGeneratorV3:
                 "视频帧序列": ("IMAGE",),
             }
         }
-
     RETURN_TYPES = ("IMAGE","STRING", "STRING","INT")
     RETURN_NAMES = ("过渡帧", "视频文件路径", "保存目录","实际帧数")
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
-
     def run(self, 目录, 帧率FPS, 视频序号, 图片序列, 音频="", 过渡帧数=1, 过渡帧引导=None, 视频帧序列=None):
-        # 新增：如果图片序列和视频帧序列都为空，直接返回空
         if 图片序列 is None and 视频帧序列 is None:
             return (图片序列, "", "", 0)
         
@@ -235,20 +224,17 @@ class FxAiVideoGeneratorV3:
         
         actual_frames = total_frames - 过渡帧数
         
-        # 取出原过渡帧（优先从视频帧序列取，否则从图片序列取）
         if 视频帧序列 is not None and len(视频帧序列) > 0:
             transition_frames = 视频帧序列[-过渡帧数:]
         else:
             transition_frames = 图片序列[-过渡帧数:]
         
-        # 核心逻辑：如果有过渡帧引导，拼接到过渡帧最后面
         if 过渡帧引导 is not None and len(过渡帧引导) > 0:
-            # 取第一张引导图（防止输入序列），拼接在过渡帧末尾
-            guide_frame = 过渡帧引导[0:1]  # 保持维度一致
+            guide_frame = 过渡帧引导[0:1]
             transition_frames = torch.cat([transition_frames, guide_frame], dim=0)
         
         video_path = save_video(
-            images=video_frames,  # 改用最终的视频帧序列
+            images=video_frames,
             save_dir=target_dir,
             fps=帧率FPS,
             custom_num=视频序号,
@@ -256,11 +242,9 @@ class FxAiVideoGeneratorV3:
             transition_frames=过渡帧数
         )
         
-        # 清理内存
         del 图片序列, video_frames
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         
-        # 返回拼接后的完整过渡帧
         return (transition_frames, video_path, target_dir, actual_frames)
