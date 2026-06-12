@@ -2,7 +2,7 @@
 name = "fxai-toolkit"
 description = "音视频、图片、提示词多资源批量管理器，无限分镜流、无限长视频流、无限循环流必备，如需帮助请进Q群：775649071"
 authors = [{name = "凤希AI", email = "15810208908@qq.com"}]
-version = "1.0.4"
+version = "1.0.5"
 license = "MIT" 
 
 [project.urls]
