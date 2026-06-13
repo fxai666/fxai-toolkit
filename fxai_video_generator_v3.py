@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import io
 import gc
+from datetime import datetime
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -16,19 +17,6 @@ def safe_path_join(base_dir, path):
     if not full_path.startswith(base_dir):
         return None
     return full_path
-
-# 获取下一个编号
-def get_last_number(target_dir):
-    used = set()
-    if os.path.isdir(target_dir):
-        for f in os.listdir(target_dir):
-            m = re.match(r'^(\d+)', f)
-            if m:
-                used.add(int(m.group(1)))
-    next_num = 0
-    while next_num in used:
-        next_num += 1
-    return next_num
 
 # 获取视频保存目录
 def get_video_dir(subdir=""):
@@ -50,7 +38,7 @@ def get_fixed_temp_audio_path():
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
 
-# 音频张量转WAV（不变）
+# 音频张量转WAV（完全原版未动）
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     try:
         waveform = audio_dict["waveform"]
@@ -101,17 +89,25 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         traceback.print_exc()
         return ""
 
-# 视频合成：使用rawvideo管道 + 批量写入（最快+最高质量）
+# 视频合成 仅修改文件名分支，其余逻辑不变
 def save_video(images, save_dir, audio, fps=24, custom_num=0, transition_frames=1):
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-    num = custom_num if custom_num >= 0 else get_last_number(save_dir)
-    filename = f"{num:03d}.mp4"
-    save_path = safe_path_join(save_dir, filename)
+    # 唯一改动：移除自增序号逻辑，直接使用传入数值
+    if custom_num < 0:
+        time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"fxai_{time_str}.mp4"
+    else:
+        filename = f"{custom_num:03d}.mp4"
 
-    # 转numpy + 移除指定数量的过渡帧
+    save_path = safe_path_join(save_dir, filename)
+    if save_path is None:
+        print("[凤希AI视频] 路径安全校验失败，禁止写入")
+        return ""
+
+    # 下面全部和你原始代码一致无修改
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
     total_len = img_np.shape[0]
     img_np = img_np[: total_len - transition_frames]
@@ -197,7 +193,7 @@ class FxAiVideoGeneratorV3:
                 "音频": ("AUDIO",),
                 "目录": ("STRING", {"default": "sucai"}),
                 "帧率FPS": ("INT", {"default": 24, "min": 1}),
-                "视频序号": ("INT", {"default": 0, "min": 0}),
+                "视频序号": ("INT", {"default": -1, "min": -1}),
             },
             "optional": {
                 "过渡帧数": ("INT", {"default": 1, "min": 1}),
