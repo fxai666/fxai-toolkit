@@ -147,7 +147,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0, transition_frames=
             '-preset', 'slow',
             '-crf', '17',
             '-pix_fmt', 'yuv420p',
-            '-c:a', 'copy',
+            '-c:a', 'aac',
             '-b:a', '192k',
             '-frames:v', str(total_frames),
             '-movflags', '+faststart',
