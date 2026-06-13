@@ -23,6 +23,7 @@ const CATEGORY_CONFIG = {
     "座驾": "vehicle",
     "产品": "products",
     "素材": "sucai",
+    "融合": "万图融合",
     "其他": "other"
 };
 
@@ -62,10 +63,10 @@ window.FxAiCharacterAssetsSelector = function(selectStr) {
         // 弹窗
         const modal = document.createElement("div");
         modal.style.cssText = `
-            width: 900px; max-width: 95vw;
+            width: 970px; max-width: 95vw;
             height: 750px; max-height: 90vh;
             background: #222; border-radius: 10px;
-            padding: 20px; box-sizing: border-box;
+            padding: 10px; box-sizing: border-box;
             display: flex; flex-direction: column; gap: 16px;
         `;
         mask.appendChild(modal);
@@ -80,7 +81,7 @@ window.FxAiCharacterAssetsSelector = function(selectStr) {
 
         // 标签栏
         const tabBar = document.createElement("div");
-        tabBar.style.cssText = "display: flex; gap: 8px; flex-wrap: wrap; margin-left:5px";
+        tabBar.style.cssText = "display: flex; gap: 5px; flex-wrap: wrap; margin-left:5px";
         modal.appendChild(tabBar);
 
         function setActiveTab(tab) {

@@ -26,6 +26,7 @@ const CATEGORY_CONFIG = {
     "座驾": "vehicle",
     "产品": "products",
     "素材": "sucai",
+    "融合": "万图融合",
     "其他": "other"
 };
 
