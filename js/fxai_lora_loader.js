@@ -193,8 +193,8 @@ function createTableHeader(table) {
     var cols = [
         { text: "序号", w: "40px" },
         { text: "LoRA名称" },
-        { text: "权重", w: "30px" },
-        { text: "CLIP", w: "30px" },
+        { text: "权重", w: "35px" },
+        { text: "CLIP", w: "35px" },
         { text: "触发词", w: "160px" },
         { text: "启用", w: "30px" },
         { text: "反转", w: "30px" },

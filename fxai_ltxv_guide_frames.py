@@ -30,15 +30,12 @@ class FxAiLtxvGuideFrames:
         _, _, latent_length, latent_height, latent_width = latent_image.shape
 
         for img in 引导图批量:
-            print("循环取出img shape", img.shape)
-            # 新增：剔除多余维度、强制3通道
             while len(img.shape) > 3:
                 img = img.squeeze(0)
             if img.shape[-1] == 4:
                 img = img[..., :3]
             
             img = img.unsqueeze(0)
-            print("循环取出img shape", img.shape)
             image_1, t = LTXVAddGuide.encode(视频VAE, latent_width, latent_height, img, scale_factors)
 
             frame_idx, latent_idx = LTXVAddGuide.get_latent_index(正向条件, latent_length, len(image_1), 指定帧索引, scale_factors)
