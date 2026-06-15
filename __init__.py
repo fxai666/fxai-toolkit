@@ -73,6 +73,7 @@ NODE_REGISTRY = [
     ("FxAiImageBatchConcat",      "fxai_image_batch_concat",    "凤希AI - 图片列表合并"),
     ("FxAiImageLoopTile",         "fxai_image_loop_tile",       "凤希AI - 图片循环序列"),
     ("FxAiImageUniformSize",      "fxai_image_uniform_size",    "凤希AI - 图片大小统一"),
+    ("FxAiImageLoadBase64",       "fxai_image_load_base64",     "凤希AI - 加载Base64图片"),
 	
     # 角色类
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器"),
