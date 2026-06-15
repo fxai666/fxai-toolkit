@@ -1,0 +1,252 @@
+import os
+import re
+import torch
+import numpy as np
+from PIL import Image
+import folder_paths
+import subprocess
+import tempfile
+import io
+import gc
+from datetime import datetime
+
+# 安全路径校验
+def safe_path_join(base_dir, path):
+    base_dir = os.path.abspath(base_dir)
+    full_path = os.path.abspath(os.path.join(base_dir, path))
+    if not full_path.startswith(base_dir):
+        return None
+    return full_path
+
+# 获取视频保存目录
+def get_video_dir(subdir=""):
+    comfy_root = folder_paths.base_path
+    base_dir = "fxai/video"
+    target_dir = os.path.join(comfy_root, base_dir)
+    
+    if subdir:
+        subdir = re.sub(r'[\\/*?:"<>|]', "", subdir)
+        target_dir = os.path.join(target_dir, subdir)
+    
+    os.makedirs(target_dir, exist_ok=True)
+    return target_dir
+
+# 获取全局临时音频路径
+def get_fixed_temp_audio_path():
+    comfy_root = folder_paths.base_path
+    temp_dir = os.path.join(comfy_root, "fxai/video/temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    return os.path.join(temp_dir, "fxai_temp_audio.wav")
+
+# 音频张量转WAV（完全原版未动）
+def audio_tensor_to_wav_ffmpeg(audio_dict):
+    try:
+        waveform = audio_dict["waveform"]
+        sample_rate = audio_dict["sample_rate"]
+        
+        if waveform.ndim == 3 and waveform.shape[0] == 1:
+            waveform = waveform.squeeze(0)
+        
+        waveform_np = waveform.cpu().numpy()
+        
+        if waveform_np.ndim == 1:
+            channels = 1
+            audio_data = waveform_np.astype(np.float32)
+        else:
+            channels = waveform_np.shape[0]
+            audio_data = np.ascontiguousarray(waveform_np.T).astype(np.float32)
+        
+        raw_pcm = audio_data.tobytes()
+        temp_path = get_fixed_temp_audio_path()
+        
+        cmd = [
+            'ffmpeg', '-y',
+            '-f', 'f32le',
+            '-ar', str(sample_rate),
+            '-ac', str(channels),
+            '-i', 'pipe:0',
+            '-c:a', 'pcm_s16le',
+            temp_path
+        ]
+        
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        proc.stdin.write(raw_pcm)
+        proc.stdin.close()
+        proc.wait()
+        
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+        
+        return temp_path
+    except Exception as e:
+        print(f"[凤希AI FFmpeg音频转换失败] {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return ""
+
+# 视频合成 仅修改文件名分支，其余逻辑不变
+def save_video(images, save_dir, audio, fps=24, custom_num=0, transition_frames=1):
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    # 唯一改动：移除自增序号逻辑，直接使用传入数值
+    if custom_num < 0:
+        time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"fxai_{time_str}.mp4"
+    else:
+        filename = f"{custom_num:03d}.mp4"
+
+    save_path = safe_path_join(save_dir, filename)
+    if save_path is None:
+        print("[凤希AI视频] 路径安全校验失败，禁止写入")
+        return ""
+
+    # 下面全部和你原始代码一致无修改
+    img_np = (images.cpu().numpy() * 255).astype(np.uint8)
+    total_len = img_np.shape[0]
+    img_np = img_np[: total_len - transition_frames]
+    total_frames = len(img_np)
+
+    if total_frames == 0:
+        print("[凤希AI视频合成失败] 没有有效帧")
+        return ""
+
+    try:
+        height, width = img_np[0].shape[0], img_np[0].shape[1]
+        video_duration = total_frames / fps
+        
+        waveform = audio["waveform"]
+        sample_rate = audio["sample_rate"]
+        max_sample_count = int(video_duration * sample_rate)
+        
+        if waveform.size(-1) > max_sample_count:
+            waveform = waveform[..., :max_sample_count]
+            audio = {
+                "waveform": waveform,
+                "sample_rate": sample_rate
+            }
+
+        audio = audio_tensor_to_wav_ffmpeg(audio)
+
+        cmd = [
+            'ffmpeg', '-y',
+            '-f', 'rawvideo',
+            '-vcodec', 'rawvideo',
+            '-s', f'{width}x{height}',
+            '-pix_fmt', 'rgb24',
+            '-r', str(fps),
+            '-i', '-',
+            '-i', audio,
+            '-c:v', 'libx264',
+            '-preset', 'slow',
+            '-crf', '17',
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-frames:v', str(total_frames),
+            '-movflags', '+faststart',
+            save_path
+        ]
+
+        proc = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            bufsize=1024*1024*10
+        )
+
+        batch_size = 20
+        for i in range(0, len(img_np), batch_size):
+            batch = img_np[i:i+batch_size]
+            batch_data = b''.join([img.tobytes() for img in batch])
+            proc.stdin.write(batch_data)
+
+        proc.stdin.close()
+        proc.wait()
+
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+
+    except Exception as e:
+        print(f"[凤希AI视频合成失败] {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return ""
+		
+    gc.collect()
+    print(f"[凤希AI视频] 成功保存：{save_path}")
+    return save_path
+
+class FxAiVideoGeneratorV4:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "图片序列": ("IMAGE",),
+                "音频": ("AUDIO",),
+                "目录": ("STRING", {"default": "sucai"}),
+                "帧率FPS": ("INT", {"default": 24, "min": 1}),
+                "视频序号": ("INT", {"default": -1, "min": -1}),
+            },
+            "optional": {
+                "总帧数": ("INT", {"default": 0, "min": 0}),
+                "过渡帧数": ("INT", {"default": 1, "min": 1}),
+                "过渡帧引导": ("IMAGE",),
+                "视频帧序列": ("IMAGE",),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE","STRING", "STRING","INT")
+    RETURN_NAMES = ("过渡帧", "视频文件路径", "保存目录","实际帧数")
+    FUNCTION = "run"
+    CATEGORY = "凤希AI/视频"
+
+    def run(self,图片序列,目录, 帧率FPS, 视频序号, 音频,总帧数=0, 过渡帧数=1, 过渡帧引导=None, 视频帧序列=None):
+        if 图片序列 is None and 视频帧序列 is None:
+            return (图片序列, "", "", 0)
+        
+        target_dir = get_video_dir(目录)
+        
+        if 视频帧序列 is not None and len(视频帧序列) > 0:
+            video_frames = 视频帧序列
+            total_frames = len(视频帧序列)
+        else:
+            video_frames = 图片序列
+            total_frames = len(图片序列)
+
+        if 总帧数 > 0:
+           过渡帧数 = max(total_frames - 总帧数,0) + 过渡帧数
+
+        actual_frames = total_frames - 过渡帧数
+
+        if 视频帧序列 is not None and len(视频帧序列) > 0:
+            transition_frames = 视频帧序列[-过渡帧数:]
+        else:
+            transition_frames = 图片序列[-过渡帧数:]
+        
+        if 过渡帧引导 is not None and len(过渡帧引导) > 0:
+            guide_frame = 过渡帧引导[0:1]
+            transition_frames = torch.cat([transition_frames, guide_frame], dim=0)
+        
+        video_path = save_video(
+            images=video_frames,
+            save_dir=target_dir,
+            audio=音频,
+            fps=帧率FPS,
+            custom_num=视频序号,
+            transition_frames=过渡帧数
+        )
+        
+        del 图片序列, video_frames
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        return (transition_frames, video_path, target_dir, actual_frames)

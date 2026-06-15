@@ -71,7 +71,6 @@ class FxAiImageBatchLoad:
         if not os.path.isdir(folder_path):
             raise RuntimeError(f"文件夹不存在：{folder_path}")
         
-        # 排序+过滤图片
         image_files = []
         for filename in sorted(os.listdir(folder_path)):
             if filename.lower().endswith(IMAGE_EXTENSIONS):
@@ -80,21 +79,17 @@ class FxAiImageBatchLoad:
         
         total_images = len(image_files)
         
-        # ========== 没图片，直接返回 None，干净利落 ==========
         if total_images == 0:
             return (None, None, None, 0)
 
         CANVAS_W = 1024 // 缩小倍数
         CANVAS_H = 1024 // 缩小倍数
 
-        # ===================== 核心优化逻辑 =====================
         index_str = 图片索引.strip()
-        # 初始化：默认加载所有图片
         index_list = list(range(total_images))
         
-        # 如果不等于-1，才执行原来的索引解析逻辑
         if index_str != "-1":
-            index_list = []  # 清空，重新解析
+            index_list = [] 
             for s in index_str.split(','):
                 s = s.strip()
                 if not s:

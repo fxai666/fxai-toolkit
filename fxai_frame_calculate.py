@@ -8,7 +8,7 @@ class FxAiFrameCalculator:
                 "秒数": ("FLOAT", {"default": 15.0}),
                 "帧率": ("INT", {"default": 24}),
                 "对齐基数": ("INT", {"default": 8}),
-                "偏移量": ("INT", {"default": 1}),
+                "过渡帧": ("INT", {"default": 1}),
                 "对齐方式": (["向上取整","向下取整"], {"default": "向上取整"}),
             }
         }
@@ -18,7 +18,7 @@ class FxAiFrameCalculator:
     FUNCTION = "calculate"
     CATEGORY = "凤希AI/工具"
 
-    def calculate(self, 秒数, 帧率, 对齐基数, 偏移量, 对齐方式):
+    def calculate(self, 秒数, 帧率, 对齐基数, 过渡帧, 对齐方式):
         raw_frame = 秒数 * 帧率
         
         if 对齐方式 == "向上取整":
@@ -26,6 +26,6 @@ class FxAiFrameCalculator:
         else:
             aligned_frame = math.floor(raw_frame / 对齐基数) * 对齐基数
         
-        aligned_frame += 偏移量
+        aligned_frame += 过渡帧
         
         return (int(aligned_frame), float(帧率), 帧率)
