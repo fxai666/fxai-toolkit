@@ -19,11 +19,15 @@ class FxAiImageLoadBase64:
     CATEGORY = "凤希AI/图片"
 
     def load_image(self, Base64):
-        img_bytes = base64.b64decode(Base64)
+        if "," in Base64:
+            b64_content = Base64.split(",", 1)[1]
+        else:
+            b64_content = Base64
+
+        img_bytes = base64.b64decode(b64_content)
         pil_img = Image.open(BytesIO(img_bytes))
         w, h = pil_img.size
 
-        # 处理透明通道生成mask
         if pil_img.mode == "RGBA":
             r, g, b, a = pil_img.split()
             mask_np = np.array(a, dtype=np.float32) / 255.0
@@ -32,7 +36,6 @@ class FxAiImageLoadBase64:
             mask_np = np.ones((h, w), dtype=np.float32)
         
         mask_tensor = torch.from_numpy(mask_np).unsqueeze(0)
-
         img_np = np.array(pil_img, dtype=np.float32) / 255.0
         image_tensor = torch.from_numpy(img_np).unsqueeze(0)
 

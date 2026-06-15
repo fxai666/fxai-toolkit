@@ -13,7 +13,6 @@ import { api } from "../../scripts/api.js";
                     flex-direction: column !important;
                     width: 100% !important;
                     min-height: 130px !important;
-                    max-height: "100%";
                     box-sizing: border-box !important;
                     position: relative !important;
                 }
