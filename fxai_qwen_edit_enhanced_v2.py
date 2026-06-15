@@ -22,6 +22,7 @@ class FxAiQwenEditEnhancedV2:
                 "用户提示词": ("STRING", {"forceInput": True}),
                 "负面提示词": ("STRING", {"forceInput": True}),
                 "图片列表": ("IMAGE",),
+                "系统提示词": ("STRING", {"forceInput": True}),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
@@ -38,7 +39,7 @@ class FxAiQwenEditEnhancedV2:
             return img
         return img
 
-    def encode(self, clip, vae, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None, unique_id=None):
+    def encode(self, clip, vae, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None,系统提示词=None, unique_id=None):
         user_text = 用户提示词.replace("\n", " ").strip()
         target_latent_h, target_latent_w = height // 8, width // 8
 
@@ -88,6 +89,8 @@ class FxAiQwenEditEnhancedV2:
                 h2 = round(h * scale2 / 8) * 8
                 s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
                 ref_latents.append(vae.encode(s2.movedim(1, -1)[:, :, :, :3]))
+        if 系统提示词 is not None:
+           DEFAULT_SYS = 系统提示词
 
         # 组装Qwen对话模板
         template = f"<|im_start|>system\n{DEFAULT_SYS}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
