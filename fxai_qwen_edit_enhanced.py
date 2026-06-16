@@ -29,7 +29,7 @@ class FxAiQwenEditEnhanced:
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
     RETURN_NAMES = ("positive", "negative", "latent")
     FUNCTION = "encode"
-    CATEGORY = "凤希AI/提示词"
+    CATEGORY = "凤希AI/图片"
 
     def to_batch(self, img):
         if img is None:

@@ -30,7 +30,7 @@ class FxAiQwenEditEnhancedV2:
     RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "LATENT")
     RETURN_NAMES = ("positive", "negative", "latent")
     FUNCTION = "encode"
-    CATEGORY = "凤希AI/提示词"
+    CATEGORY = "凤希AI/图片"
 
     def to_batch(self, img):
         if img is None:
@@ -71,29 +71,27 @@ class FxAiQwenEditEnhancedV2:
         user_final = (image_part + " " + user_text).strip()
 
         images_vl, ref_latents = [], []
-        # 逐图预处理视觉输入与参考潜变量
         for img in final_image_sequence:
             one_img = img
             samples = one_img.movedim(-1,1).contiguous()
             _, _, h, w = samples.shape
 
-            # Qwen VL标准384基准缩放
             scale = math.sqrt(384 * 384 / (w * h))
             scaled = comfy.utils.common_upscale(samples, round(w * scale), round(h * scale), "area", "disabled")
             images_vl.append(scaled.movedim(1, -1))
 
-            # 生成参考latent，尺寸对齐8倍数
             if vae is not None:
                 scale2 = math.sqrt(1024 * 1024 / (w * h))
                 w2 = round(w * scale2 / 8) * 8
                 h2 = round(h * scale2 / 8) * 8
                 s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
                 ref_latents.append(vae.encode(s2.movedim(1, -1)[:, :, :, :3]))
-        if 系统提示词 is not None:
-           DEFAULT_SYS = 系统提示词
+
+        if 系统提示词 is None:
+           系统提示词 = DEFAULT_SYS
 
         # 组装Qwen对话模板
-        template = f"<|im_start|>system\n{DEFAULT_SYS}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
+        template = f"<|im_start|>system\n{系统提示词}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
 
         # 正向编码
         tokens = clip.tokenize(user_final, vision_images=images_vl, llama_template=template)
@@ -108,15 +106,13 @@ class FxAiQwenEditEnhancedV2:
         if vae is not None and ref_latents:
             positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
 
-        # 初始化latent
-        latent = torch.zeros(1, 4, target_latent_h, target_latent_w, device=comfy.model_management.intermediate_device())
+        latent = torch.zeros(1, 4, target_latent_h, target_latent_w, device=comfy.model_management.intermediate_device(), dtype=torch.float16)
         if vae is not None and final_image_sequence:
             first_img = final_image_sequence[0]
             base = first_img.movedim(-1, 1)
             resized = comfy.utils.common_upscale(base, target_latent_w * 8, target_latent_h * 8, "lanczos", "center")
             latent = vae.encode(resized.movedim(1, -1)[:, :, :, :3])
 
-        # batch扩批优化，避免无意义repeat
         if batch_size > 1:
             positive *= batch_size
             negative *= batch_size

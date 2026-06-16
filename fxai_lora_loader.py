@@ -63,8 +63,8 @@ def load_config(lora_name):
     path = get_config_path(lora_name)
     default_config = {
         "enabled": True,
-        "model_strength": 1.0,
-        "clip_strength": 1.0,
+        "model_strength": "1",
+        "clip_strength": "-1",
         "trigger_words": [],
         "invert": False,
         "fade_start": 1.0,
@@ -145,12 +145,14 @@ class FxAiLoraLoader:
         for item in items:
             lora_name = item.get("lora_name", "")
             enabled = item.get("enabled", True)
-            model_str = item.get("model_strength", 1.0)
-            clip_str = item.get("clip_strength", 1.0)
+            model_str = item.get("model_strength", "1")
+            clip_str = item.get("clip_strength", "-1")
             invert = item.get("invert", False)
             fade_start = item.get("fade_start", 1.0)
             fade_end = item.get("fade_end", 1.0)
             trigger_words = item.get("trigger_words", [])
+            if clip_str == -1:
+               clip_str = model_str
 
             if not enabled or not lora_name:
                 continue

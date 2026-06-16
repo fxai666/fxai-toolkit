@@ -84,7 +84,7 @@ app.registerExtension({
                         addTableRow(self.table, self.lines,
                             item.lora_name || "",
                             item.model_strength || 1.0,
-                            item.clip_strength || 1.0,
+                            item.clip_strength || -1,
                             item.trigger_words || [],
                             item.enabled !== false,
                             item.invert || false,
@@ -127,7 +127,7 @@ app.registerExtension({
                         var item = list[j];
                         var lora_name = item.lora_name || "";
                         var model_strength = item.model_strength || 1.0;
-                        var clip_strength = item.clip_strength || 1.0;
+                        var clip_strength = item.clip_strength || -1;
                         var trigger_words = item.trigger_words || [];
                         var enabled = item.enabled !== false;
                         var invert = item.invert || false;
