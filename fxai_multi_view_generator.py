@@ -10,9 +10,6 @@ class FxAiMultiViewGenerator:
                 "背面": ("BOOLEAN", {"default": True}),
                 "左侧面": ("BOOLEAN", {"default": True}),
             },
-            "optional": {
-                "采样器输入图片": ("IMAGE", {"forceInput": True}),
-            }
         }
 
     RETURN_TYPES = ("STRING","STRING",)
@@ -20,7 +17,7 @@ class FxAiMultiViewGenerator:
     FUNCTION = "make_view_prompts"
     CATEGORY = "凤希AI/图片"
 
-    def make_view_prompts(self, 提示词, 人脸特写, 正面, 右侧面, 背面, 左侧面, 采样器输入图片=None):
+    def make_view_prompts(self, 提示词, 人脸特写, 正面, 右侧面, 背面, 左侧面):
         view_info = [
             (人脸特写, "<sks> close-up face, detailed facial portrait, only face, no upper body,front view"),
             (正面, "<sks> front view, full body, facing forward"),
