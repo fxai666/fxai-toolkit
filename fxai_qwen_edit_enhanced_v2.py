@@ -90,10 +90,8 @@ class FxAiQwenEditEnhancedV2:
         if 系统提示词 is None:
            系统提示词 = DEFAULT_SYS
 
-        # 组装Qwen对话模板
         template = f"<|im_start|>system\n{系统提示词}<|im_end|>\n<|im_start|>user\n{{}}<|im_end|>\n<|im_start|>assistant\n<|im_end|>"
 
-        # 正向编码
         tokens = clip.tokenize(user_final, vision_images=images_vl, llama_template=template)
         positive = clip.encode_from_tokens_scheduled(tokens)
 

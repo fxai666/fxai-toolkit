@@ -93,7 +93,7 @@ NODE_REGISTRY = [
     ("FxAiMultiPromptLoader",     "fxai_multi_prompt_loader",   "凤希AI - 分段场景 - 时间轴获取器"),
     ("FxAiPromptRelayEncode",     "fxai_prompt_relay_encode",   "凤希AI - 时序提示词编码器"),
     ("FxAiQwenEditEnhanced",      "fxai_qwen_edit_enhanced",    "凤希AI - 千问角色融合控制器"),
-    ("FxAiQwenEditEnhancedV2",    "fxai_qwen_edit_enhanced_v2", "凤希AI - 千问多图编辑控制器"),
+    ("FxAiQwenEditEnhancedV2",    "fxai_qwen_edit_enhanced_v2", "凤希AI - 千问图片编辑"),
 
     # 视频类
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
