@@ -84,7 +84,7 @@ app.registerExtension({
                         addTableRow(self.table, self.lines,
                             item.lora_name || "",
                             item.model_strength || 1.0,
-                            item.clip_strength || -1,
+                            item.clip_strength || -1.0,
                             item.trigger_words || [],
                             item.enabled !== false,
                             item.invert || false,
@@ -127,7 +127,7 @@ app.registerExtension({
                         var item = list[j];
                         var lora_name = item.lora_name || "";
                         var model_strength = item.model_strength || 1.0;
-                        var clip_strength = item.clip_strength || -1;
+                        var clip_strength = item.clip_strength || -1.0;
                         var trigger_words = item.trigger_words || [];
                         var enabled = item.enabled !== false;
                         var invert = item.invert || false;
@@ -218,7 +218,7 @@ function createTableHeader(table) {
 function addTableRow(table, lines, lora_name, model_strength, clip_strength, trigger_words, enabled, invert, fade_start, fade_end) {
     lora_name = lora_name || "";
     model_strength = model_strength || 1.0;
-    clip_strength = clip_strength || 1.0;
+    clip_strength = clip_strength || -1.0;
     trigger_words = trigger_words || [];
     enabled = enabled !== false;
     invert = invert || false;
@@ -372,7 +372,7 @@ function addTableRow(table, lines, lora_name, model_strength, clip_strength, tri
     function syncData() {
         lineData.lora_name = nameInput.value.trim();
         lineData.model_strength = parseFloat(modelInput.value) || 1.0;
-        lineData.clip_strength = parseFloat(clipInput.value) || 1.0;
+        lineData.clip_strength = parseFloat(clipInput.value) || -1.0;
         var trigs = triggerInput.value.split(",").map(function (t) {
             return t.trim();
         }).filter(function (t) {

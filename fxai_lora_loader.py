@@ -81,7 +81,6 @@ def load_config(lora_name):
         except:
             pass
 
-    # 2. 没有配置文件 → 提取触发词 + 自动创建JSON
     lora_path = folder_paths.get_full_path("loras", lora_name)
     if lora_path:
         triggers = extract_lora_trigger_words(lora_path)
@@ -145,13 +144,13 @@ class FxAiLoraLoader:
         for item in items:
             lora_name = item.get("lora_name", "")
             enabled = item.get("enabled", True)
-            model_str = item.get("model_strength", "1")
-            clip_str = item.get("clip_strength", "-1")
+            model_str = item.get("model_strength", 1.0)
+            clip_str = item.get("clip_strength", -1.0)
             invert = item.get("invert", False)
             fade_start = item.get("fade_start", 1.0)
             fade_end = item.get("fade_end", 1.0)
             trigger_words = item.get("trigger_words", [])
-            if clip_str == -1:
+            if int(float(clip_str)) == -1:
                clip_str = model_str
 
             if not enabled or not lora_name:
