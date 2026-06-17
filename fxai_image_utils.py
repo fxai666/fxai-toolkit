@@ -199,9 +199,15 @@ class ImageSizeController:
 
         return torch.cat(rows_tensor, dim=1)
 
+    def get_image_width_height(self,img_tensor):
+        h = img_tensor.shape[1]
+        w = img_tensor.shape[2]
+        return h, w
+
 # ===================== 全局导出（方法名完全不变） =====================
 _global_size_controller = ImageSizeController(bg_color=None)
 load_single_image = _global_size_controller.load_single_image
+get_image_width_height = _global_size_controller.get_image_width_height
 fit_to_canvas = _global_size_controller.fit_to_canvas
 crop_fill_to_canvas = _global_size_controller.crop_fill_to_canvas
 stretch_to_size = _global_size_controller.stretch_to_size

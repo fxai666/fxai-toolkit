@@ -14,28 +14,25 @@ class FxAiCharacterImageSelector:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "selected_files": ("STRING", {
+                "图片列表": ("STRING", {
                     "default": "",
                     "multiline": False,
                     "layout": "hidden"
                 }),
             },
-            "hidden": {
-                "unique_id": "UNIQUE_ID"
-            }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("图片列表",)
+    RETURN_TYPES = ("IMAGE","INT",)
+    RETURN_NAMES = ("图片列表","总数量",)
     FUNCTION = "load_images"
     CATEGORY = "凤希AI/角色"
 
-    def load_images(self, selected_files, unique_id=None):
+    def load_images(self, 图片列表):
         images = []
-        if not selected_files.strip():
+        if not 图片列表.strip():
             raise RuntimeError("没有图片，请选择图片文件")
 
-        path_list = [p.strip() for p in selected_files.split(",") if p.strip()]
+        path_list = [p.strip() for p in 图片列表.split(",") if p.strip()]
 
         for rel_path in path_list:
             full_path = get_image_path(rel_path)
@@ -48,4 +45,4 @@ class FxAiCharacterImageSelector:
         if not images:
             raise RuntimeError("没有图片，请选择图片文件")
 
-        return (images,)
+        return (images,len(images),)

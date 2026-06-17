@@ -3,7 +3,7 @@ import { api } from "../../scripts/api.js";
 (function () {
 
     const ext = {
-        name: "FxAi.CharacterSelector.Preview.ES5",
+        name: "FxAi.CharacterSelector.Preview",
         setup: function () {
             var style = document.createElement("style");
             style.textContent = `
@@ -109,7 +109,7 @@ import { api } from "../../scripts/api.js";
                     btn.onclick = function () {
                         FxAiCharacterAssetsSelector(this.value).then(result => {
                             if (result !== undefined) {
-                                var w = self.widgets.find(x => x.name === "selected_files");
+                                var w = self.widgets.find(x => x.name === "图片列表");
                                 w.value = result;
                                 app.graph.setDirtyCanvas(true);
                                 renderPreviews(w.value);
@@ -118,7 +118,7 @@ import { api } from "../../scripts/api.js";
                     };
 
                     setTimeout(() => {
-                        const widget = self.widgets.find(x => x.name === "selected_files");
+                        const widget = self.widgets.find(x => x.name === "图片列表");
                         if (widget && widget.value) {
                             renderPreviews(widget.value);
                         }
