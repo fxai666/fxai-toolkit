@@ -22,7 +22,7 @@ class FxAiPhotoSizeConfig:
                         "竖屏 1080×1920",
                         "横屏 1920×1080"
                     ],
-                    {"default": "竖屏 1080×1920"}
+                    {"default": "正方形 1024×1024"}
                 ),
                 "宽度": ("INT", {
                     "default": 1024,
