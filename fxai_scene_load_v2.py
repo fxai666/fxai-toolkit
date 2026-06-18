@@ -5,7 +5,7 @@ class FxAiSceneLoadV2:
             "required": {
                 "场景数据": ("LIST", {"forceInput": True}),
                 "行索引": ("INT", {"forceInput": True}),
-                "循环复用": ("INT", {"default": 0, "min": 0}),
+                "循环复用": ("INT", {"default": -1, "min": -1}),
             },
             "optional": {
                 "刷新标记": ("INT", {"forceInput": True}),
@@ -22,16 +22,15 @@ class FxAiSceneLoadV2:
 
     def get_scene_data(self, 场景数据, 行索引, 循环复用, 刷新标记=0, 通用提示词="", 尾部通用提示词=""):
         try:
-            if 循环复用 > 1:
-                行索引 = 行索引 % 循环复用
-            elif 循环复用 == 1:
-                行索引 = 0
-
             total_lines = len(场景数据) if isinstance(场景数据, list) else 0
 
-            # ====================== 异常判断：越界 / 无数据
-            if 行索引 < 0 or total_lines == 0 or 行索引 >= total_lines:
-                # 主动抛出异常，附带信息
+            行索引 = 0
+            if 循环复用 > 1:
+                行索引 = 行索引 % 循环复用
+            elif 循环复用 == -1 and total_lines > 0:
+                行索引 = 行索引 % total_lines
+
+            if total_lines == 0 or 行索引 >= total_lines:
                 raise IndexError(
                     f"• 当前行索引：{行索引}\n"
                     f"• 场景总行数：{total_lines}\n"
