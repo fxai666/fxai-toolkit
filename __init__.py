@@ -58,6 +58,7 @@ NODE_REGISTRY = [
     ("FxaiStoryBoard",            "fxai_story_board",           "凤希AI - 分镜生成器 - 进Q群与更多的群友学习：775649071"),
     ("FxaiStoryBoardV2",          "fxai_story_board",           "凤希AI - 分镜生成器V2 - 进Q群与更多的群友学习：775649071"),
     ("FxaiStoryBoardLoad",        "fxai_story_board_load",      "凤希AI - 分镜数据解析器"),
+    ("FxaiStoryBoardLoadV2",      "fxai_story_board_load_v2",   "凤希AI - 分镜数据解析V2"),
     ("FxAiSceneManager",          "fxai_scene_manager",         "凤希AI - 视频场景管理 - 进Q群与更多的群友学习：775649071"),
     ("FxAiSceneManagerV2",        "fxai_scene_manager_v2",      "凤希AI - 视频场景管理V2 - 进Q群与更多的群友学习：775649071"),
     ("FxAiSceneLoad",             "fxai_scene_load",            "凤希AI - 场景数据加载器"),

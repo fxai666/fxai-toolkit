@@ -19,9 +19,8 @@ class FxaiStoryBoardLoad:
     RETURN_TYPES = ("STRING", "INT", "STRING")
     RETURN_NAMES = ("提示词", "行索引", "场景道具")
     FUNCTION = "get_scene_data"
-    CATEGORY = "凤希AI/图片"
+    CATEGORY = "凤希AI/分镜"
 
-    # 正确正则：连续的非数字 → 替换成 一个逗号
     def convert_to_comma(self, text):
         if not text:
             return ""

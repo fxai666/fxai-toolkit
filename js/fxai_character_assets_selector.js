@@ -6,6 +6,8 @@ import { api } from "../../scripts/api.js";
 // ==============================================
 const CATEGORY_CONFIG = {
     "角色": "avatar",
+    "视图": "views",
+    "场景": "scene",
     "套装": "clothes",
     "首饰": "jewelry",
     "上衣": "tops",
@@ -17,7 +19,6 @@ const CATEGORY_CONFIG = {
     "鞋袜": "shoessocks",
     "姿势": "pose",
     "装备": "equipment",
-    "场景": "scene",
     "家具": "furniture",
     "宠物": "pet",
     "座驾": "vehicle",

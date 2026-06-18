@@ -17,7 +17,7 @@ class FxaiStoryBoard:
     RETURN_TYPES = ("LIST", "INT", "INT")
     RETURN_NAMES = ("分镜数据", "循环次数", "开始索引")
     FUNCTION = "execute"
-    CATEGORY = "凤希AI/图片"
+    CATEGORY = "凤希AI/分镜"
 
     def execute(self, lines_data, 开始序号=0, 结束序号=0, 刷新标记=0):
         try:

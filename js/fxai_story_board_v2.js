@@ -88,7 +88,7 @@ app.registerExtension({
                 for (var j = 0; j < list.length; j++) {
                     var item = list[j];
                     let promptText = item.提示词 || "";
-                    let sceneProp = item.场景道具 || "";
+                    let sceneProp = item.角色资源 || "";
                     addLine(this, promptText, sceneProp);
                 }
             } catch (e) {
@@ -107,7 +107,7 @@ app.registerExtension({
                 for (var i = 0; i < this.lines.length; i++) {
                     values.push({
                         提示词: this.lines[i].promptValue,
-                        场景道具: this.lines[i].propValue
+                        角色资源: this.lines[i].propValue
                     });
                 }
                 var json = JSON.stringify(values);
@@ -155,7 +155,7 @@ function openBatchPopup(node) {
     title.style.cssText = "font-size:16px; font-weight:bold; margin-bottom:8px; text-align:center;";
 
     const tip = document.createElement("div");
-    tip.textContent = "只导入提示词字符串数组，例如：[\"提示词1\",\"提示词2\"]，场景道具会自动为空，可手动填写";
+    tip.textContent = "只导入提示词字符串数组，例如：[\"提示词1\",\"提示词2\"]，角色资源会自动为空，可手动填写";
     tip.style.cssText = "font-size:12px; color:#aaa; margin-bottom:10px; line-height:1.4;";
 
     const textarea = document.createElement("textarea");
@@ -223,7 +223,7 @@ function createHeader(node) {
     var labels = [
         { text: "序号", width: "24px" },
         { text: "提示词文本", flex: 1 },
-        { text: "场景道具", width: "120px" },
+        { text: "角色资源", width: "120px" },
         { text: "操作", width: "90px" }
     ];
 
@@ -448,7 +448,7 @@ function updateHidden(node) {
     for (var i = 0; i < node.lines.length; i++) {
         values.push({
             提示词: node.lines[i].promptValue,
-            场景道具: node.lines[i].propValue
+            角色资源: node.lines[i].propValue
         });
     }
     var data = JSON.stringify(values);
