@@ -207,9 +207,6 @@ window.FxAiLoraSelector = function(selectedStr) {
                     var isChecked = defaultSelectedNames.indexOf(lora_name) !== -1;
                     var checkedAttr = isChecked ? "checked" : "";
 
-                    // ==============================
-                    // 关键修复：存 lora_name，不存 index
-                    // ==============================
                     tr.innerHTML =
                         "<td style=\"padding:10px;text-align:center;\">" +
                             "<input type=\"checkbox\" class=\"lora-check\" data-name=\"" + lora_name + "\" " + checkedAttr + ">" +
@@ -236,9 +233,6 @@ window.FxAiLoraSelector = function(selectedStr) {
             });
         }
 
-        // ==============================
-        // 核心修复：通过 lora_name 匹配，永远不会乱
-        // ==============================
         function onCheckChange() {
             selectedItems = [];
             var checks = document.querySelectorAll(".lora-check");
