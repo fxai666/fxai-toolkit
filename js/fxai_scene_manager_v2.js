@@ -290,7 +290,7 @@ function createHeader(node) {
         { text: "音频开始", width: "60px" },
         { text: "图片索引", width: "60px" },
         { text: "尾帧位置", width: "60px" },
-        { text: "转场", width: "30px" },
+        { text: "过渡", width: "30px" },
         { text: "操作", width: "90px" }
     ];
 
