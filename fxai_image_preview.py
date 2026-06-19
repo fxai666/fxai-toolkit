@@ -44,7 +44,6 @@ class FxAiImagePreview:
         elif isinstance(图片, torch.Tensor) and len(图片.shape) == 4:
             tensor_list.append(图片)
 
-        # 遍历所有批次张量，逐图保存
         for batch_tensor in tensor_list:
             for _, single_img_tensor in enumerate(batch_tensor):
                 raw_str = f"{unique_id}_{img_index}"
