@@ -45,7 +45,6 @@ class FxAIGeneratorController:
         }
 
     def process(self, 启用场景分段, 开始索引, 结束索引, 帧率, 宽度, 高度, 长宽对齐基数, 场景分段时长=None, 音频分段时长=None,过渡帧数=9,采样次数=1,自动关机=False):
-        # 1. 纯读取分段时长，不做任何计算
         if 启用场景分段 and 场景分段时长 is not None:
             分段时长 = 场景分段时长
         else:
