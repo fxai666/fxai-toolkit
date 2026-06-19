@@ -10,7 +10,7 @@ import server
 import subprocess
 from aiohttp import web
 
-AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', '.wma')
+AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', '.wma', ".ac3")
 
 def strip_path(path):
     path = (path or "").strip()

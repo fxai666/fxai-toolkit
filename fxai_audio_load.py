@@ -33,7 +33,6 @@ class FxAiLoadAudioByIndex:
             raise RuntimeError(f"文件夹不存在：{folder_path}")
 
         audio_files = []
-        # 换回你原来的判断方式，简单稳定，不会报元组错误
         for filename in sorted(os.listdir(folder_path)):
             if filename.lower().endswith(AUDIO_EXTENSIONS):
                 full_path = os.path.join(folder_path, filename)

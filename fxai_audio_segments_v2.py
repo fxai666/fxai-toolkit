@@ -9,14 +9,15 @@ import numpy as np
 import server
 import subprocess
 from aiohttp import web
-# 导入无下划线工具函数
+# 导入工具类全局音频后缀常量
 from fxai_audio_utils import (
     resolve_audio_path,
     load_audio_tensor_from_file,
     normalize_audio_tensor,
     slice_audio,
     read_waveform_peaks,
-    get_wav_path
+    get_wav_path,
+    AUDIO_EXTENSIONS
 )
 
 MAX_MARKERS = 64
@@ -26,16 +27,15 @@ def list_input_audio_files():
     input_dir = folder_paths.get_input_directory()
     if not input_dir or not os.path.isdir(input_dir):
         return []
-    audio_extensions = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".webm", ".wma", ".ac3"}
+    # 直接使用utils统一后缀，不再本地定义
     discovered = []
     for root, _dirs, files in os.walk(input_dir):
         for filename in files:
-            ext = os.path.splitext(filename)[1].lower()
-            if ext not in audio_extensions:
-                continue
-            full_path = os.path.join(root, filename)
-            rel_path = os.path.relpath(full_path, input_dir).replace("\\", "/")
-            discovered.append(rel_path)
+            # 统一endswith判断方式，和load节点保持一致
+            if filename.lower().endswith(AUDIO_EXTENSIONS):
+                full_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(full_path, input_dir).replace("\\", "/")
+                discovered.append(rel_path)
     return sorted(discovered)
 
 def parse_keyframe_list(value):
