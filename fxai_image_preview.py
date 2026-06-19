@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from PIL import Image
 import folder_paths
+import hashlib
 
 CACHE_DIR = os.path.join(folder_paths.temp_directory, "persist_preview")
 os.makedirs(CACHE_DIR, exist_ok=True)
@@ -46,8 +47,9 @@ class FxAiImagePreview:
         # 遍历所有批次张量，逐图保存
         for batch_tensor in tensor_list:
             for _, single_img_tensor in enumerate(batch_tensor):
-                cache_name = f"cache_{unique_id}_{img_index}"
-                img_filename = f"{cache_name}.png"
+                raw_str = f"{unique_id}_{img_index}"
+                md5_hash = hashlib.md5(raw_str.encode("utf-8")).hexdigest()
+                img_filename = f"{md5_hash}.png"
                 img_path = os.path.join(CACHE_DIR, img_filename)
 
                 np_img = single_img_tensor.cpu().numpy()

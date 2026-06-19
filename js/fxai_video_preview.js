@@ -16,7 +16,7 @@ app.registerExtension({
         video.controls = true;
         video.style.width = "100%";
         video.style.borderRadius = "8px";
-        video.style.maxHeight = "60vh";
+        video.style.maxHeight = "100vh";
 
         node.addDOMWidget("video_player", "container", video);
 
