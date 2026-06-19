@@ -68,6 +68,7 @@ app.registerExtension({
                     if (n) currentNames.push(n);
                 }
                 window.FxAiLoraSelector(currentNames.join(",")).then(function (res) {
+                    console.log(res);
                     if (!res || !Array.isArray(res)) return;
                     for (var i = 0; i < res.length; i++) {
                         var item = res[i];

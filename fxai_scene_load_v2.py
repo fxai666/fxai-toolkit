@@ -24,7 +24,6 @@ class FxAiSceneLoadV2:
         try:
             total_lines = len(场景数据) if isinstance(场景数据, list) else 0
 
-            行索引 = 0
             if 循环复用 > 1:
                 行索引 = 行索引 % 循环复用
             elif 循环复用 == -1 and total_lines > 0:
