@@ -1,55 +1,11 @@
 import os
 import torch
-import torchaudio
-import numpy as np
-
-# 工具函数：加载单段音频（严格对齐ComfyUI音频张量标准）
-def load_single_audio(audio_path, start_seconds=0.0, duration_seconds=0.0):
-    try:
-        # 👇 关键修复：强制指定用 FFmpeg 后端，不使用 torchcodec
-        waveform, sample_rate = torchaudio.load(audio_path, backend="ffmpeg")
-        
-        # 维度修复
-        if waveform.dim() == 1:
-            waveform = waveform.unsqueeze(0)
-        elif waveform.dim() > 2:
-            waveform = waveform.squeeze()[:2, :]
-        
-        # ===================== 按你的思路：取最小值 =====================
-        total_samples = waveform.shape[-1]
-        
-        # 起始采样点（安全限制在 0 ~ 总长度之间）
-        start_sample = int(start_seconds * sample_rate)
-        start_sample = max(0, min(start_sample, total_samples))
-        
-        # 剩余长度 = 总长度 - 起始位置
-        remaining_samples = total_samples - start_sample
-
-        # 用户想要截取的长度
-        if duration_seconds > 0:
-            desired_samples = int(duration_seconds * sample_rate)
-        else:
-            desired_samples = remaining_samples  # 时长=0 → 取全部剩余
-
-        # 最终长度 = 取小的那个（你的核心思路！）
-        final_samples = min(desired_samples, remaining_samples)
-
-        # 安全截取
-        waveform = waveform[..., start_sample : start_sample + final_samples]
-        # =================================================================
-
-        # 空音频检测
-        if waveform.size(-1) == 0:
-            raise RuntimeError("截取后无有效音频")
-
-        # 转为ComfyUI标准格式
-        audio_tensor = waveform.to(torch.float32).unsqueeze(0)
-        return audio_tensor, sample_rate
-    except Exception as e:
-        raise RuntimeError(f"加载/截取音频失败 {audio_path}：{str(e)}")
-
-# 支持的音频格式
-AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', '.wma')
+from fxai_audio_utils import (
+    AUDIO_EXTENSIONS,
+    load_audio_tensor_from_file,
+    normalize_audio_tensor,
+    slice_audio
+)
 
 class FxAiLoadAudioByIndex:
     @classmethod
@@ -65,7 +21,6 @@ class FxAiLoadAudioByIndex:
                 "截取时长秒数": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.001, "precision": 3}),
             }
         }
-
     RETURN_TYPES = ("AUDIO", "INT", "STRING", "INT")
     RETURN_NAMES = ("音频", "采样率", "当前音频路径", "总音频数量")
     FUNCTION = "load_audio"
@@ -73,18 +28,19 @@ class FxAiLoadAudioByIndex:
 
     def load_audio(self, 音频文件夹路径, 音频索引, 刷新标记=0, 起始秒数=0.0, 截取时长秒数=0.0):
         folder_path = 音频文件夹路径.strip()
-        
+
         if not os.path.isdir(folder_path):
             raise RuntimeError(f"文件夹不存在：{folder_path}")
-        
+
         audio_files = []
+        # 换回你原来的判断方式，简单稳定，不会报元组错误
         for filename in sorted(os.listdir(folder_path)):
             if filename.lower().endswith(AUDIO_EXTENSIONS):
                 full_path = os.path.join(folder_path, filename)
                 audio_files.append(full_path)
-        
+
         total_audios = len(audio_files)
-        
+
         if total_audios == 0 or 音频索引 >= total_audios:
             empty_waveform = torch.zeros(1, 2, 44100, dtype=torch.float32)
             empty_audio = {
@@ -92,18 +48,24 @@ class FxAiLoadAudioByIndex:
                 "sample_rate": 44100
             }
             return (empty_audio, 44100, "索引越界-无音频", total_audios)
-        
+
         target_path = audio_files[音频索引 % total_audios]
-        
-        audio_tensor, sample_rate = load_single_audio(
-            target_path,
-            start_seconds=起始秒数,
-            duration_seconds=截取时长秒数
-        )
-        
-        audio_output = {
-            "waveform": audio_tensor,
-            "sample_rate": sample_rate
-        }
-        
-        return (audio_output, sample_rate, target_path, total_audios)
+
+        audio_dict = load_audio_tensor_from_file(target_path)
+        waveform, sample_rate = normalize_audio_tensor(audio_dict)
+
+        total_sec = waveform.shape[-1] / sample_rate
+        start_sec = max(0.0, 起始秒数)
+        end_sec = total_sec
+        if 截取时长秒数 > 0:
+            end_sec = start_sec + 截取时长秒数
+        end_sec = min(end_sec, total_sec)
+
+        start_frame = int(start_sec * sample_rate)
+        end_frame = int(end_sec * sample_rate)
+        final_audio = slice_audio(audio_dict, start_frame, end_frame)
+
+        # 复制双声道，兼容旧工作流
+        final_audio["waveform"] = final_audio["waveform"].repeat(1, 2, 1)
+
+        return (final_audio, sample_rate, target_path, total_audios)
