@@ -35,7 +35,7 @@ def extract_lora_trigger_words(lora_path):
             except:
                 pass
 
-        return list(set(tags))
+        return tags
     except:
         return []
 
@@ -132,15 +132,17 @@ class FxAiLoraLoader:
             }
         }
 
-    def run(self, model, clip=None,提示词=None, lora_data="[]"):
-        triggers = []
+    def run(self, model, clip=None, 提示词=None, lora_data="[]"):
+        # 原始输入前置提示词
+        base_prompt = 提示词.strip() if (提示词 is not None and 提示词.strip()) else ""
+        lora_tag_lines = []
+
         try:
             items = json.loads(lora_data)
         except:
             items = []
-        if  提示词 is not None:
-            triggers.append(提示词)
 
+        # 严格按照 lora_data 数组顺序遍历，顺序完全保留
         for item in items:
             lora_name = item.get("lora_name", "")
             enabled = item.get("enabled", True)
@@ -150,8 +152,9 @@ class FxAiLoraLoader:
             fade_start = item.get("fade_start", 1.0)
             fade_end = item.get("fade_end", 1.0)
             trigger_words = item.get("trigger_words", [])
+
             if int(float(clip_str)) == -1:
-               clip_str = model_str
+                clip_str = model_str
 
             if not enabled or not lora_name:
                 continue
@@ -173,11 +176,16 @@ class FxAiLoraLoader:
             except Exception as e:
                 raise RuntimeError(f"[凤希AI LoRA加载失败] {lora_name}\n失败原因：{str(e)}") from e
 
+            # 当前LoRA的tag拼接成一行，加入列表（顺序和加载LoRA完全一致）
             if isinstance(trigger_words, list):
-                triggers.extend(trigger_words)
+                tag_list = [t.strip() for t in trigger_words if t.strip()]
             else:
-                triggers.append(str(trigger_words))
+                tag_list = [str(trigger_words).strip()] if str(trigger_words).strip() else []
+            
+            if tag_list:
+                line_text = ", ".join(tag_list)
+                lora_tag_lines.append(line_text)
 
-        triggers_clean = list(set([t.strip() for t in triggers if t.strip()]))
-        trigger_out = ", ".join(triggers_clean)
-        return (model, clip, trigger_out)
+
+        final_prompt =f'{base_prompt}\n' +  ",".join(lora_tag_lines)
+        return (model, clip, final_prompt)

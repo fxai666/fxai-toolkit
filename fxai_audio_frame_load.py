@@ -59,17 +59,15 @@ class FxAIAudioSegmentLoad:
         sample_rate = 原始音频["sample_rate"]
         waveform = 原始音频["waveform"]
 
-        total_samples = waveform.size(-1)  # 永远取最后一维 = 总采样数（通用所有维度）
+        total_samples = waveform.size(-1)
 
-        # ========== 100% 保留你原来的计算逻辑 ==========
         start_sample = int(实际开始秒 * sample_rate)
         end_sample = start_sample + int((分段时长[当前索引] + 过渡帧数/帧率 + 0.5) * sample_rate)
 
-        # ========== 安全边界（修复空音频问题） ==========
         start_sample = max(0, min(start_sample, total_samples))
         end_sample = max(start_sample, min(end_sample, total_samples))
 
-        截取后音频_data = waveform[..., start_sample:end_sample]  # ... 代表所有前面维度，通用1/2/3维
+        截取后音频_data = waveform[..., start_sample:end_sample]
         截取后音频 = {
             "waveform": 截取后音频_data,
             "sample_rate": sample_rate
