@@ -11,7 +11,7 @@ class FxAiLtxvGuideFrames:
                 "负向条件": ("CONDITIONING",),
                 "视频VAE": ("VAE",),
                 "视频潜变量": ("LATENT",),
-                "引导图批量": ("IMAGE",),  # 图片数组 批量输入
+                "引导图批量": ("IMAGE",),
                 "指定帧索引": ("INT", {"default": 0, "min": -9999, "max": 9999}),
                 "引导强度": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
             }

@@ -77,6 +77,7 @@ NODE_REGISTRY = [
     ("FxAiImageLoadBase64",       "fxai_image_load_base64",     "凤希AI - 加载Base64图片"),
     ("FxAiMultiViewGenerator",    "fxai_multi_view_generator",  "凤希AI - 多视图提示词增强"),
     ("FxAiQwenEditMultiView",     "fxai_qwen_edit_multi_view",  "凤希AI - 多视图生成器"),
+    ("FxAiQwenEditThreeView",     "fxai_qwen_edit_three_view",  "凤希AI - 三视图生成器"),
     ("FxAiImageSelectorByIndex",  "fxai_image_selector_byindex","凤希AI - 获取资源图片"),
 	
     # 角色类

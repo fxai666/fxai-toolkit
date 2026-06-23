@@ -11,6 +11,8 @@ const CATEGORY_CONFIG = {
     "角色": "avatar",
     "视图": "views",
     "场景": "scene",
+    "素材": "sucai",
+    "融合": "万图融合",
     "套装": "clothes",
     "首饰": "jewelry",
     "上衣": "tops",
@@ -26,8 +28,6 @@ const CATEGORY_CONFIG = {
     "宠物": "pet",
     "座驾": "vehicle",
     "产品": "products",
-    "素材": "sucai",
-    "融合": "万图融合",
     "其他": "other"
 };
 
