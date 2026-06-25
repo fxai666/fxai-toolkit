@@ -233,6 +233,8 @@ class FxAiVideoGeneratorV4:
         
         if 过渡帧引导 is not None and len(过渡帧引导) > 0:
             guide_frame = 过渡帧引导[0:1]
+            if guide_frame.size(3) == 4:
+               guide_frame = guide_frame[..., :3]
             transition_frames = torch.cat([transition_frames, guide_frame], dim=0)
         
         video_path = save_video(
