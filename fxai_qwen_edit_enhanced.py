@@ -16,7 +16,6 @@ class FxAiQwenEditEnhanced:
                 "负面提示词": ("STRING", {"forceInput": True}),
                 "width": ("INT", {"default": 960, "min": 512, "max": 4096, "step": 8}),
                 "height": ("INT", {"default": 1280, "min": 512, "max": 4096, "step": 8}),
-                "batch_size": ("INT", {"default": 1, "min": 1, "max": 64, "step": 1}),
             },
             "optional": {
                 "vae": ("VAE",),
@@ -38,7 +37,7 @@ class FxAiQwenEditEnhanced:
             return img
         return img
 
-    def encode(self, clip, 用户提示词, 负面提示词, width, height, batch_size, vae=None, 人物列表=None, 图片列表=None, unique_id=None):
+    def encode(self, clip, 用户提示词, 负面提示词, width, height, vae=None, 人物列表=None, 图片列表=None, unique_id=None):
         user_text = 用户提示词.replace("\n", " ").strip()
         target_latent_h, target_latent_w = height // 8, width // 8
 
@@ -115,26 +114,11 @@ class FxAiQwenEditEnhanced:
         neg_tokens = clip.tokenize(neg_input)
         negative = clip.encode_from_tokens_scheduled(neg_tokens)
 
-        # 绑定参考latent到正向条件
         if vae is not None and ref_latents:
             positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
 
-        # 初始化输出latent画布
         dev = comfy.model_management.intermediate_device()
         latent_base = torch.zeros(1, 4, target_latent_h, target_latent_w, device=dev)
-        if vae is not None and len(final_image_sequence) > 0:
-            first_ref_img = final_image_sequence[0]
-            img_tensor = first_ref_img.movedim(-1, 1)
-            resize_full = comfy.utils.common_upscale(img_tensor, target_latent_w * 8, target_latent_h * 8, "lanczos", "center")
-            latent_base = vae.encode(resize_full.movedim(1, -1)[:, :, :, :3])
 
-        # batch批量扩展
-        if batch_size > 1:
-            positive *= batch_size
-            negative *= batch_size
-            latent_out_samples = latent_base.repeat(batch_size, 1, 1, 1)
-        else:
-            latent_out_samples = latent_base
-
-        latent_output = {"samples": latent_out_samples}
+        latent_output = {"samples": latent_base}
         return (positive, negative, latent_output)

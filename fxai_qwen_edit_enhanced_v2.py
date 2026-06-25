@@ -16,7 +16,6 @@ class FxAiQwenEditEnhancedV2:
                 "vae": ("VAE",),
                 "width": ("INT", {"default": 960, "min": 512, "max": 4096, "step": 8}),
                 "height": ("INT", {"default": 1280, "min": 512, "max": 4096, "step": 8}),
-                "batch_size": ("INT", {"default": 1, "min": 1, "max": 64, "step": 1}),
             },
             "optional": {
                 "用户提示词": ("STRING", {"forceInput": True}),
@@ -39,7 +38,7 @@ class FxAiQwenEditEnhancedV2:
             return img
         return img
 
-    def encode(self, clip, vae, width, height, batch_size, 用户提示词="", 负面提示词=None, 图片列表=None,系统提示词=None, unique_id=None):
+    def encode(self, clip, vae, width, height, 用户提示词="", 负面提示词=None, 图片列表=None,系统提示词=None, unique_id=None):
         user_text = 用户提示词.replace("\n", " ").strip()
         target_latent_h, target_latent_w = height // 8, width // 8
 
@@ -80,12 +79,11 @@ class FxAiQwenEditEnhancedV2:
             scaled = comfy.utils.common_upscale(samples, round(w * scale), round(h * scale), "area", "disabled")
             images_vl.append(scaled.movedim(1, -1))
 
-            if vae is not None:
-                scale2 = math.sqrt(1024 * 1024 / (w * h))
-                w2 = round(w * scale2 / 8) * 8
-                h2 = round(h * scale2 / 8) * 8
-                s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
-                ref_latents.append(vae.encode(s2.movedim(1, -1)[:, :, :, :3]))
+            scale2 = math.sqrt(1024 * 1024 / (w * h))
+            w2 = round(w * scale2 / 8) * 8
+            h2 = round(h * scale2 / 8) * 8
+            s2 = comfy.utils.common_upscale(samples, w2, h2, "area", "disabled")
+            ref_latents.append(vae.encode(s2.movedim(1, -1)[:, :, :, :3]))
 
         if 系统提示词 is None:
            系统提示词 = DEFAULT_SYS
@@ -94,30 +92,16 @@ class FxAiQwenEditEnhancedV2:
 
         tokens = clip.tokenize(user_final, vision_images=images_vl, llama_template=template)
         positive = clip.encode_from_tokens_scheduled(tokens)
+        if img_count > 0:
+            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
 
-        # 负面提示词兜底
         if not 负面提示词:
             负面提示词 = "丑陋，模糊，低分辨率，最差质量，低质量，JPEG伪影，解剖结构错误，畸形，毁容，突变，多余肢体，多余手臂，多余腿，畸形肢体，手部画得差，手部畸形，多余手指，缺少手指，手指缺失，手指融合，脸部画得差，脸部畸形，毁容的脸，斗鸡眼，长脖子，多余的眼睛，文字，词语，签名，水印，用户名，标志，边框，画框，平铺重复，画得差，出框，错误，画面裁切，畸形的身体"
+
         neg_tokens = clip.tokenize(负面提示词.strip())
         negative = clip.encode_from_tokens_scheduled(neg_tokens)
 
-        if vae is not None and ref_latents:
-            positive = node_helpers.conditioning_set_values(positive, {"reference_latents": ref_latents}, append=True)
-
         latent = torch.zeros(1, 4, target_latent_h, target_latent_w, device=comfy.model_management.intermediate_device(), dtype=torch.float16)
-        if vae is not None and final_image_sequence:
-            first_img = final_image_sequence[0]
-            base = first_img.movedim(-1, 1)
-            resized = comfy.utils.common_upscale(base, target_latent_w * 8, target_latent_h * 8, "lanczos", "center")
-            latent = vae.encode(resized.movedim(1, -1)[:, :, :, :3])
-
-        if batch_size > 1:
-            positive *= batch_size
-            negative *= batch_size
-            latent_samples = latent.repeat(batch_size, 1, 1, 1)
-        else:
-            latent_samples = latent
-
-        latent_out = {"samples": latent_samples}
+        latent_out = {"samples": latent}
 
         return (positive, negative, latent_out)

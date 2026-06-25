@@ -30,7 +30,7 @@ class FxAiCharacterImageSelector:
     def load_images(self, 图片列表):
         images = []
         if not 图片列表.strip():
-            raise RuntimeError("没有图片，请选择图片文件")
+           return (None,0)
 
         path_list = [p.strip() for p in 图片列表.split(",") if p.strip()]
 

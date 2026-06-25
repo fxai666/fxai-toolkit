@@ -20,7 +20,7 @@ class FxAiCharacterImageByIndex:
 
     def get_index_image(self, 图片列表, 索引):
         if not 图片列表:
-            raise RuntimeError("传入的图片列表为空")
+            return (None,)
         
         total_num = len(图片列表)
         if 索引 >= total_num:
