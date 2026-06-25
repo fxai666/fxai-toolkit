@@ -55,6 +55,7 @@ NODE_REGISTRY = [
     # 场景/文本类
     ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
     ("FxAiMultiLineTextLoad",     "fxai_multiline_text_load",   "凤希AI - 场景提示词加载器"),
+    ("FxAiMultiLineTextGrid",     "fxai_multiline_text_grid",   "凤希AI - 场景多宫格加载器"),
     ("FxaiStoryBoard",            "fxai_story_board",           "凤希AI - 分镜生成器 - 进Q群与更多的群友学习：775649071"),
     ("FxaiStoryBoardV2",          "fxai_story_board",           "凤希AI - 分镜生成器V2 - 进Q群与更多的群友学习：775649071"),
     ("FxaiStoryBoardLoad",        "fxai_story_board_load",      "凤希AI - 分镜数据解析器"),
