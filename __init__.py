@@ -51,6 +51,7 @@ NODE_REGISTRY = [
     ("FxAiSingleAudioProc",       "fxai_single_audio_proc",     "凤希AI - 单音频处理器"),
     ("FxAiAudioMerge",            "fxai_audio_merge",           "凤希AI - 多音频合并"),
     ("FxAiAudioAvgSplit",         "fxai_audio_avg_split",       "凤希AI - 音频平均分段器"),
+    ("FxAIAudioFrameCalculate",   "fxai_audio_frame_calculate", "凤希AI - 音频帧数计算器"),
 
     # 场景/文本类
     ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),

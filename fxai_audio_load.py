@@ -16,7 +16,6 @@ class FxAiLoadAudioByIndex:
                 "音频索引": ("INT", {"default": 0, "min": 0}),
             },
             "optional": {
-                "刷新标记": ("INT", {"forceInput": True}),
                 "起始秒数": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.001, "precision": 3}),
                 "截取时长秒数": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.001, "precision": 3}),
             }
@@ -26,7 +25,7 @@ class FxAiLoadAudioByIndex:
     FUNCTION = "load_audio"
     CATEGORY = "凤希AI/音频"
 
-    def load_audio(self, 音频文件夹路径, 音频索引, 刷新标记=0, 起始秒数=0.0, 截取时长秒数=0.0):
+    def load_audio(self, 音频文件夹路径, 音频索引, 起始秒数=0.0, 截取时长秒数=0.0):
         folder_path = 音频文件夹路径.strip()
 
         if not os.path.isdir(folder_path):
