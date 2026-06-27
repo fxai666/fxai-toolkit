@@ -8,6 +8,13 @@ import safetensors
 from aiohttp import web
 from nodes import LoraLoader
 
+# 新增类型转换函数
+def safe_float(val, default=1.0):
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
 # ====================== LoRA 触发词提取 ======================
 def extract_lora_trigger_words(lora_path):
     try:
@@ -63,8 +70,8 @@ def load_config(lora_name):
     path = get_config_path(lora_name)
     default_config = {
         "enabled": True,
-        "model_strength": "1",
-        "clip_strength": "-1",
+        "model_strength": 1.0,
+        "clip_strength": -1.0,
         "trigger_words": [],
         "invert": False,
         "fade_start": 1.0,
@@ -76,8 +83,15 @@ def load_config(lora_name):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 user_config = json.load(f)
+                if "model_strength" in user_config:
+                    user_config["model_strength"] = safe_float(user_config["model_strength"], 1.0)
+                if "clip_strength" in user_config:
+                    user_config["clip_strength"] = safe_float(user_config["clip_strength"], -1.0)
+                if "fade_start" in user_config:
+                    user_config["fade_start"] = safe_float(user_config["fade_start"], 1.0)
+                if "fade_end" in user_config:
+                    user_config["fade_end"] = safe_float(user_config["fade_end"], 1.0)
                 default_config.update(user_config)
-            return default_config
         except:
             pass
 
@@ -146,11 +160,11 @@ class FxAiLoraLoader:
         for item in items:
             lora_name = item.get("lora_name", "")
             enabled = item.get("enabled", True)
-            model_str = item.get("model_strength", 1.0)
-            clip_str = item.get("clip_strength", -1.0)
+            model_str = safe_float(item.get("model_strength", 1.0))
+            clip_str = safe_float(item.get("clip_strength", -1.0))
             invert = item.get("invert", False)
-            fade_start = item.get("fade_start", 1.0)
-            fade_end = item.get("fade_end", 1.0)
+            fade_start = safe_float(item.get("fade_start", 1.0))
+            fade_end = safe_float(item.get("fade_end", 1.0))
             trigger_words = item.get("trigger_words", [])
 
             if int(float(clip_str)) == -1:
@@ -186,6 +200,5 @@ class FxAiLoraLoader:
                 line_text = ", ".join(tag_list)
                 lora_tag_lines.append(line_text)
 
-
-        final_prompt =f'{base_prompt}\n' +  ",".join(lora_tag_lines)
+        final_prompt = f'{base_prompt}\n' + ",".join(lora_tag_lines)
         return (model, clip, final_prompt)
