@@ -172,16 +172,29 @@ function addUI(node) {
     btnDiv.style.gap = "8px";
     btnDiv.style.marginBottom = "8px";
     container.appendChild(btnDiv);
-
+    
+    var selectBtn = document.createElement("button");
+    selectBtn.textContent = "📁 选择目录";
     var uploadBtn = document.createElement("button");
     uploadBtn.textContent = "📤 选择视频上传";
     var refreshBtn = document.createElement("button");
     refreshBtn.textContent = "🔄 刷新";
     var applyBtn = document.createElement("button");
     applyBtn.textContent = "✅ 应用排序/删除";
+    btnDiv.appendChild(selectBtn);
     btnDiv.appendChild(uploadBtn);
     btnDiv.appendChild(refreshBtn);
     btnDiv.appendChild(applyBtn);
+    
+    selectBtn.onclick=function(){
+        FxAiFolderSelector("video").then(result => {
+            if(result!==undefined)
+            {
+                subdirWidget.value = result;
+                updateList();
+            }
+        });
+    }
 
     var listDiv = document.createElement("div");
     listDiv.style.display = "flex";

@@ -8,6 +8,7 @@ import mimetypes
 import soundfile as sf
 import numpy as np
 import torchaudio
+import time
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -209,7 +210,6 @@ class FxAiAudioManager:
             },
             "optional":{
                 "音频": ("AUDIO", {"forceInput": True}),
-                "刷新标记": ("INT", {"forceInput": True}),
             }
         }
 
@@ -240,19 +240,21 @@ class FxAiAudioManager:
         except Exception as e:
             print(f"❌ 保存音频失败：{e}")
 
-    def run(self, 目录="", 音频=None,刷新标记=0):
+    def run(self, 目录="", 音频=None,):
         target_dir = get_audio_dir(目录)
         if 音频 is not None:
             self.save_tensor_audio(音频, target_dir)
         
         files = list_audios(target_dir)
 
-        # ==================== 【新增】生成分段列表 ====================
         duration_list = []
         for f in files:
             audio_path = os.path.join(target_dir, f)
             duration = get_audio_duration(audio_path)
             duration_list.append(duration)
 
-        # ==================== 【新增】返回分段列表 ====================
         return (target_dir, len(files), 音频, duration_list)
+
+    @classmethod
+    def IS_CHANGED(s):
+        return str(time.time())
