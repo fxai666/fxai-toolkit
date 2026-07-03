@@ -214,7 +214,6 @@ class FxAiVideoMerger:
             },
             "optional": {
                 "音频": ("AUDIO",),
-                "刷新标记": ("ANY",),
             }
         }
 
@@ -223,7 +222,7 @@ class FxAiVideoMerger:
     FUNCTION = "run"
     CATEGORY = "凤希AI/视频"
 
-    def run(self, 源视频文件夹路径, 文件数量=1, 名称前缀="fxai", 音频=None, 刷新标记=None):
+    def run(self, 源视频文件夹路径, 文件数量=1, 名称前缀="fxai", 音频=None):
         time_str = time.strftime("%Y%m%d_%H%M%S")
         final_name = f"{名称前缀}_{time_str}"
         
@@ -239,3 +238,7 @@ class FxAiVideoMerger:
             
         gc.collect()
         return (video_path or "",)
+
+    @classmethod
+    def IS_CHANGED(s):
+        return str(time.time())
