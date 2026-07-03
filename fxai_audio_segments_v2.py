@@ -8,6 +8,7 @@ import folder_paths
 import numpy as np
 import server
 import subprocess
+import time
 from aiohttp import web
 # 导入工具类全局音频后缀常量
 from fxai_audio_utils import (
@@ -116,7 +117,6 @@ class FxAiAudioSegmenterV2:
                 "平均分段时长": ("FLOAT", {"default": 15.00, "step": 0.01, "round": 0.01}),
             },
             "optional": {
-                "刷新标记": ("INT", {"forceInput": True}),
                 "音频": ("AUDIO", {"forceInput": True}),
             }
         }
@@ -133,7 +133,7 @@ class FxAiAudioSegmenterV2:
             return True
         except Exception as e:
             return str(e)
-    def select_segment(self, 音频文件="", 关键帧JSON="[]", 跳过初始段=False, 包含尾部段=True, 是否平均分段=True, 平均分段时长=15, 刷新标记=0, 音频=None):
+    def select_segment(self, 音频文件="", 关键帧JSON="[]", 跳过初始段=False, 包含尾部段=True, 是否平均分段=True, 平均分段时长=15, 音频=None):
         audio = 音频 or load_audio_tensor_from_file(音频文件)
         waveform, sample_rate = normalize_audio_tensor(audio)
         total_duration = waveform.shape[-1] / sample_rate if sample_rate else 0.0
@@ -146,6 +146,11 @@ class FxAiAudioSegmenterV2:
         selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
         return (selected, segment_list)
+		
+
+    @classmethod
+    def IS_CHANGED(s):
+        return str(time.time())
 
 async def simple_audio_file(request):
     audio_file = request.query.get("audio_file", "")
