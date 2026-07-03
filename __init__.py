@@ -131,6 +131,7 @@ NODE_REGISTRY = [
     ("FxAiInputInt",              "fxai_input_int",             "凤希AI - 整数输入"),
     ("FxAiInputFloat",            "fxai_input_float",           "凤希AI - 小数输入"),
     ("FxAiFrameCalculator",       "fxai_frame_calculate",       "凤希AI - 帧数计算器"),
+    ("FxAiRandomSeed",            "fxai_random_seed",           "凤希AI - 随机数"),
 
     # 潜空间类
     ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),
