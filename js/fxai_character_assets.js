@@ -139,12 +139,11 @@ function addUI(node) {
     container.style.padding = "8px";
     container.style.border = "1px solid #555";
     container.style.borderRadius = "4px";
-    container.style.minWidth = "300px";
     container.style.boxSizing = "border-box";
 
     var domWidget = node.addDOMWidget("image_ui", "image_ui", container);
     domWidget.computeSize = function() {
-        return [790, 530];
+        return [790, 560];
     };
 
     // ==============================================
