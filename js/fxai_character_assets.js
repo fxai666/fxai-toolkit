@@ -10,8 +10,9 @@ var updatedListBindFlag = new WeakMap();
 const CATEGORY_CONFIG = {
     "角色": "avatar",
     "视图": "views",
-    "场景": "scene",
     "素材": "sucai",
+    "场景": "scene",
+    "单场景": "单场景",
     "融合": "万图融合",
     "套装": "clothes",
     "首饰": "jewelry",
