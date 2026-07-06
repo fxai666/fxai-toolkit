@@ -116,6 +116,7 @@ NODE_REGISTRY = [
     ("FxAiMaxRatioSize",          "fxai_max_ratio_size",        "凤希AI - 宽高-按比例"),
     ("FxAiMaxRatioSizeV2",        "fxai_max_ratio_size_v2",     "凤希AI - 宽高-按比例V2"),
     ("FxAiPhotoSizeConfig",       "fxai_photo_size_config",     "凤希AI - 宽高-按照片预设"),
+    ("FxAiPhotoSizeConfigV2",     "fxai_photo_size_config_v2",  "凤希AI - 宽高设置"),
     ("FxAiIntToFloat",            "fxai_int_to_float",          "凤希AI - 整数转小数"),
     ("FxAIGeneratorController",   "fxai_generator_controller",  "凤希AI - 生成控制器"),
     ("FxAiFrameGenerator",        "fxai_frame_generator",       "凤希AI - 首尾帧生成器"),
