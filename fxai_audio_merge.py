@@ -94,7 +94,8 @@ class FxAiAudioMerge:
             with tempfile.NamedTemporaryFile(mode="w", delete=False, encoding="utf-8", suffix=".txt") as f:
                 for fname in audio_files:
                     fpath = os.path.join(文件夹路径, fname)
-                    f.write(f"file '{fpath.replace("'", "'\\''")}'\n")
+                    escaped_path = fpath.replace("'", "'\\''")
+                    f.write('file \'{}\'\n'.format(escaped_path))
                 file_list_path = f.name
 
             temp_out = tempfile.NamedTemporaryFile(delete=False, suffix=".wav").name
