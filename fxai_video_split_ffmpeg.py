@@ -82,8 +82,8 @@ class FxAiVideoSplitFFmpeg:
         # 拆分原文件名、目录、后缀
         file_dir = os.path.dirname(clean_video_path)
         file_name_raw, ext = os.path.splitext(os.path.basename(clean_video_path))
-        # 新建分段文件夹：同级目录下 [原视频名]_split
-        split_folder = os.path.join(file_dir, f"{file_name_raw}_split")
+        # 新建分段文件夹：同级目录下 [原视频名]
+        split_folder = os.path.join(file_dir, f"{file_name_raw}")
         # 不存在则创建目录
         if not os.path.exists(split_folder):
             os.makedirs(split_folder)
