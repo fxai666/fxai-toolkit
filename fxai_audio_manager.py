@@ -254,7 +254,7 @@ class FxAiAudioManager:
             duration_list.append(duration)
 
         return (target_dir, len(files), 音频, duration_list)
-
+		
     @classmethod
-    def IS_CHANGED(s):
-        return str(time.time())
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")

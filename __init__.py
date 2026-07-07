@@ -109,6 +109,7 @@ NODE_REGISTRY = [
     ("FxAiVideoManager",          "fxai_video_manager",         "凤希AI - 视频管理"),
     ("FxAiVideoLoad",             "fxai_video_load",            "凤希AI - 视频加载"),
     ("FxAiVideoToVR",             "fxai_video_tovr",            "凤希AI - 视频转VR"),
+    ("FxAiVideoSplitFFmpeg",      "fxai_video_split_ffmpeg",    "凤希AI - 视频分割"),
 
     # 控制/工具类
     ("FxAiSizeConfig",            "fxai_size_config",           "凤希AI - 宽高"),

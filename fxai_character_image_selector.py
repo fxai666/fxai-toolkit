@@ -46,7 +46,7 @@ class FxAiCharacterImageSelector:
             raise RuntimeError("没有图片，请选择图片文件")
 
         return (images,len(images),)
-
+		
     @classmethod
-    def IS_CHANGED(s):
-        return str(time.time())
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")

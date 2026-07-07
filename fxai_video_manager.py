@@ -231,6 +231,5 @@ class FxAiVideoManager:
 
     def run(self, 目录="", 视频=None):
         target_dir = get_video_dir(目录)
-        # 若需要保存传入的视频张量，可在这里实现
         files = list_videos(target_dir)
         return (target_dir, len(files))
