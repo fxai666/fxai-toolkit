@@ -88,8 +88,6 @@ function formatTime(seconds) {
     return `${minutes}:${remainder.toFixed(2).padStart(5, "0")}`;
 }
 
-// 移除「分段索引」相关的 normalizeSegmentIndexWidget 函数
-
 // ---------- 上传功能 ----------
 async function uploadFile(file, onProgress) {
     const body = new FormData();
@@ -149,7 +147,27 @@ function buildEditor(node) {
     toolbar.style.display = "flex";
     toolbar.style.flexWrap = "wrap";
     toolbar.style.gap = "8px";
-    toolbar.style.alignItems = "center";    
+    toolbar.style.alignItems = "center"; 
+    
+    var selectBtn = document.createElement("button");
+    selectBtn.textContent = "📁 选择音频";
+    toolbar.appendChild(selectBtn);
+    
+    selectBtn.onclick = function () {
+        FxAiAudioSelector(this.value).then(result => {
+            if (result !== undefined) {
+                const pathWidget = getWidget(node, "音频文件");
+                if (pathWidget) {
+                    pathWidget.value = result;
+                    if (pathWidget.callback) {
+                        pathWidget.callback(result);
+                    }
+                } else {
+                    console.warn("未找到音频文件控件");
+                }
+            }
+        });
+    };
 
     // 原有上传按钮
     const uploadButton = document.createElement("button");

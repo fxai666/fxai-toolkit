@@ -23,23 +23,35 @@ def strip_path(path):
 def get_wav_path(file_path):
     base, _ext = os.path.splitext(file_path)
     return base + ".wav"
-
+	
 def resolve_audio_path(audio_file):
     audio_file = strip_path(audio_file)
     if not audio_file:
         raise ValueError("音频文件路径为空")
-    wav_file = get_wav_path(audio_file)
-    wav_full_path = os.path.join(folder_paths.get_input_directory(), wav_file)
+
+    if audio_file.startswith("/"):
+        base_dir = folder_paths.base_path
+        target_relative = audio_file.lstrip("/")
+    else:
+        base_dir = folder_paths.get_input_directory()
+        target_relative = audio_file
+
+    wav_file = get_wav_path(target_relative)
+    wav_full_path = os.path.join(base_dir, wav_file)
     if os.path.exists(wav_full_path):
         return wav_full_path
-    original_full_path = os.path.join(folder_paths.get_input_directory(), audio_file)
+		
+    print(f"{wav_full_path}")
+    original_full_path = os.path.join(base_dir, target_relative)
     if not os.path.exists(original_full_path):
         raise ValueError(f"未找到音频文件: {audio_file}")
+
     cmd = [
         "ffmpeg", "-i", original_full_path,
         "-ac", "1", "-f", "wav", "-y", wav_full_path
     ]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+
     if os.path.exists(wav_full_path):
         try:
             os.remove(original_full_path)
