@@ -10,7 +10,7 @@ import server
 import subprocess
 import time
 from aiohttp import web
-# 导入工具类全局音频后缀常量
+
 from fxai_audio_utils import (
     resolve_audio_path,
     load_audio_tensor_from_file,
@@ -28,11 +28,9 @@ def list_input_audio_files():
     input_dir = folder_paths.get_input_directory()
     if not input_dir or not os.path.isdir(input_dir):
         return []
-    # 直接使用utils统一后缀，不再本地定义
     discovered = []
     for root, _dirs, files in os.walk(input_dir):
         for filename in files:
-            # 统一endswith判断方式，和load节点保持一致
             if filename.lower().endswith(AUDIO_EXTENSIONS):
                 full_path = os.path.join(root, filename)
                 rel_path = os.path.relpath(full_path, input_dir).replace("\\", "/")
@@ -101,6 +99,16 @@ def build_segments(total_duration, keyframes, skip_initial, include_tail, is_ave
             new_segs.append((curr, end))
             curr = end
         segments = new_segs
+
+        min_threshold = 5.0
+        if len(segments) >= 2:
+            last_start, last_end = segments[-1]
+            last_length = last_end - last_start
+            if last_length < min_threshold:
+                segments.pop()
+                prev_start, _ = segments[-1]
+                segments[-1] = (prev_start, last_end)
+
     return segments, sum(e-s for s, e in segments)
 
 class FxAiAudioSegmenterV2:

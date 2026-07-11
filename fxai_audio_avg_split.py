@@ -20,6 +20,16 @@ def _build_average_segments(total_duration, average_duration):
             end = total_duration
         segments.append((current, end))
         current = end
+
+    min_threshold = 5.0
+    if len(segments) >= 2:
+        last_start, last_end = segments[-1]
+        last_length = last_end - last_start
+        if last_length < min_threshold:
+            segments.pop()
+            prev_start, _ = segments[-1]
+            segments[-1] = (prev_start, last_end)
+
     return segments
 
 class FxAiAudioAvgSplit:
