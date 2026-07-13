@@ -19,7 +19,7 @@ class FxAiCharacterImageByIndex:
     CATEGORY = "凤希AI/工具"
 
     def get_index_image(self, 图片列表, 索引):
-        if not 图片列表:
+        if 图片列表 is None:
             return (None,)
         
         total_num = len(图片列表)

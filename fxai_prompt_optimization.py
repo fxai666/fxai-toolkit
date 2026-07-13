@@ -8,7 +8,7 @@ from aiohttp import web
 
 try:
     from server import PromptServer
-except:
+except Exception:
     PromptServer = None
 
 default_modes = ""
@@ -25,14 +25,14 @@ async def api_get_ollama_models(request):
                     data = await resp.json()
                     models = [m["name"] for m in data.get("models", [])]
                     return web.json_response({"models": models if models else [default_modes]})
-    except:
+    except Exception:
         pass
     return web.json_response({"models": [default_modes]})
 
 if PromptServer:
     try:
         PromptServer.instance.routes.get("/fxai/prompt/get_models")(api_get_ollama_models)
-    except:
+    except Exception:
         pass
 
 # ------------------------------
@@ -95,15 +95,14 @@ class FxAiPromptGenerator:
             if 分段时长 > 0:
                 系统提示词 = f"待生成的视频长度信息：{分段时长}秒；{系统提示词}"
 
-            # 模型参数使用 模型选择
             resp = requests.post(f"{API主机地址}/api/generate", json={
                 "model": 模型选择,
                 "system": 系统提示词,
                 "prompt": 用户提示词,
                 "images": images,
                 "stream": False,
-				"think":False
-            })
+                "think": False
+            }, timeout=60)
             if resp.status_code == 200:
                 res_text = resp.json().get("response", "").strip()
                 if res_text:
@@ -112,7 +111,7 @@ class FxAiPromptGenerator:
             if 推理后释放资源:
                 try:
                     requests.post(f"{API主机地址}/api/generate", json={"model": 模型选择, "keep_alive": 0}, timeout=3)
-                except:
+                except Exception:
                     pass
 
         except Exception as e:

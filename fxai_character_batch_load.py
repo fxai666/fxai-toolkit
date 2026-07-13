@@ -86,4 +86,5 @@ class FxAiCharacterBatchLoad:
         merged_image = grid_concat_images(images, cols_mode="auto")
         merged_image = scale_down_by_factor(merged_image, 缩小倍数)
         
-        return (images, merged_image, len(images))
+        image_batch = torch.cat(images, dim=0) if len(images) > 1 else images[0]
+        return (image_batch, merged_image, len(images))

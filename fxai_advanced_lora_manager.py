@@ -47,7 +47,7 @@ def load_lora_config(lora_name):
     try:
         with open(path, "r", encoding="utf-8") as f:
             return {**default, **json.load(f)}
-    except:
+    except Exception:
         return default
 
 # ===================== API 接口（前端读取配置用） =====================
@@ -66,7 +66,7 @@ async def api_get_config(request):
 try:
     server.PromptServer.instance.routes.get("/fxai/lora/list")(api_list_loras)
     server.PromptServer.instance.routes.get("/fxai/lora/config")(api_get_config)
-except:
+except Exception:
     pass
 
 # ===================== 核心：LoRA 高级加载函数（所有参数都生效） =====================

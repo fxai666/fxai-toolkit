@@ -7,7 +7,7 @@ union_controlnet_types = {"auto": -1, "openpose": 0, "depth": 1, "hed/pidi/scrib
 
 class easyControlnet:
     def __init__(self):
-        pass
+        self.device = comfy.model_management.get_torch_device()
 
     def apply(self,control_net, vae,image, positive, negative, strength, start_percent=0, end_percent=1, mask=None, union_type=None):
         if strength == 0:

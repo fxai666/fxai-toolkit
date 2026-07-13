@@ -88,9 +88,11 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        proc.stdin.write(raw_pcm)
-        proc.stdin.close()
-        proc.wait()
+        try:
+            proc.stdin.write(raw_pcm)
+        finally:
+            proc.stdin.close()
+            proc.wait()
         
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
@@ -176,17 +178,16 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio=""):
             bufsize=1024*1024*10
         )
 
-        # 分批写入，降低内存峰值（V2逻辑）
-        batch_size = 20
-        for i in range(0, len(img_np), batch_size):
-            batch = img_np[i:i+batch_size]
-            batch_data = b''.join([img.tobytes() for img in batch])
-            proc.stdin.write(batch_data)
+        try:
+            batch_size = 20
+            for i in range(0, len(img_np), batch_size):
+                batch = img_np[i:i+batch_size]
+                batch_data = b''.join([img.tobytes() for img in batch])
+                proc.stdin.write(batch_data)
+        finally:
+            proc.stdin.close()
+            proc.wait()
 
-        proc.stdin.close()
-        proc.wait()
-
-        # V2新增：检查ffmpeg返回码，主动抛出错误
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
 

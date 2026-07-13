@@ -26,7 +26,7 @@ class FxAiScreenManager:
                 lines = lines_data
             else:
                 lines = []
-        except:
+        except Exception:
             lines = []
 
         if not isinstance(lines, list) or len(lines) == 0:
@@ -64,7 +64,7 @@ class FxAiScreenManager:
                         line_data["尾帧位置"] = int(line[5])
                     if len(line) >= 7:
                         line_data["转场"] = int(line[6])
-                except:
+                except Exception:
                     pass
             elif isinstance(line, str):
                 line_data["提示词文本"] = line
@@ -73,3 +73,4 @@ class FxAiScreenManager:
             segment_durations.append(line_data["音频时长"])
 
         return (total_count, scene_data, segment_durations)
+

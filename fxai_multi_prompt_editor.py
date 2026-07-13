@@ -45,7 +45,7 @@ class FxAiMultiPromptEditor:
                 line_data["开始时间"] = float(line.get("开始时间", 0.0))
                 line_data["结束时间"] = float(line.get("结束时间", 15.0))
                 line_data["提示词文本"] = line.get("提示词文本", "")
-            except:
+            except Exception:
                 pass
 
             prompt_data.append(line_data)

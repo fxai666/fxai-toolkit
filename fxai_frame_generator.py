@@ -30,17 +30,24 @@ class FxAiFrameGenerator:
     # 加载图片
     def load_image(self, path):
         try:
-            img = Image.open(path).convert("RGB")
+            with Image.open(path) as img:
+                img = img.convert("RGB")
             img_np = np.array(img).astype(np.float32) / 255.0
             return torch.from_numpy(img_np).unsqueeze(0)
-        except:
+        except Exception:
             return None
 
     # 封装：居中裁剪（只写一次）
     def crop_center(self, img, target_w, target_h):
         w, h = img.size
-        left = (w - target_w) // 2
-        top = (h - target_h) // 2
+        if w < target_w or h < target_h:
+            scale = max(target_w / w, target_h / h)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            w, h = img.size
+        left = max(0, (w - target_w) // 2)
+        top = max(0, (h - target_h) // 2)
         return img.crop((left, top, left + target_w, top + target_h))
 
     # ==============================
@@ -78,9 +85,12 @@ class FxAiFrameGenerator:
 
     def generate_frames(self, 文件夹路径, 首帧索引, 尾帧索引, 启用转场, 输出宽度, 输出高度, 图片序列=None):
         image_files = []
-        for filename in sorted(os.listdir(文件夹路径)):
-            if filename.lower().endswith(IMAGE_EXTENSIONS):
-                image_files.append(os.path.join(文件夹路径, filename))
+        try:
+            for filename in sorted(os.listdir(文件夹路径)):
+                if filename.lower().endswith(IMAGE_EXTENSIONS):
+                    image_files.append(os.path.join(文件夹路径, filename))
+        except OSError:
+            return (None, None)
 
         total = len(image_files)
         if total == 0:

@@ -18,11 +18,14 @@ def get_prompt_dir(subdir=""):
     base_dir = "fxai/prompts"
     target_dir = os.path.join(comfy_root, base_dir)
     if subdir:
-        # 过滤文件名非法字符
         subdir = re.sub(r'[\\/*?:"<>|]', "", subdir)
+        subdir = os.path.normpath(subdir).lstrip(".")
         target_dir = os.path.join(target_dir, subdir)
-    os.makedirs(target_dir, exist_ok=True)
-    return target_dir
+    safe_dir = safe_path_join(comfy_root, os.path.relpath(target_dir, comfy_root))
+    if not safe_dir:
+        return os.path.join(comfy_root, base_dir)
+    os.makedirs(safe_dir, exist_ok=True)
+    return safe_dir
 
 # 列出目录内所有txt提示词文件
 def list_prompts(target_dir):

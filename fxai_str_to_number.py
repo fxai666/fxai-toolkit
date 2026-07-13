@@ -13,5 +13,7 @@ class FxAiStrToNumber:
     CATEGORY = "凤希AI/工具"
 
     def convert(self, 输入数字):
-        
-        return (int(输入数字), float(输入数字))
+        try:
+            return (int(输入数字), float(输入数字))
+        except ValueError:
+            return (0, 0.0)

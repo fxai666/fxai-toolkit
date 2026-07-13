@@ -63,6 +63,7 @@ class FxAiLoadAudioByIndex:
         end_frame = int(end_sec * sample_rate)
         final_audio = slice_audio(audio_dict, start_frame, end_frame)
 
-        final_audio["waveform"] = final_audio["waveform"].repeat(1, 2, 1)
+        if final_audio["waveform"].size(1) == 1:
+            final_audio["waveform"] = final_audio["waveform"].repeat(1, 2, 1)
 
         return (final_audio, sample_rate, target_path, total_audios)

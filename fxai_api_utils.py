@@ -5,12 +5,16 @@ from aiohttp import web
 from server import PromptServer
 
 def get_folder(request):
-    # 从请求参数获取 subdir
     subdir = request.query.get("subdir", "")
 
     comfy_root = folder_paths.base_path
     safe_sub = re.sub(r'[\\/*?:"<>|]', "", subdir.strip())
+    safe_sub = os.path.normpath(safe_sub).lstrip(".")
     target_dir = os.path.join(comfy_root, "fxai", safe_sub)
+    target_dir = os.path.abspath(target_dir)
+    allowed_base = os.path.abspath(os.path.join(comfy_root, "fxai"))
+    if not target_dir.startswith(allowed_base):
+        return web.json_response({"root_path": allowed_base, "sub_dirs": []})
 
     dir_names = []
     if os.path.isdir(target_dir):

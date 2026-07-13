@@ -57,10 +57,11 @@ def list_images(target_dir):
 
 def load_image(file_path):
     try:
-        img = Image.open(file_path).convert("RGB")
+        with Image.open(file_path) as img:
+            img = img.convert("RGB")
         arr = np.array(img).astype(np.float32) / 255.0
         return torch.from_numpy(arr).unsqueeze(0)
-    except:
+    except Exception:
         return None
 
 # ---------- HTTP 路由 ----------

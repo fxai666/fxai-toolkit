@@ -31,17 +31,24 @@ class FxAiFrameGeneratorV2:
     # 加载图片
     def load_image(self, path):
         try:
-            img = Image.open(path).convert("RGB")
+            with Image.open(path) as img:
+                img = img.convert("RGB")
             img_np = np.array(img).astype(np.float32) / 255.0
             return torch.from_numpy(img_np).unsqueeze(0)
-        except:
+        except Exception:
             return None
 
     # 封装：居中裁剪（只写一次）
     def crop_center(self, img, target_w, target_h):
         w, h = img.size
-        left = (w - target_w) // 2
-        top = (h - target_h) // 2
+        if w < target_w or h < target_h:
+            scale = max(target_w / w, target_h / h)
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            w, h = img.size
+        left = max(0, (w - target_w) // 2)
+        top = max(0, (h - target_h) // 2)
         return img.crop((left, top, left + target_w, top + target_h))
 
     def resize_image(self, image_tensor, target_w, target_h):
@@ -77,15 +84,18 @@ class FxAiFrameGeneratorV2:
     # 函数参数新增 过渡帧数
     def generate_frames(self, 文件夹路径, 首帧索引, 尾帧索引, 启用转场, 输出宽度, 输出高度, 图片序列=None, 过渡帧数=0):
         image_files = []
-        for filename in sorted(os.listdir(文件夹路径)):
-            if filename.lower().endswith(IMAGE_EXTENSIONS):
-                image_files.append(os.path.join(文件夹路径, filename))
+        try:
+            for filename in sorted(os.listdir(文件夹路径)):
+                if filename.lower().endswith(IMAGE_EXTENSIONS):
+                    image_files.append(os.path.join(文件夹路径, filename))
+        except OSError:
+            return (None, None, None)
 
         total = len(image_files)
         if total == 0:
             return (None, None,None)
 
-        首帧 = self.load_image(image_files[首帧索引 % total]) if (not 启用转场 or 图片序列 is None) else 图片序列[-过渡帧数:]
+        首帧 = self.load_image(image_files[首帧索引 % total]) if (not 启用转场 or 图片序列 is None) else (图片序列[-过渡帧数:] if 过渡帧数 > 0 else 图片序列[-1:])
         尾帧 = self.load_image(image_files[尾帧索引 % total]) if 启用转场 else self.load_image(image_files[首帧索引 % total])
 
         if 图片序列 is None:

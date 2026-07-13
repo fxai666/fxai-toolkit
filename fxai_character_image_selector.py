@@ -7,6 +7,10 @@ def get_image_path(full_relative_path):
     comfy_root = folder_paths.base_path
     base_dir = "fxai/image"
     target_path = os.path.join(comfy_root, base_dir, full_relative_path)
+    target_path = os.path.abspath(target_path)
+    allowed_base = os.path.abspath(os.path.join(comfy_root, base_dir))
+    if not target_path.startswith(allowed_base):
+        raise ValueError("路径穿越被拒绝")
     return target_path
 
 class FxAiCharacterImageSelector:
@@ -45,7 +49,8 @@ class FxAiCharacterImageSelector:
         if not images:
             raise RuntimeError("没有图片，请选择图片文件")
 
-        return (images,len(images),)
+        image_batch = torch.cat(images, dim=0) if len(images) > 1 else images[0]
+        return (image_batch, len(images))
 		
     @classmethod
     def IS_CHANGED(cls, **kwargs):

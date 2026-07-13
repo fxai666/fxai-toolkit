@@ -91,7 +91,7 @@ class FxAiQwenEditThreeView:
 
         s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
 
-        ref_latents.append(vae.encode(s.movedim(1, -1)))
+        ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
 
         template = (
             "<|im_start|>system\n"

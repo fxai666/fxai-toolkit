@@ -43,15 +43,19 @@ class FxAiAutoShutdown:
         sysos = platform.system()
         try:
             if sysos == "Windows":
-                # Windows 关机命令：shutdown -s -t 秒数
-                subprocess.run(["shutdown", "-s", "-t", str(等待秒数)], capture_output=True)
-                print(f"✅ 凤希AI：已设置 {等待秒数} 秒后自动关机")
+                result = subprocess.run(["shutdown", "-s", "-t", str(等待秒数)], capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"✅ 凤希AI：已设置 {等待秒数} 秒后自动关机")
+                else:
+                    print(f"❌ 凤希AI：关机命令失败 - {result.stderr}")
 
             elif sysos in ("Linux", "Darwin"):
-                # Linux / Mac 用分钟计算，自动换算
                 minutes = max(1, (等待秒数 + 59) // 60)
-                subprocess.run(["sudo", "shutdown", "-h", f"+{minutes}"], capture_output=True)
-                print(f"✅ 凤希AI：已设置 {minutes} 分钟后自动关机")
+                result = subprocess.run(["sudo", "shutdown", "-h", f"+{minutes}"], capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"✅ 凤希AI：已设置 {minutes} 分钟后自动关机")
+                else:
+                    print(f"❌ 凤希AI：关机命令失败 - {result.stderr}")
 
         except Exception as e:
             print(f"❌ 凤希AI：自动关机失败 - {str(e)}")

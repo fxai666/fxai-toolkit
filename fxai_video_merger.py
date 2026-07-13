@@ -85,7 +85,8 @@ def replace_video_audio(video_path, audio_path):
     if not os.path.exists(video_path) or not os.path.exists(audio_path):
         return video_path
 
-    temp_video = video_path.replace(".mp4", "_temp.mp4")
+    base, ext = os.path.splitext(video_path)
+    temp_video = f"{base}_temp{ext}"
     if os.path.exists(temp_video):
         os.remove(temp_video)
         
@@ -100,10 +101,11 @@ def replace_video_audio(video_path, audio_path):
             '-movflags', '+faststart',
             temp_video
         ]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-        shutil.move(temp_video, video_path)
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=3600)
+        shutil.copy2(temp_video, video_path)
     except Exception as e:
         print(f"[凤希AI音频替换失败] {e}")
+    finally:
         if os.path.exists(temp_video):
             os.remove(temp_video)
     return video_path
@@ -239,7 +241,7 @@ class FxAiVideoMerger:
             
         gc.collect()
         return (video_path or "",)
-
+		
     @classmethod
-    def IS_CHANGED(s):
-        return str(time.time())
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")

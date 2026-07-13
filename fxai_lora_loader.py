@@ -39,11 +39,11 @@ def extract_lora_trigger_words(lora_path):
                 freq_dict = json.loads(freq)
                 top_tags = [k for k, v in freq_dict.items() if v >= 5]
                 tags.extend(top_tags[:5])
-            except:
+            except Exception:
                 pass
 
         return tags
-    except:
+    except Exception:
         return []
 
 # ====================== 工具函数 ======================
@@ -92,7 +92,7 @@ def load_config(lora_name):
                 if "fade_end" in user_config:
                     user_config["fade_end"] = safe_float(user_config["fade_end"], 1.0)
                 default_config.update(user_config)
-        except:
+        except Exception:
             pass
 
     lora_path = folder_paths.get_full_path("loras", lora_name)
@@ -100,12 +100,11 @@ def load_config(lora_name):
         triggers = extract_lora_trigger_words(lora_path)
         default_config["trigger_words"] = triggers
 
-    # 自动写入文件（只执行一次！）
     if path:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
-        except:
+        except Exception:
             pass
 
     return default_config
@@ -153,7 +152,7 @@ class FxAiLoraLoader:
 
         try:
             items = json.loads(lora_data)
-        except:
+        except Exception:
             items = []
 
         # 严格按照 lora_data 数组顺序遍历，顺序完全保留

@@ -31,7 +31,15 @@ def get_image_dir(subdir=""):
 # =============== 空文件夹返回 0，完全正常 ===============
 def get_next_number(target_dir):
     files = list_images(target_dir)
-    return len(files)
+    used = set()
+    for f in files:
+        m = re.match(r'^(\d+)', f)
+        if m:
+            used.add(int(m.group(1)))
+    n = 0
+    while n in used:
+        n += 1
+    return n
 
 def list_images(target_dir):
     if not os.path.isdir(target_dir):
@@ -50,10 +58,11 @@ def list_images(target_dir):
 
 def load_image(file_path):
     try:
-        img = Image.open(file_path).convert("RGB")
+        with Image.open(file_path) as img:
+            img = img.convert("RGB")
         arr = np.array(img).astype(np.float32) / 255.0
         return torch.from_numpy(arr).unsqueeze(0)
-    except:
+    except Exception:
         return None
 
 async def get_preview(request):

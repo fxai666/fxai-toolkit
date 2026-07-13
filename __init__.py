@@ -180,8 +180,8 @@ async def fxai_bottom_preview(request):
 
 try:
     PromptServer.instance.add_extra_js("/fxai/image/bottom/preview.js")
-except:
+except Exception:
     try:
         PromptServer.instance.add_extra_code('<script src="/fxai/image/bottom/preview.js"></script>')
-    except:
+    except Exception:
         pass

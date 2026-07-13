@@ -22,7 +22,7 @@ class FxaiStoryBoard:
     def execute(self, lines_data, 开始序号=0, 结束序号=0, 刷新标记=0):
         try:
             lines = json.loads(lines_data.strip())
-        except:
+        except Exception:
             lines = []
 
         total_lines = len(lines)

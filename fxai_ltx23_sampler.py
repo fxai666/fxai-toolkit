@@ -49,9 +49,9 @@ class FxAiLTX23Sampler:
             prev_lat[0] = x.clone()
             return x
 
-        sampler = comfy.samplers.get_sampler("euler")
         out_samples = comfy.sample.sample(
-            model, z_in, steps, cfg_scale, sampler, pos_merge, negative,
-            sigmas=sigmas, sampler_callback=sampler_callback
+            model, z_in, steps, cfg_scale, "euler", "normal",
+            pos_merge, negative, latent_image=z_in,
+            sigmas=sigmas, callback=sampler_callback
         )
         return ({"samples":out_samples},)

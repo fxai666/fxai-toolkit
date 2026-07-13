@@ -22,7 +22,7 @@ class FxAiImageSelectorByIndex:
     CATEGORY = "凤希AI/角色"
 
     def get_image_by_index(self, 图片列表, 索引):
-        if not 图片列表:
+        if 图片列表 is None:
             return (None,0,0)
 
         tensor_list = []

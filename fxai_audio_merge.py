@@ -81,6 +81,8 @@ class FxAiAudioMerge:
     CATEGORY = "凤希AI/音频"
 
     def merge_audios(self, 文件夹路径="", 目标采样率=44100, 目标声道=2):
+        file_list_path = None
+        temp_out = None
         try:
             if not 文件夹路径 or not os.path.isdir(文件夹路径):
                 print("❌ 音频合并：目录不存在")
@@ -93,6 +95,8 @@ class FxAiAudioMerge:
 
             with tempfile.NamedTemporaryFile(mode="w", delete=False, encoding="utf-8", suffix=".txt") as f:
                 for fname in audio_files:
+                    if '\n' in fname or '\r' in fname:
+                        continue
                     fpath = os.path.join(文件夹路径, fname)
                     escaped_path = fpath.replace("'", "'\\''")
                     f.write('file \'{}\'\n'.format(escaped_path))
@@ -119,17 +123,11 @@ class FxAiAudioMerge:
                 encoding="utf-8"
             )
 
-            os.unlink(file_list_path)
-
             if result.returncode != 0 or not os.path.exists(temp_out):
                 print(f"❌ FFmpeg 合并失败：{result.stderr}")
-                if os.path.exists(temp_out):
-                    os.unlink(temp_out)
                 return (get_empty_audio(目标采样率, 目标声道),)
 
-            # 纯Python加载合并后的音频
             audio_out = _load_audio_tensor_from_file(temp_out)
-            os.unlink(temp_out)
 
             print(f"✅ 合并完成：{len(audio_files)} 个音频 | 采样率:{audio_out['sample_rate']}Hz | {目标声道}声道")
             return (audio_out,)
@@ -137,3 +135,8 @@ class FxAiAudioMerge:
         except Exception as e:
             print(f"❌ 合并异常：{str(e)}")
             return (get_empty_audio(目标采样率, 目标声道),)
+
+        finally:
+            for p in [file_list_path, temp_out]:
+                if p and os.path.exists(p):
+                    os.unlink(p)

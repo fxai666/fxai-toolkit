@@ -37,8 +37,7 @@ class FxAiSingleAudioProc:
         return int(((frames + base - 1) // base) * base)
 
     def volume_to_target_db(self, vol):
-        # 100→0dB，50→-6dB，1→-40dB
-        return -40 + (vol / 100) * 40
+        return 20 * math.log10(vol / 100) if vol > 0 else -80
 
     def extract_audio_segment(self, 帧率, 当前索引, 帧数对齐基数, 过渡帧数, 统一音量强度, 目标比特率kbps, 目标采样率Hz, 强制双声道, 分段时长列表, 原始音频,音频开始时长):
         print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 开始处理音频")
@@ -85,9 +84,8 @@ class FxAiSingleAudioProc:
             gain = 10 ** ((target_db - current_db) / 20)
         new_waveform = new_waveform * gain
 
-        # 正确：使用最终处理完的 new_waveform 计算真实总时长
         real_total_samples = new_waveform.size(-1)
-        total_seconds = real_total_samples / sample_rate
+        total_seconds = real_total_samples / sample_rate if sample_rate > 0 else 0.0
 
         分段时长 = [float(s) for s in 分段时长列表]
         
