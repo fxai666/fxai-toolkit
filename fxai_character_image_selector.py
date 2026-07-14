@@ -49,8 +49,7 @@ class FxAiCharacterImageSelector:
         if not images:
             raise RuntimeError("没有图片，请选择图片文件")
 
-        image_batch = torch.cat(images, dim=0) if len(images) > 1 else images[0]
-        return (image_batch, len(images))
+        return (images, len(images))
 		
     @classmethod
     def IS_CHANGED(cls, **kwargs):
