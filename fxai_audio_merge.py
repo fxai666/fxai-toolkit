@@ -4,8 +4,7 @@ import re
 import torch
 import subprocess
 import tempfile
-import wave
-import numpy as np
+from fxai_audio_utils import load_wav_tensor
 
 # ===================== 工具函数 =====================
 def get_empty_audio(sr=44100, channels=2):
@@ -22,46 +21,6 @@ def list_audios(target_dir):
         if os.path.isfile(fp) and pattern.match(f):
             files.append(f)
     return files
-
-def _load_audio_tensor_from_file(audio_file_path):
-
-    with wave.open(audio_file_path, "rb") as wav_file:
-        channels = wav_file.getnchannels()
-        sampwidth = wav_file.getsampwidth()
-        sr = wav_file.getframerate()
-        frames = wav_file.getnframes()
-        data = wav_file.readframes(frames)
-
-    if frames <= 0 or sr <= 0:
-        raise ValueError("无效的WAV文件")
-
-    if sampwidth == 1:
-        arr = np.frombuffer(data, dtype=np.uint8).astype(np.float32)
-        arr = (arr - 128.0) / 128.0
-    elif sampwidth == 2:
-        arr = np.frombuffer(data, dtype=np.int16).astype(np.float32)
-        arr = arr / 32768.0
-    elif sampwidth == 3:
-        raw = np.frombuffer(data, dtype=np.uint8).reshape(-1, 3)
-        signed = (raw[:, 0].astype(np.int32) |
-                  (raw[:, 1].astype(np.int32) << 8) |
-                  (raw[:, 2].astype(np.int32) << 16))
-        sign_mask = 1 << 23
-        signed = (signed ^ sign_mask) - sign_mask
-        arr = signed.astype(np.float32) / float(1 << 23)
-    elif sampwidth == 4:
-        arr = np.frombuffer(data, dtype=np.int32).astype(np.float32)
-        arr = arr / float(1 << 31)
-    else:
-        raise ValueError(f"不支持的采样位宽: {sampwidth}")
-
-    if channels > 1:
-        arr = arr.reshape(-1, channels).T
-    else:
-        arr = arr.ravel()[None, :]
-
-    waveform = torch.from_numpy(arr).unsqueeze(0).float()
-    return {"waveform": waveform, "sample_rate": sr}
 
 # ===================== 音频合并主类 =====================
 class FxAiAudioMerge:
@@ -127,7 +86,7 @@ class FxAiAudioMerge:
                 print(f"❌ FFmpeg 合并失败：{result.stderr}")
                 return (get_empty_audio(目标采样率, 目标声道),)
 
-            audio_out = _load_audio_tensor_from_file(temp_out)
+            audio_out = load_wav_tensor(temp_out)
 
             print(f"✅ 合并完成：{len(audio_files)} 个音频 | 采样率:{audio_out['sample_rate']}Hz | {目标声道}声道")
             return (audio_out,)

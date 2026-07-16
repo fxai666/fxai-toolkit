@@ -7,8 +7,8 @@ from aiohttp import web
 import mimetypes
 import soundfile as sf
 import numpy as np
-import torchaudio
-import time
+import subprocess
+import json
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -42,6 +42,7 @@ def list_audios(target_dir):
         m = pattern.match(f)
         if m:
             files.append(f)
+    files.sort()
     return files
 
 def sanitize_filename(filename):
@@ -49,13 +50,27 @@ def sanitize_filename(filename):
     name = name.strip()
     return name
 
-# ==================== 【新增】获取音频时长（秒）====================
+# ========== 重点：纯ffprobe获取时长，移除torchaudio依赖 ==========
 def get_audio_duration(audio_path):
     try:
-        info = torchaudio.info(audio_path, backend="ffmpeg")
-        duration = info.num_frames / info.sample_rate
+        cmd = [
+            "ffprobe",
+            "-v", "error",
+            "-print_format", "json",
+            "-show_format",
+            audio_path
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=10
+        )
+        meta = json.loads(result.stdout)
+        duration = float(meta["format"]["duration"])
         return round(duration, 3)
-    except:
+    except Exception:
         return 0.0
 
 # ---------- HTTP 路由 ----------
@@ -88,6 +103,7 @@ async def get_file_list(request):
     subdir = request.query.get("subdir", "")
     target_dir = get_audio_dir(subdir)
     files = list_audios(target_dir)
+    # 【兼容旧前端】依然返回files字段，不破坏原有逻辑
     return web.json_response({"files": files, "total": len(files)})
 
 async def apply_changes(request):
@@ -169,14 +185,12 @@ async def upload_audio_custom(request):
 
 async def delete_single_audio(request):
     try:
-        # 获取请求参数
         subdir = request.query.get("subdir", "")
         filename = request.query.get("filename", "")
         
         if not filename:
             return web.json_response({"error": "未提供文件名"}, status=400)
         
-        # 安全路径校验
         target_dir = get_audio_dir(subdir)
         safe_file = safe_path_join(target_dir, filename)
         
@@ -213,9 +227,9 @@ class FxAiAudioManager:
             }
         }
 
-    # ==================== 【新增】返回值：分段列表 ====================
-    RETURN_TYPES = ("STRING", "INT", "AUDIO", "LIST")
-    RETURN_NAMES = ("文件夹路径", "音频总数", "音频", "分段列表")
+    # ==================== 【完全原样保留，一丝不改】 ====================
+    RETURN_TYPES = ("STRING", "INT", "AUDIO")
+    RETURN_NAMES = ("文件夹路径", "音频总数", "音频")
     FUNCTION = "run"
     CATEGORY = "凤希AI/音频"
 
@@ -247,13 +261,7 @@ class FxAiAudioManager:
         
         files = list_audios(target_dir)
 
-        duration_list = []
-        for f in files:
-            audio_path = os.path.join(target_dir, f)
-            duration = get_audio_duration(audio_path)
-            duration_list.append(duration)
-
-        return (target_dir, len(files), 音频, duration_list)
+        return (target_dir, len(files), 音频)
 		
     @classmethod
     def IS_CHANGED(cls, **kwargs):

@@ -52,6 +52,8 @@ NODE_REGISTRY = [
     ("FxAiAudioMerge",            "fxai_audio_merge",           "凤希AI - 多音频合并"),
     ("FxAiAudioAvgSplit",         "fxai_audio_avg_split",       "凤希AI - 音频平均分段器"),
     ("FxAIAudioFrameCalculate",   "fxai_audio_frame_calculate", "凤希AI - 音频帧数计算器"),
+    ("FxAiAudioDurationSeg",      "fxai_audio_duration_seg",    "凤希AI - 多音频分片"),
+    ("FxAiAudioDurationGetSeg",   "fxai_audio_duration_getseg", "凤希AI - 多音频分片获取"),
 
     # 场景/文本类
     ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
@@ -98,6 +100,7 @@ NODE_REGISTRY = [
     ("FxAiPromptRelayEncode",     "fxai_prompt_relay_encode",   "凤希AI - 时序提示词编码器"),
     ("FxAiQwenEditEnhanced",      "fxai_qwen_edit_enhanced",    "凤希AI - 千问角色融合控制器"),
     ("FxAiQwenEditEnhancedV2",    "fxai_qwen_edit_enhanced_v2", "凤希AI - 千问图片编辑"),
+    ("FxAiMultiLinePrompt",       "fxai_multiline_prompt",      "凤希AI - 多行提示词"),
 
     # 视频类
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),

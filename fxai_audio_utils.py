@@ -119,6 +119,45 @@ def read_waveform_peaks(audio_file, bins=1400):
         "audio_path": resolve_audio_path(audio_file),
     }
 
+def load_wav_tensor(wav_path):
+    with wave.open(wav_path, "rb") as wf:
+        channels = wf.getnchannels()
+        sampwidth = wf.getsampwidth()
+        sr = wf.getframerate()
+        frames = wf.getnframes()
+        data = wf.readframes(frames)
+
+    if frames <= 0 or sr <= 0:
+        raise ValueError("无效的WAV文件")
+
+    if sampwidth == 1:
+        arr = np.frombuffer(data, dtype=np.uint8).astype(np.float32)
+        arr = (arr - 128.0) / 128.0
+    elif sampwidth == 2:
+        arr = np.frombuffer(data, dtype=np.int16).astype(np.float32)
+        arr = arr / 32768.0
+    elif sampwidth == 3:
+        raw = np.frombuffer(data, dtype=np.uint8).reshape(-1, 3)
+        signed = (raw[:, 0].astype(np.int32) |
+                  (raw[:, 1].astype(np.int32) << 8) |
+                  (raw[:, 2].astype(np.int32) << 16))
+        sign_mask = 1 << 23
+        signed = (signed ^ sign_mask) - sign_mask
+        arr = signed.astype(np.float32) / float(1 << 23)
+    elif sampwidth == 4:
+        arr = np.frombuffer(data, dtype=np.int32).astype(np.float32)
+        arr = arr / float(1 << 31)
+    else:
+        raise ValueError(f"不支持的采样位宽: {sampwidth}")
+
+    if channels > 1:
+        arr = arr.reshape(-1, channels).T
+    else:
+        arr = arr.reshape(1, -1)
+
+    waveform = torch.from_numpy(arr).float().unsqueeze(0)
+    return {"waveform": waveform, "sample_rate": sr}
+
 def normalize_audio_tensor(audio):
     waveform = audio["waveform"]
     sample_rate = audio["sample_rate"]
