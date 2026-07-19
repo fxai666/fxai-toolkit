@@ -3,7 +3,6 @@ import logging
 import math
 import mimetypes
 import os
-import wave
 import torch
 import folder_paths
 import numpy as np
@@ -66,12 +65,12 @@ def _load_audio_tensor_from_file(audio_file):
             from pydub import AudioSegment
             seg = AudioSegment.from_file(audio_path)
             sr = seg.frame_rate
-            if seg.channels > 1:
-                seg = seg.set_channels(1)
+            seg = seg.set_channels(2)
             raw = np.array(seg.get_array_of_samples(), dtype=np.float32)
             max_val = 1 << (8 * seg.sample_width - 1)
             if max_val > 0:
                 raw /= max_val
+            raw = raw.reshape(-1, 2).T
             waveform = torch.from_numpy(raw).unsqueeze(0).float()
             return {"waveform": waveform, "sample_rate": sr}
         except ImportError:
@@ -79,43 +78,15 @@ def _load_audio_tensor_from_file(audio_file):
         except Exception as e:
             raise ValueError(f"pydub处理失败: {e}\n请确保ffmpeg已添加到系统PATH")
 
-    import wave
-    with wave.open(audio_path, "rb") as wav_file:
-        channels = wav_file.getnchannels()
-        sampwidth = wav_file.getsamplewidth()
-        sr = wav_file.getframerate()
-        frames = wav_file.getnframes()
-        data = wav_file.readframes(frames)
-
-    if frames <= 0 or sr <= 0:
-        raise ValueError("无效的WAV文件")
-
-    if sampwidth == 1:
-        arr = np.frombuffer(data, dtype=np.uint8).astype(np.float32)
-        arr = (arr - 128.0) / 128.0
-    elif sampwidth == 2:
-        arr = np.frombuffer(data, dtype=np.int16).astype(np.float32)
-        arr = arr / 32768.0
-    elif sampwidth == 3:
-        raw = np.frombuffer(data, dtype=np.uint8).reshape(-1, 3)
-        signed = (raw[:, 0].astype(np.int32) |
-                  (raw[:, 1].astype(np.int32) << 8) |
-                  (raw[:, 2].astype(np.int32) << 16))
-        sign_mask = 1 << 23
-        signed = (signed ^ sign_mask) - sign_mask
-        arr = signed.astype(np.float32) / float(1 << 23)
-    elif sampwidth == 4:
-        arr = np.frombuffer(data, dtype=np.int32).astype(np.float32)
-        arr = arr / float(1 << 31)
+    import soundfile as sf
+    arr, sr = sf.read(audio_path)
+    arr = arr.astype(np.float32)
+    if arr.ndim == 1:
+        arr = np.stack([arr, arr], axis=0)
+    elif arr.shape[1] == 1:
+        arr = np.repeat(arr, 2, axis=1).T
     else:
-        raise ValueError(f"不支持的采样位宽: {sampwidth}")
-
-    if channels > 1:
-        arr = arr.reshape(-1, channels)
-        arr = np.mean(arr, axis=1)
-    else:
-        arr = arr.ravel()
-
+        arr = arr[:, :2].T
     waveform = torch.from_numpy(arr).unsqueeze(0).float()
     return {"waveform": waveform, "sample_rate": sr}
 

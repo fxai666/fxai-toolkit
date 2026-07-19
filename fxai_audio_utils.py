@@ -2,12 +2,12 @@ import json
 import math
 import mimetypes
 import os
-import wave
 import torch
 import folder_paths
 import numpy as np
 import server
 import subprocess
+import soundfile as sf
 from aiohttp import web
 
 AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', '.wma', ".ac3")
@@ -48,7 +48,7 @@ def resolve_audio_path(audio_file):
 
     cmd = [
         "ffmpeg", "-i", original_full_path,
-        "-ac", "1", "-f", "wav", "-y", wav_full_path
+        "-f", "wav", "-y", wav_full_path
     ]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
 
@@ -59,35 +59,18 @@ def resolve_audio_path(audio_file):
             pass
     return wav_full_path
 
-def read_wav(wav_path):
-    with wave.open(wav_path, "rb") as wf:
-        channels = wf.getnchannels()
-        sampwidth = wf.getsampwidth()
-        sr = wf.getframerate()
-        frames = wf.getnframes()
-        data = wf.readframes(frames)
-    if sampwidth == 1:
-        arr = np.frombuffer(data, dtype=np.uint8).astype(np.float32)
-        arr = (arr - 128) / 128.0
-    elif sampwidth == 2:
-        arr = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
-    elif sampwidth == 3:
-        raw = np.frombuffer(data, dtype=np.uint8).reshape(-1, 3)
-        signed = (raw[:, 0].astype(np.int32) | (raw[:, 1].astype(np.int32) << 8) | (raw[:, 2].astype(np.int32) << 16))
-        sign_mask = 1 << 23
-        signed = (signed ^ sign_mask) - sign_mask
-        arr = signed.astype(np.float32) / 8388608.0
-    elif sampwidth == 4:
-        arr = np.frombuffer(data, dtype=np.int32).astype(np.float32) / 2147483648.0
-    else:
-        raise ValueError("不支持的位宽")
-    if channels > 1:
-        arr = arr.reshape(-1, channels).mean(axis=1)
-    return arr.ravel(), sr
+def _to_stereo(arr):
+    if arr.ndim == 1:
+        return np.stack([arr, arr], axis=0)
+    if arr.shape[1] == 1:
+        return np.repeat(arr, 2, axis=1).T
+    return arr[:, :2].T
 
 def load_audio_tensor_from_file(audio_file):
     audio_path = resolve_audio_path(audio_file)
-    arr, sr = read_wav(audio_path)
+    arr, sr = sf.read(audio_path)
+    arr = arr.astype(np.float32)
+    arr = _to_stereo(arr)
     waveform = torch.from_numpy(arr).unsqueeze(0).float()
     return {"waveform": waveform, "sample_rate": sr}
 
@@ -120,41 +103,9 @@ def read_waveform_peaks(audio_file, bins=1400):
     }
 
 def load_wav_tensor(wav_path):
-    with wave.open(wav_path, "rb") as wf:
-        channels = wf.getnchannels()
-        sampwidth = wf.getsampwidth()
-        sr = wf.getframerate()
-        frames = wf.getnframes()
-        data = wf.readframes(frames)
-
-    if frames <= 0 or sr <= 0:
-        raise ValueError("无效的WAV文件")
-
-    if sampwidth == 1:
-        arr = np.frombuffer(data, dtype=np.uint8).astype(np.float32)
-        arr = (arr - 128.0) / 128.0
-    elif sampwidth == 2:
-        arr = np.frombuffer(data, dtype=np.int16).astype(np.float32)
-        arr = arr / 32768.0
-    elif sampwidth == 3:
-        raw = np.frombuffer(data, dtype=np.uint8).reshape(-1, 3)
-        signed = (raw[:, 0].astype(np.int32) |
-                  (raw[:, 1].astype(np.int32) << 8) |
-                  (raw[:, 2].astype(np.int32) << 16))
-        sign_mask = 1 << 23
-        signed = (signed ^ sign_mask) - sign_mask
-        arr = signed.astype(np.float32) / float(1 << 23)
-    elif sampwidth == 4:
-        arr = np.frombuffer(data, dtype=np.int32).astype(np.float32)
-        arr = arr / float(1 << 31)
-    else:
-        raise ValueError(f"不支持的采样位宽: {sampwidth}")
-
-    if channels > 1:
-        arr = arr.reshape(-1, channels).T
-    else:
-        arr = arr.reshape(1, -1)
-
+    arr, sr = sf.read(wav_path)
+    arr = arr.astype(np.float32)
+    arr = _to_stereo(arr)
     waveform = torch.from_numpy(arr).float().unsqueeze(0)
     return {"waveform": waveform, "sample_rate": sr}
 

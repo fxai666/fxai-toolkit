@@ -2,7 +2,6 @@ import json
 import math
 import mimetypes
 import os
-import wave
 import torch
 import folder_paths
 import numpy as np

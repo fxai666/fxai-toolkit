@@ -427,12 +427,3 @@ class FxAiPromptRelayEncode:
         if isinstance(conditioning, torch.Tensor):
             return [[conditioning, {}]]
         return [[conditioning, {}]]
-
-
-NODE_CLASS_MAPPINGS = {
-    "FxAiPromptRelayEncode": FxAiPromptRelayEncode,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "FxAiPromptRelayEncode": "凤希AI - 时序提示词编码器",
-}
