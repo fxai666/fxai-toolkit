@@ -143,8 +143,8 @@ def resolve_target(dir_key, subdir=""):
         root = folder_paths.get_output_directory()
     else:
         root = os.path.join(folder_paths.base_path, "fxai")
-        if dir_key.startswith("fxai_"):
-            subdir = dir_key[5:]
+        if dir_key and dir_key != "fxai":
+            subdir = os.path.join(dir_key, subdir) if subdir else dir_key
     target = os.path.join(root, subdir) if subdir else root
     return os.path.abspath(target)
 
