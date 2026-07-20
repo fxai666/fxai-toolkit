@@ -1,0 +1,211 @@
+{
+  "2": {
+    "inputs": {
+      "seed": 980434139069188,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "dpmpp_2m_sde_gpu",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "153",
+        0
+      ],
+      "positive": [
+        "184",
+        0
+      ],
+      "negative": [
+        "184",
+        1
+      ],
+      "latent_image": [
+        "184",
+        2
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "5": {
+    "inputs": {
+      "samples": [
+        "2",
+        0
+      ],
+      "vae": [
+        "75",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "18": {
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "24": {
+    "inputs": {
+      "unet_name": "qwen_image_edit_2511_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "75": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "79": {
+    "inputs": {
+      "anything": [
+        "117",
+        2
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "清理显存占用"
+    }
+  },
+  "117": {
+    "inputs": {
+      "目录": "views",
+      "启用文件名覆盖": false,
+      "image_ui": "",
+      "图片": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "FxAiImageManagerV2",
+    "_meta": {
+      "title": "凤希AI - 图像管理器V2"
+    }
+  },
+  "118": {
+    "inputs": {
+      "images": [
+        "117",
+        2
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "147": {
+    "inputs": {
+      "图片列表": "avatar/009.png",
+      "preview_wrapper": ""
+    },
+    "class_type": "FxAiCharacterImageSelector",
+    "_meta": {
+      "title": "凤希AI - 角色资源图片选择器"
+    }
+  },
+  "148": {
+    "inputs": {
+      "image_ui": ""
+    },
+    "class_type": "FxAiCharacterAssets",
+    "_meta": {
+      "title": "凤希AI - 角色资源管理器 - Q群：775649071 - 官网:www.fxai.site"
+    }
+  },
+  "153": {
+    "inputs": {
+      "lora_data": "[{\"lora_name\":\"Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Qwen-Image-Edit-2511-Cinematic.safetensors\",\"model_strength\":0.5,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Kook_Qwen_V3极致真实.safetensors\",\"model_strength\":0.5,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"PixelSmile-preview.safetensors\",\"model_strength\":0.5,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"qwen_realistic_skin.safetensors\",\"model_strength\":0.5,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]",
+      "lora_wrap": "",
+      "model": [
+        "24",
+        0
+      ],
+      "clip": [
+        "18",
+        0
+      ],
+      "提示词": [
+        "170",
+        0
+      ]
+    },
+    "class_type": "FxAiLoraLoader",
+    "_meta": {
+      "title": "凤希AI - LoRa加载器"
+    }
+  },
+  "170": {
+    "inputs": {
+      "value": "穿一套西服"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "提示词"
+    }
+  },
+  "184": {
+    "inputs": {
+      "width": [
+        "185",
+        0
+      ],
+      "height": [
+        "185",
+        1
+      ],
+      "clip": [
+        "153",
+        1
+      ],
+      "vae": [
+        "75",
+        0
+      ],
+      "用户提示词": [
+        "153",
+        2
+      ],
+      "人物头像": [
+        "147",
+        0
+      ]
+    },
+    "class_type": "FxAiQwenEditThreeView",
+    "_meta": {
+      "title": "凤希AI - 三视图生成器"
+    }
+  },
+  "185": {
+    "inputs": {
+      "预设": "正方形 1024×1024",
+      "宽度": 1280,
+      "高度": 1280,
+      "反转": false
+    },
+    "class_type": "FxAiPhotoSizeConfigV2",
+    "_meta": {
+      "title": "凤希AI - 宽高设置"
+    }
+  }
+}

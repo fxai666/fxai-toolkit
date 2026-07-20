@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import logging
 import folder_paths
 from aiohttp import web
@@ -248,7 +249,45 @@ async def text_preview(request):
 
     return web.FileResponse(target)
 
-# ===================== 列出 workflows 目录中的工作流 =====================
+# ===================== 模型目录浏览 =====================
+async def list_model_subdirs(request):
+    root = folder_paths.models_dir
+    dirs = []
+    if os.path.isdir(root):
+        for name in sorted(os.listdir(root), key=str.lower):
+            full = os.path.join(root, name)
+            if os.path.isdir(full) and not name.startswith('.'):
+                try:
+                    count = len([f for f in os.listdir(full) if os.path.isfile(os.path.join(full, f)) and not f.startswith('.')])
+                except:
+                    count = 0
+                dirs.append({"name": name, "file_count": count})
+    return web.json_response({"root": root, "subdirs": dirs})
+
+async def list_model_files(request):
+    model_type = request.query.get("type", "")
+    if not model_type:
+        return web.json_response({"error": "缺少 type"}, status=400)
+    model_type = os.path.basename(model_type)
+    root = os.path.join(folder_paths.models_dir, model_type)
+    files = []
+    if os.path.isdir(root):
+        for name in sorted(os.listdir(root), key=str.lower):
+            full = os.path.join(root, name)
+            if os.path.isfile(full) and not name.startswith('.'):
+                ext = os.path.splitext(name)[1].lower()
+                try:
+                    size = os.path.getsize(full)
+                except:
+                    size = 0
+                try:
+                    mtime = os.path.getmtime(full)
+                except:
+                    mtime = 0
+                files.append({"name": name, "ext": ext, "size": size, "mtime": int(mtime)})
+    return web.json_response({"type": model_type, "path": root, "files": files})
+
+# ===================== Workflows 目录（完整工作流） =====================
 WORKFLOWS_DIR = os.path.join(os.path.dirname(__file__), "workflows")
 
 async def list_workflows(request):
@@ -258,6 +297,12 @@ async def list_workflows(request):
             if name.endswith(".json"):
                 files.append({"filename": name, "title": name.replace(".json", "")})
     return web.json_response({"workflows": files})
+
+# ===================== Workflows API 目录（API Format） =====================
+WORKFLOWS_API_DIR = os.path.join(os.path.dirname(__file__), "workflows", "api")
+if not os.path.isdir(WORKFLOWS_API_DIR):
+    try: os.makedirs(WORKFLOWS_API_DIR)
+    except: pass
 
 try:
     PromptServer.instance.routes.get("/fxai/health")(health_check)
@@ -269,5 +314,7 @@ try:
     PromptServer.instance.routes.get("/fxai/io/view")(io_preview)
     PromptServer.instance.routes.get("/fxai/text/preview")(text_preview)
     PromptServer.instance.routes.get("/fxai/workflows/list")(list_workflows)
+    PromptServer.instance.routes.get("/fxai/models/subdirs")(list_model_subdirs)
+    PromptServer.instance.routes.get("/fxai/models/files")(list_model_files)
 except Exception as e:
     print(f"❌ fxai API 挂载失败：{e}")
