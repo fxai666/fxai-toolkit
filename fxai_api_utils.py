@@ -2,6 +2,7 @@ import os
 import re
 import json
 import logging
+import aiohttp
 import folder_paths
 from aiohttp import web
 from server import PromptServer
@@ -14,7 +15,6 @@ async def fxai_cors_middleware(request, handler):
     if not request.path.startswith("/fxai/"):
         return await handler(request)
 
-    # OPTIONS 预检请求直接返回
     if request.method == "OPTIONS":
         return web.Response(headers={
             "Access-Control-Allow-Origin": "*",
@@ -22,7 +22,6 @@ async def fxai_cors_middleware(request, handler):
             "Access-Control-Allow-Headers": "Content-Type, Authorization"
         })
 
-    # 直接调用路由处理器，跳过 ComfyUI 的 origin_only 等中间件
     try:
         route_handler = request._match_info.handler
         resp = await route_handler(request)
@@ -32,9 +31,10 @@ async def fxai_cors_middleware(request, handler):
         print(f"[fxai] 路由处理失败({request.path}): {e}，退回到中间件链")
         resp = await handler(request)
 
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    if not isinstance(resp, web.WebSocketResponse):
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     return resp
 
 # 注入到中间件链首位
@@ -261,7 +261,8 @@ async def list_model_subdirs(request):
                     count = len([f for f in os.listdir(full) if os.path.isfile(os.path.join(full, f)) and not f.startswith('.')])
                 except:
                     count = 0
-                dirs.append({"name": name, "file_count": count})
+                if count > 0:
+                    dirs.append({"name": name, "file_count": count})
     return web.json_response({"root": root, "subdirs": dirs})
 
 async def list_model_files(request):
@@ -287,6 +288,129 @@ async def list_model_files(request):
                 files.append({"name": name, "ext": ext, "size": size, "mtime": int(mtime)})
     return web.json_response({"type": model_type, "path": root, "files": files})
 
+# ===================== 删除模型文件 =====================
+async def delete_model_file(request):
+    data = await request.post()
+    model_type = data.get("type", "")
+    filename = data.get("filename", "")
+    if not model_type or not filename:
+        return web.json_response({"error": "缺少参数"}, status=400)
+    model_type = os.path.basename(model_type)
+    filename = os.path.basename(filename)
+    filepath = os.path.join(folder_paths.models_dir, model_type, filename)
+    if not os.path.isfile(filepath):
+        return web.json_response({"error": "文件不存在"}, status=404)
+    try:
+        os.remove(filepath)
+        return web.json_response({"success": True})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+# ===================== 清理空模型文件夹 =====================
+def is_dir_empty_recursive(path):
+    for entry in os.listdir(path):
+        full = os.path.join(path, entry)
+        if entry.startswith('.'):
+            continue
+        if os.path.isfile(full):
+            return False
+        if os.path.isdir(full) and not is_dir_empty_recursive(full):
+            return False
+    return True
+
+def remove_empty_dirs(path, deleted):
+    for entry in os.listdir(path):
+        full = os.path.join(path, entry)
+        if entry.startswith('.') or not os.path.isdir(full):
+            continue
+        remove_empty_dirs(full, deleted)
+        if is_dir_empty_recursive(full):
+            try:
+                os.rmdir(full)
+                deleted.append(os.path.relpath(full, folder_paths.models_dir))
+            except:
+                pass
+
+async def clean_empty_model_dirs(request):
+    root = folder_paths.models_dir
+    deleted = []
+    if os.path.isdir(root):
+        remove_empty_dirs(root, deleted)
+    return web.json_response({"success": True, "deleted": deleted})
+
+# ===================== ComfyUI Prompt 代理（解决跨域） =====================
+async def proxy_prompt(request):
+    try:
+        body = await request.json()
+    except:
+        return web.json_response({"error": "无效的JSON"}, status=400)
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post("http://127.0.0.1:8188/prompt", json=body, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+                data = await resp.json()
+                return web.json_response(data)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=502)
+
+# ===================== WebSocket 代理（解决跨域） =====================
+async def proxy_ws(request):
+    ws_server = web.WebSocketResponse()
+    await ws_server.prepare(request)
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.ws_connect("ws://127.0.0.1:8188/ws?" + (request.query_string or "")) as ws_client:
+                async def forward_client_to_server():
+                    async for msg in ws_server:
+                        if msg.type == aiohttp.WSMsgType.TEXT:
+                            await ws_client.send_str(msg.data)
+                        elif msg.type == aiohttp.WSMsgType.BINARY:
+                            await ws_client.send_bytes(msg.data)
+                        elif msg.type == aiohttp.WSMsgType.CLOSE:
+                            break
+                    await ws_client.close()
+                async def forward_server_to_client():
+                    async for msg in ws_client:
+                        if msg.type == aiohttp.WSMsgType.TEXT:
+                            await ws_server.send_str(msg.data)
+                        elif msg.type == aiohttp.WSMsgType.BINARY:
+                            await ws_server.send_bytes(msg.data)
+                        elif msg.type == aiohttp.WSMsgType.CLOSE:
+                            break
+                    await ws_server.close()
+                import asyncio
+                await asyncio.gather(forward_client_to_server(), forward_server_to_client())
+    except Exception as e:
+        print(f"[fxai] WebSocket 代理错误: {e}")
+    return ws_server
+
+# ===================== 中断任务代理 =====================
+async def proxy_interrupt(request):
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post("http://127.0.0.1:8188/interrupt", timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                return web.json_response({"success": resp.status == 200})
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=502)
+
+# ===================== 队列状态代理 =====================
+async def proxy_queue(request):
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get("http://127.0.0.1:8188/queue", timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                return web.json_response(await resp.json())
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=502)
+
+# ===================== 历史记录代理 =====================
+async def proxy_history(request):
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get("http://127.0.0.1:8188/history", timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                data = await resp.json()
+                return web.json_response(data)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=502)
+
 # ===================== Workflows 目录（完整工作流） =====================
 WORKFLOWS_DIR = os.path.join(os.path.dirname(__file__), "workflows")
 
@@ -304,6 +428,88 @@ if not os.path.isdir(WORKFLOWS_API_DIR):
     try: os.makedirs(WORKFLOWS_API_DIR)
     except: pass
 
+# ===================== 系统工作流目录（user/default/workflows） =====================
+SYSTEM_WORKFLOWS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "user", "default", "workflows"))
+
+async def list_workflow_dirs(request):
+    dirs = []
+    if os.path.isdir(SYSTEM_WORKFLOWS_DIR):
+        for name in sorted(os.listdir(SYSTEM_WORKFLOWS_DIR), key=str.lower):
+            full = os.path.join(SYSTEM_WORKFLOWS_DIR, name)
+            if os.path.isdir(full) and not name.startswith('.'):
+                count = len([f for f in os.listdir(full) if f.endswith('.json') and os.path.isfile(os.path.join(full, f))])
+                dirs.append({"name": name, "count": count, "path": name})
+        dirs.insert(0, {"name": "根目录", "count": len([f for f in os.listdir(SYSTEM_WORKFLOWS_DIR) if f.endswith('.json') and os.path.isfile(os.path.join(SYSTEM_WORKFLOWS_DIR, f))]), "path": ""})
+    return web.json_response({"dirs": dirs})
+
+async def list_workflow_files(request):
+    subdir = request.query.get("dir", "")
+    target = os.path.join(SYSTEM_WORKFLOWS_DIR, subdir) if subdir else SYSTEM_WORKFLOWS_DIR
+    files = []
+    if os.path.isdir(target):
+        for name in sorted(os.listdir(target), key=str.lower):
+            if name.endswith(".json") and os.path.isfile(os.path.join(target, name)):
+                full = os.path.join(target, name)
+                try:
+                    size = os.path.getsize(full)
+                    mtime = os.path.getmtime(full)
+                except:
+                    size = 0; mtime = 0
+                files.append({"filename": name, "title": name.replace(".json", ""), "size": size, "mtime": int(mtime)})
+    return web.json_response({"files": files, "dir": subdir or ""})
+
+async def upload_workflow(request):
+    reader = await request.multipart()
+    field = await reader.next()
+    if not field or field.name != "file":
+        return web.json_response({"success": False, "error": "缺少文件字段"})
+    filename = field.filename
+    if not filename.endswith(".json"):
+        return web.json_response({"success": False, "error": "仅支持 .json 文件"})
+    subdir = request.query.get("dir", "")
+    target_dir = os.path.join(SYSTEM_WORKFLOWS_DIR, subdir) if subdir else SYSTEM_WORKFLOWS_DIR
+    if not os.path.isdir(target_dir):
+        try: os.makedirs(target_dir)
+        except: return web.json_response({"success": False, "error": "目录创建失败"})
+    dest = os.path.join(target_dir, filename)
+    size = 0
+    with open(dest, "wb") as f:
+        while True:
+            chunk = await field.read_chunk()
+            if not chunk: break
+            f.write(chunk)
+            size += len(chunk)
+    return web.json_response({"success": True, "filename": filename, "size": size})
+
+async def delete_workflow(request):
+    filename = request.query.get("filename", "")
+    subdir = request.query.get("dir", "")
+    if not filename:
+        return web.json_response({"success": False, "error": "缺少文件名"})
+    target = os.path.join(SYSTEM_WORKFLOWS_DIR, subdir, filename) if subdir else os.path.join(SYSTEM_WORKFLOWS_DIR, filename)
+    target = os.path.abspath(target)
+    if not target.startswith(os.path.abspath(SYSTEM_WORKFLOWS_DIR)):
+        return web.json_response({"success": False, "error": "路径不合法"})
+    if os.path.isfile(target):
+        try: os.remove(target); return web.json_response({"success": True})
+        except Exception as e: return web.json_response({"success": False, "error": str(e)})
+    return web.json_response({"success": False, "error": "文件不存在"})
+
+async def view_workflow(request):
+    filename = request.query.get("filename", "")
+    subdir = request.query.get("dir", "")
+    if not filename:
+        return web.json_response({"error": "缺少文件名"})
+    target = os.path.join(SYSTEM_WORKFLOWS_DIR, subdir, filename) if subdir else os.path.join(SYSTEM_WORKFLOWS_DIR, filename)
+    target = os.path.abspath(target)
+    if not target.startswith(os.path.abspath(SYSTEM_WORKFLOWS_DIR)):
+        return web.json_response({"error": "路径不合法"})
+    if os.path.isfile(target):
+        with open(target, "r", encoding="utf-8") as f:
+            content = f.read()
+        return web.Response(text=content, content_type="application/json")
+    return web.json_response({"error": "文件不存在"}, status=404)
+
 try:
     PromptServer.instance.routes.get("/fxai/health")(health_check)
     PromptServer.instance.routes.get("/fxai/folder/list")(get_folder)
@@ -314,7 +520,19 @@ try:
     PromptServer.instance.routes.get("/fxai/io/view")(io_preview)
     PromptServer.instance.routes.get("/fxai/text/preview")(text_preview)
     PromptServer.instance.routes.get("/fxai/workflows/list")(list_workflows)
+    PromptServer.instance.routes.get("/fxai/workflows/dirs")(list_workflow_dirs)
+    PromptServer.instance.routes.get("/fxai/workflows/files")(list_workflow_files)
+    PromptServer.instance.routes.post("/fxai/workflows/upload")(upload_workflow)
+    PromptServer.instance.routes.post("/fxai/workflows/delete")(delete_workflow)
+    PromptServer.instance.routes.get("/fxai/workflows/view")(view_workflow)
     PromptServer.instance.routes.get("/fxai/models/subdirs")(list_model_subdirs)
     PromptServer.instance.routes.get("/fxai/models/files")(list_model_files)
+    PromptServer.instance.routes.post("/fxai/models/delete")(delete_model_file)
+    PromptServer.instance.routes.post("/fxai/models/clean-empty")(clean_empty_model_dirs)
+    PromptServer.instance.routes.post("/fxai/prompt")(proxy_prompt)
+    PromptServer.instance.routes.get("/fxai/ws")(proxy_ws)
+    PromptServer.instance.routes.get("/fxai/history")(proxy_history)
+    PromptServer.instance.routes.get("/fxai/queue")(proxy_queue)
+    PromptServer.instance.routes.post("/fxai/interrupt")(proxy_interrupt)
 except Exception as e:
     print(f"❌ fxai API 挂载失败：{e}")
