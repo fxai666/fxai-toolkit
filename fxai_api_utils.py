@@ -513,6 +513,32 @@ async def view_workflow(request):
         return web.Response(text=content, content_type="application/json")
     return web.json_response({"error": "文件不存在"}, status=404)
 
+async def shutdown_pc(request):
+    try:
+        data = await request.json()
+        wait = int(data.get("wait_seconds", 60))
+    except Exception:
+        wait = 60
+    wait = max(5, min(wait, 86400))
+    import platform, subprocess
+    sysos = platform.system()
+    try:
+        if sysos == "Windows":
+            result = subprocess.run(["shutdown", "-s", "-t", str(wait)], capture_output=True, text=True)
+            if result.returncode == 0:
+                return web.json_response({"success": True, "message": f"已设置 {wait} 秒后关机"})
+            return web.json_response({"success": False, "error": result.stderr.strip()}, status=500)
+        elif sysos in ("Linux", "Darwin"):
+            minutes = max(1, (wait + 59) // 60)
+            result = subprocess.run(["sudo", "shutdown", "-h", f"+{minutes}"], capture_output=True, text=True)
+            if result.returncode == 0:
+                return web.json_response({"success": True, "message": f"已设置 {minutes} 分钟后关机"})
+            return web.json_response({"success": False, "error": result.stderr.strip()}, status=500)
+        else:
+            return web.json_response({"success": False, "error": f"不支持的系统: {sysos}"}, status=400)
+    except Exception as e:
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
 try:
     PromptServer.instance.routes.get("/fxai/health")(health_check)
     PromptServer.instance.routes.get("/fxai/folder/list")(get_folder)
@@ -537,6 +563,7 @@ try:
     PromptServer.instance.routes.get("/fxai/history")(proxy_history)
     PromptServer.instance.routes.get("/fxai/queue")(proxy_queue)
     PromptServer.instance.routes.post("/fxai/interrupt")(proxy_interrupt)
+    PromptServer.instance.routes.post("/fxai/shutdown")(shutdown_pc)
 except Exception as e:
     print(f"❌ fxai API 挂载失败：{e}")
 
