@@ -1,8 +1,11 @@
 import os
 import re
 import json
+import ssl
 import logging
+import asyncio
 import aiohttp
+import subprocess
 import folder_paths
 from aiohttp import web
 from server import PromptServer
@@ -536,3 +539,60 @@ try:
     PromptServer.instance.routes.post("/fxai/interrupt")(proxy_interrupt)
 except Exception as e:
     print(f"❌ fxai API 挂载失败：{e}")
+
+# ===================== HTTPS/WSS 代理（自动生成自签名证书） =====================
+FXAI_SSL_DIR = os.path.join(os.path.dirname(__file__), "ssl")
+FXAI_HTTPS_PORT = 8189
+
+def _ensure_self_signed_cert():
+    os.makedirs(FXAI_SSL_DIR, exist_ok=True)
+    cert = os.path.join(FXAI_SSL_DIR, "cert.pem")
+    key = os.path.join(FXAI_SSL_DIR, "key.pem")
+    if os.path.isfile(cert) and os.path.isfile(key):
+        return cert, key
+    try:
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", key, "-out", cert,
+            "-days", "3650", "-nodes",
+            "-subj", "/CN=fxai.local"
+        ], check=True, capture_output=True, timeout=15)
+        return cert, key
+    except Exception as e:
+        print(f"❌ fxai 生成SSL证书失败: {e}")
+        return None, None
+
+async def _tcp_proxy(reader, writer):
+    try:
+        r_reader, r_writer = await asyncio.open_connection("127.0.0.1", 8188)
+    except Exception as e:
+        print(f"[fxai] 无法连接主服务器: {e}")
+        writer.close(); return
+    async def pipe(src, dst):
+        try:
+            while True:
+                data = await src.read(65536)
+                if not data: break
+                dst.write(data)
+                await dst.drain()
+        except: pass
+        finally:
+            try: dst.close()
+            except: pass
+    await asyncio.gather(pipe(reader, r_writer), pipe(r_reader, writer))
+
+def _start_https_proxy():
+    cert, key = _ensure_self_signed_cert()
+    if not cert: return
+    ssl_ctx = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_SERVER)
+    ssl_ctx.load_cert_chain(cert, key)
+    async def _run():
+        await asyncio.sleep(2)
+        server = await asyncio.start_server(
+            _tcp_proxy, "0.0.0.0", FXAI_HTTPS_PORT, ssl=ssl_ctx
+        )
+        print(f"✅ fxai HTTPS/WSS 代理: https://0.0.0.0:{FXAI_HTTPS_PORT}")
+    print(f"⏳ fxai HTTPS 启动中 (端口 {FXAI_HTTPS_PORT})...")
+    asyncio.get_event_loop().call_soon(lambda: asyncio.ensure_future(_run()))
+
+_start_https_proxy()
