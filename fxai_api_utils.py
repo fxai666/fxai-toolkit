@@ -261,6 +261,29 @@ async def delete_folder(request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
+# ===================== 创建目录 API =====================
+async def create_folder(request):
+    dir_key = request.query.get("dir", "fxai")
+    subdir = request.query.get("subdir", "")
+    folder_name = request.query.get("folder", "").strip()
+
+    if not folder_name:
+        return web.json_response({"error": "缺少 folder"}, status=400)
+    folder_name = os.path.basename(folder_name)
+    if not folder_name:
+        return web.json_response({"error": "无效的目录名"}, status=400)
+    target = resolve_target(dir_key, subdir)
+    folder_path = os.path.join(target, folder_name)
+
+    if os.path.exists(folder_path):
+        return web.json_response({"error": "目录已存在"}, status=409)
+
+    try:
+        os.makedirs(folder_path)
+        return web.json_response({"success": True, "created": folder_name})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
 # ===================== 代理 input/output 文件预览（绕过 ComfyUI origin 检查） =====================
 async def io_preview(request):
     filename = request.query.get("filename", "")
@@ -601,6 +624,7 @@ try:
     PromptServer.instance.routes.get("/fxai/files/subdirs")(list_subdirs)
     PromptServer.instance.routes.post("/fxai/files/delete")(delete_file)
     PromptServer.instance.routes.post("/fxai/folders/delete")(delete_folder)
+    PromptServer.instance.routes.post("/fxai/folders/create")(create_folder)
     PromptServer.instance.routes.get("/fxai/io/view")(io_preview)
     PromptServer.instance.routes.get("/fxai/text/preview")(text_preview)
     PromptServer.instance.routes.get("/fxai/workflows/list")(list_workflows)
