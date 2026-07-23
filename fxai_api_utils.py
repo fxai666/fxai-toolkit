@@ -90,16 +90,17 @@ def get_audio_duration(filepath):
             with wave.open(filepath, 'rb') as wf:
                 frames = wf.getnframes()
                 rate = wf.getframerate()
-                return frames / rate if rate > 0 else None
+                return round(frames / rate, 1) if rate > 0 else None
+        import subprocess, json
         result = subprocess.run(
             ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', filepath],
             capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
             data = json.loads(result.stdout)
-            duration = data.get('format', {}).get('duration')
-            if duration:
-                return float(duration)
+            d = data.get('format', {}).get('duration')
+            if d:
+                return round(float(d), 1)
     except:
         pass
     return None
