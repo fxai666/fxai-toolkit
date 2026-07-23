@@ -538,39 +538,6 @@ async def shutdown_pc(request):
             return web.json_response({"success": False, "error": f"不支持的系统: {sysos}"}, status=400)
     except Exception as e:
         return web.json_response({"success": False, "error": str(e)}, status=500)
-
-# ===================== 视频缩略图（FFmpeg 截取第一帧） =====================
-async def video_thumbnail(request):
-    filename = request.query.get("filename", "")
-    subdir = request.query.get("subdir", "")
-    if not filename:
-        return web.json_response({"error": "缺少 filename"}, status=400)
-    filename = os.path.basename(filename)
-
-    root = os.path.join(folder_paths.base_path, "fxai")
-    target = os.path.join(root, subdir, filename) if subdir else os.path.join(root, filename)
-    target = os.path.abspath(target)
-    allowed = os.path.abspath(os.path.join(folder_paths.base_path, "fxai"))
-    if not target.startswith(allowed):
-        return web.json_response({"error": "禁止访问"}, status=403)
-    if not os.path.isfile(target):
-        return web.json_response({"error": "文件不存在"}, status=404)
-
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "ffmpeg", "-i", target, "-vframes", "1", "-f", "image2pipe", "-",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL
-        )
-        stdout, _ = await proc.communicate()
-        if not stdout:
-            return web.json_response({"error": "无法提取缩略图"}, status=500)
-        return web.Response(body=stdout, content_type="image/jpeg")
-    except FileNotFoundError:
-        return web.json_response({"error": "ffmpeg 未找到"}, status=500)
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
 try:
     PromptServer.instance.routes.get("/fxai/health")(health_check)
     PromptServer.instance.routes.get("/fxai/folder/list")(get_folder)
@@ -596,7 +563,6 @@ try:
     PromptServer.instance.routes.get("/fxai/queue")(proxy_queue)
     PromptServer.instance.routes.post("/fxai/interrupt")(proxy_interrupt)
     PromptServer.instance.routes.post("/fxai/shutdown")(shutdown_pc)
-    PromptServer.instance.routes.get("/fxai/video/thumbnail")(video_thumbnail)
 except Exception as e:
     print(f"❌ fxai API 挂载失败：{e}")
 
