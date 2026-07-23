@@ -91,21 +91,15 @@ def get_audio_duration(filepath):
                 frames = wf.getnframes()
                 rate = wf.getframerate()
                 return frames / rate if rate > 0 else None
-        try:
-            import mutagen
-            m = mutagen.File(filepath, easy=True)
-            if m and m.info and m.info.length:
-                return float(m.info.length)
-        except ImportError:
-            pass
         result = subprocess.run(
             ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', filepath],
             capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
-            import json
             data = json.loads(result.stdout)
-            return float(data['format']['duration'])
+            duration = data.get('format', {}).get('duration')
+            if duration:
+                return float(duration)
     except:
         pass
     return None
