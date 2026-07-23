@@ -82,6 +82,34 @@ EXT_AUDIO = {'.mp3','.wav','.ogg','.flac','.aac','.m4a','.wma','.opus'}
 EXT_VIDEO = {'.mp4','.avi','.mov','.mkv','.webm','.flv','.wmv','.ts','.mts'}
 EXT_TEXT  = {'.txt','.json','.xml','.csv','.yaml','.yml','.md','.log','.cfg','.ini'}
 
+def get_audio_duration(filepath):
+    ext = os.path.splitext(filepath)[1].lower()
+    try:
+        if ext == '.wav':
+            import wave
+            with wave.open(filepath, 'rb') as wf:
+                frames = wf.getnframes()
+                rate = wf.getframerate()
+                return frames / rate if rate > 0 else None
+        try:
+            import mutagen
+            m = mutagen.File(filepath, easy=True)
+            if m and m.info and m.info.length:
+                return float(m.info.length)
+        except ImportError:
+            pass
+        result = subprocess.run(
+            ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_format', filepath],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            import json
+            data = json.loads(result.stdout)
+            return float(data['format']['duration'])
+    except:
+        pass
+    return None
+
 def categorize_file(name, full_path):
     ext = os.path.splitext(name)[1].lower()
     try:
@@ -93,6 +121,8 @@ def categorize_file(name, full_path):
     except:
         mtime = 0
     item = {"name": name, "size": size, "mtime": mtime}
+    if ext in EXT_AUDIO:
+        item["duration"] = get_audio_duration(full_path)
     if ext in EXT_IMAGE:
         return ("images", item)
     if ext in EXT_AUDIO:
