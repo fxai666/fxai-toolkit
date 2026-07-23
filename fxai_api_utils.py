@@ -168,9 +168,40 @@ async def delete_file(request):
 
     try:
         os.remove(filepath)
-        return web.json_response({"success": True, "deleted": filename})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
+
+    # ===================== 删除后重编号 =====================
+    try:
+        remaining = sorted([f for f in os.listdir(target) if os.path.isfile(os.path.join(target, f)) and not f.startswith('.')])
+        if len(remaining) > 1:
+            sample = remaining[0]
+            is_numbered = re.match(r'^\d{3}_(.+)', os.path.splitext(sample)[0])
+            is_pure_number = re.match(r'^\d{3}$', os.path.splitext(sample)[0])
+            if is_pure_number:
+                # 纯数字格式: 000.png, 001.png
+                for idx, f in enumerate(remaining):
+                    ext = os.path.splitext(f)[1]
+                    new_name = f"{idx:03d}{ext}"
+                    if f != new_name:
+                        os.rename(os.path.join(target, f), os.path.join(target, new_name))
+            elif is_numbered:
+                # 序号_原名格式: 000_name.mp3
+                tmp = []
+                for idx, f in enumerate(remaining):
+                    _, ext = os.path.splitext(f)
+                    m = re.match(r'^\d{3}_(.+)', os.path.splitext(f)[0])
+                    name_part = m.group(1) if m else os.path.splitext(f)[0]
+                    new_name = f"{idx:03d}_{name_part}{ext}"
+                    tmp_name = f"_tmp_{os.urandom(4).hex()}"
+                    os.rename(os.path.join(target, f), os.path.join(target, tmp_name))
+                    tmp.append((tmp_name, new_name))
+                for tmp_name, new_name in tmp:
+                    os.rename(os.path.join(target, tmp_name), os.path.join(target, new_name))
+    except Exception as e:
+        print(f"[fxai] 删除后重编号失败: {e}")
+
+    return web.json_response({"success": True, "deleted": filename})
 
 # ===================== 删除目录 API（递归） =====================
 async def delete_folder(request):
