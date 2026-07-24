@@ -595,9 +595,9 @@ async def view_workflow(request):
 async def shutdown_pc(request):
     try:
         data = await request.json()
-        wait = int(data.get("wait_seconds", 60))
+        wait = int(data.get("wait_seconds", 10))
     except Exception:
-        wait = 60
+        wait = 10
     wait = max(5, min(wait, 86400))
     import platform, subprocess
     sysos = platform.system()
