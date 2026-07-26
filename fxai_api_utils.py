@@ -370,6 +370,37 @@ async def list_model_files(request):
                 files.append({"name": name, "ext": ext, "size": size, "mtime": int(mtime)})
     return web.json_response({"type": model_type, "path": root, "files": files})
 
+# ===================== 检查模型文件是否存在 =====================
+async def check_model_file(request):
+    model_type = request.query.get("type", "")
+    filename = request.query.get("file", "")
+    if not model_type or not filename:
+        return web.json_response({"exists": False, "error": "缺少参数"}, status=400)
+    model_type = os.path.basename(model_type)
+    filename = os.path.basename(filename)
+    filepath = os.path.join(folder_paths.models_dir, model_type, filename)
+    exists = os.path.isfile(filepath)
+    return web.json_response({"exists": exists, "path": filepath if exists else ""})
+
+# ===================== 批量检查模型文件 =====================
+async def check_model_files_batch(request):
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"results": {}, "error": "body_not_json"}, status=400)
+    paths = body.get("paths", "")
+    if not paths:
+        return web.json_response({"results": {}})
+    results = {}
+    for item in paths.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        filepath = os.path.join(folder_paths.models_dir, item)
+        exists = os.path.isfile(filepath)
+        results[item] = exists
+    return web.json_response({"results": results})
+
 # ===================== 删除模型文件 =====================
 async def delete_model_file(request):
     data = await request.post()
@@ -635,6 +666,8 @@ try:
     PromptServer.instance.routes.get("/fxai/workflows/view")(view_workflow)
     PromptServer.instance.routes.get("/fxai/models/subdirs")(list_model_subdirs)
     PromptServer.instance.routes.get("/fxai/models/files")(list_model_files)
+    PromptServer.instance.routes.get("/fxai/models/check")(check_model_file)
+    PromptServer.instance.routes.post("/fxai/models/check-batch")(check_model_files_batch)
     PromptServer.instance.routes.post("/fxai/models/delete")(delete_model_file)
     PromptServer.instance.routes.post("/fxai/models/clean-empty")(clean_empty_model_dirs)
     PromptServer.instance.routes.post("/fxai/prompt")(proxy_prompt)
