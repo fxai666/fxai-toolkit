@@ -20,6 +20,8 @@ class FxAiQwenEditThreeView:
                 "width": ("INT", {"default": 960, "min": 512, "max": 4096, "step": 8}),
                 "height": ("INT", {"default": 1280, "min": 512, "max": 4096, "step": 8}),
                 "用户提示词": ("STRING", {"forceInput": True}),
+            },
+            "optional": {
                 "人物头像": ("IMAGE",),
             },
         }
@@ -39,7 +41,7 @@ class FxAiQwenEditThreeView:
             return img
         return img
 
-    def encode(self, clip, vae, width, height, 用户提示词, 人物头像):
+    def encode(self, clip, vae, width, height, 用户提示词, 人物头像=None):
 
         sys_prompt = (
             "Give a detailed description of the character's facial features, face shape and facial characteristics "
@@ -52,46 +54,50 @@ class FxAiQwenEditThreeView:
         target_latent_w = self.align_size_8(width) // 8
 
         img_batch = self.to_batch(人物头像)
-        if isinstance(img_batch, list):
-            avatar_img = img_batch[0][:1]
-        else:
-            avatar_img = img_batch[:1]
-
-        image_part = (
-            "Picture 1: <|vision_start|><|image_pad|><|vision_end|>"
-            "Generate structured three-view full-body character reference images on a pure white background strictly based on the facial identity of the provided person.\n"
-            "Output 3 full-body views in fixed order:\n"
-            "1.front view (full body)\n"
-            "2.left side view (full body)\n"
-            "3.back view (full body)\n\n"
-            "Requirements:\n"
-            "- All three views must be complete full-body shots\n"
-            "- Strictly preserve facial identity, bone structure, facial proportions\n"
-            "- Keep hairstyle and outfit completely consistent across all three views\n"
-            "- No miscellaneous background, pure white background only\n\n"
-            "User requirements:\n"
-        )
 
         images_vl, ref_latents = [], []
 
-        samples = avatar_img.movedim(-1, 1)
+        if img_batch is not None:
+            if isinstance(img_batch, list):
+                avatar_img = img_batch[0][:1]
+            else:
+                avatar_img = img_batch[:1]
 
-        total = int(384 * 384)
-        scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
-        width = round(samples.shape[3] * scale_by)
-        height = round(samples.shape[2] * scale_by)
+            samples = avatar_img.movedim(-1, 1)
 
-        s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
-        images_vl.append(s.movedim(1, -1))
+            total = int(384 * 384)
+            scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+            width = round(samples.shape[3] * scale_by)
+            height = round(samples.shape[2] * scale_by)
 
-        total = int(1024 * 1024)
-        scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
-        width = round(samples.shape[3] * scale_by / 8.0) * 8
-        height = round(samples.shape[2] * scale_by / 8.0) * 8
+            s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
+            images_vl.append(s.movedim(1, -1))
 
-        s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
+            total = int(1024 * 1024)
+            scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+            width = round(samples.shape[3] * scale_by / 8.0) * 8
+            height = round(samples.shape[2] * scale_by / 8.0) * 8
 
-        ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
+            s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
+
+            ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
+
+            image_part = (
+                "Picture 1: <|vision_start|><|image_pad|><|vision_end|>"
+                "Generate structured three-view full-body character reference images on a pure white background strictly based on the facial identity of the provided person.\n"
+                "Output 3 full-body views in fixed order:\n"
+                "1.front view (full body)\n"
+                "2.left side view (full body)\n"
+                "3.back view (full body)\n\n"
+                "Requirements:\n"
+                "- All three views must be complete full-body shots\n"
+                "- Strictly preserve facial identity, bone structure, facial proportions\n"
+                "- Keep hairstyle and outfit completely consistent across all three views\n"
+                "- No miscellaneous background, pure white background only\n\n"
+                "User requirements:\n"
+            )
+        else:
+            image_part = ""
 
         template = (
             "<|im_start|>system\n"
@@ -120,7 +126,7 @@ class FxAiQwenEditThreeView:
         neg_raw = (
             "丑陋，模糊，低分辨率，最差质量，低质量，JPEG伪影，解剖结构错误，畸形，毁容，突变，多余肢体，多余手臂，多余腿，"
             "畸形肢体，手部画得差，手部畸形，多余手指，缺少手指，手指融合，脸部画得差，脸部畸形，毁容的脸，斗鸡眼，长脖子，"
-            "多余的眼睛，文字，词语，签名，水印，用户名，标志，边框，画框，平铺重复，画得差，出框，错误，画面裁切，半身，头像特写，头部特写，上半身特写"
+            "多余的眼睛，文字，词语，签名，水印，用户名，标志，边框，画框，平铺重复，画得差，出框，错误，画面裁切"
         )
 
         neg_tokens = clip.tokenize(neg_raw)
