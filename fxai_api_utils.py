@@ -451,79 +451,6 @@ async def clean_empty_model_dirs(request):
         remove_empty_dirs(root, deleted)
     return web.json_response({"success": True, "deleted": deleted})
 
-# ===================== ComfyUI Prompt 代理（解决跨域） =====================
-async def proxy_prompt(request):
-    try:
-        body = await request.json()
-    except:
-        return web.json_response({"error": "无效的JSON"}, status=400)
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post("http://127.0.0.1:8188/prompt", json=body, timeout=aiohttp.ClientTimeout(total=300)) as resp:
-                data = await resp.json()
-                return web.json_response(data)
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=502)
-
-# ===================== WebSocket 代理（解决跨域） =====================
-async def proxy_ws(request):
-    ws_server = web.WebSocketResponse()
-    await ws_server.prepare(request)
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.ws_connect("ws://127.0.0.1:8188/ws?" + (request.query_string or "")) as ws_client:
-                async def forward_client_to_server():
-                    async for msg in ws_server:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            await ws_client.send_str(msg.data)
-                        elif msg.type == aiohttp.WSMsgType.BINARY:
-                            await ws_client.send_bytes(msg.data)
-                        elif msg.type == aiohttp.WSMsgType.CLOSE:
-                            break
-                    await ws_client.close()
-                async def forward_server_to_client():
-                    async for msg in ws_client:
-                        if msg.type == aiohttp.WSMsgType.TEXT:
-                            await ws_server.send_str(msg.data)
-                        elif msg.type == aiohttp.WSMsgType.BINARY:
-                            await ws_server.send_bytes(msg.data)
-                        elif msg.type == aiohttp.WSMsgType.CLOSE:
-                            break
-                    await ws_server.close()
-                import asyncio
-                await asyncio.gather(forward_client_to_server(), forward_server_to_client())
-    except Exception as e:
-        print(f"[fxai] WebSocket 代理错误: {e}")
-    return ws_server
-
-# ===================== 中断任务代理 =====================
-async def proxy_interrupt(request):
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post("http://127.0.0.1:8188/interrupt", timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                return web.json_response({"success": resp.status == 200})
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=502)
-
-# ===================== 队列状态代理 =====================
-async def proxy_queue(request):
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get("http://127.0.0.1:8188/queue", timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                return web.json_response(await resp.json())
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=502)
-
-# ===================== 历史记录代理 =====================
-async def proxy_history(request):
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get("http://127.0.0.1:8188/history", timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                data = await resp.json()
-                return web.json_response(data)
-        except Exception as e:
-            return web.json_response({"error": str(e)}, status=502)
-
 # ===================== Workflows 目录（完整工作流） =====================
 WORKFLOWS_DIR = os.path.join(os.path.dirname(__file__), "workflows")
 
@@ -670,11 +597,6 @@ try:
     PromptServer.instance.routes.post("/fxai/models/check-batch")(check_model_files_batch)
     PromptServer.instance.routes.post("/fxai/models/delete")(delete_model_file)
     PromptServer.instance.routes.post("/fxai/models/clean-empty")(clean_empty_model_dirs)
-    PromptServer.instance.routes.post("/fxai/prompt")(proxy_prompt)
-    PromptServer.instance.routes.get("/fxai/ws")(proxy_ws)
-    PromptServer.instance.routes.get("/fxai/history")(proxy_history)
-    PromptServer.instance.routes.get("/fxai/queue")(proxy_queue)
-    PromptServer.instance.routes.post("/fxai/interrupt")(proxy_interrupt)
     PromptServer.instance.routes.post("/fxai/shutdown")(shutdown_pc)
 except Exception as e:
     print(f"❌ fxai API 挂载失败：{e}")
