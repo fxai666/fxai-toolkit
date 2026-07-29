@@ -67,27 +67,34 @@ def save_result(category, subdir, files, prompt_id=None):
     )
     conn.commit()
 
-def get_task(prompt_id):
+def get_tasks(prompt_ids):
+    """批量查询任务结果。prompt_ids: 逗号分隔的字符串"""
+    if not prompt_ids:
+        return {}
+    ids = [p.strip() for p in prompt_ids.split(",") if p.strip()]
+    if not ids:
+        return {}
+    placeholders = ",".join("?" for _ in ids)
     conn = _get_conn()
-    cur = conn.execute("SELECT * FROM completed_tasks WHERE prompt_id=?", (prompt_id,))
-    row = cur.fetchone()
-    if not row:
-        return None
+    cur = conn.execute(
+        f"SELECT * FROM completed_tasks WHERE prompt_id IN ({placeholders})", ids
+    )
+    rows = cur.fetchall()
     return {
-        "prompt_id": row[0],
-        "workflow_id": row[1],
-        "url": row[2] or '',
-        "created_at": row[3]
+        row[0]: {
+            "prompt_id": row[0],
+            "workflow_id": row[1],
+            "url": row[2] or '',
+            "created_at": row[3]
+        }
+        for row in rows
     }
 
 async def handle_query_task(request):
-    prompt_id = request.query.get("prompt_id", "")
-    if not prompt_id:
-        return web.json_response({"error": "缺少 prompt_id"}, status=400)
-    task = get_task(prompt_id)
-    if not task:
-        return web.json_response({"error": "未找到"}, status=404)
-    return web.json_response(task)
+    prompt_ids = request.query.get("prompt_ids", "") or request.query.get("prompt_id", "")
+    if not prompt_ids:
+        return web.json_response({"error": "缺少 prompt_ids"}, status=400)
+    return web.json_response(get_tasks(prompt_ids))
 
 try:
     PromptServer.instance.routes.get("/fxai/tasks/result")(handle_query_task)
