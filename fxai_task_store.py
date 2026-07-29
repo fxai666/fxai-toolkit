@@ -1,3 +1,4 @@
+import datetime
 import os
 import sqlite3
 import threading
@@ -38,10 +39,12 @@ def save_result(prompt_id, category, subdir, files):
         return
     dir_path = category + ("/" + subdir.replace("\\", "/") if subdir else "")
     url = dir_path + "|" + ",".join(files)
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         PromptServer.instance.send_sync("fxai:task_saved", {
             "prompt_id": prompt_id,
-            "url": url
+            "url": url,
+            "time": now
         })
     except:
         pass
