@@ -2,10 +2,13 @@ import os
 import json
 import sqlite3
 import threading
+import folder_paths
 from aiohttp import web
 from server import PromptServer
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "task_store.db")
+DB_DIR = os.path.join(folder_paths.base_path, "fxai")
+os.makedirs(DB_DIR, exist_ok=True)
+DB_PATH = os.path.join(DB_DIR, "database.db")
 _local = threading.local()
 
 def _get_conn():
