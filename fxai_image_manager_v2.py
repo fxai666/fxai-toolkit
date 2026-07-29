@@ -243,9 +243,7 @@ class FxAiImageManagerV2:
 
     def run(self, 目录="", 图片=None, 刷新标记=0,文件名序号=None, 启用文件名覆盖=True):
         target_dir = get_image_dir(目录)
-        rel_dir = os.path.relpath(target_dir, folder_paths.base_path).replace("\\", "/")
-        if rel_dir.startswith("fxai/"):
-            rel_dir = rel_dir[5:]
+        rel_dir = 目录.replace("\\", "/")
         prompt_id = self._get_current_prompt_id()
         
         if 图片 is not None:
