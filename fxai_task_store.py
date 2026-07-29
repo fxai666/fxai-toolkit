@@ -1,5 +1,4 @@
 import os
-import json
 import sqlite3
 import threading
 import folder_paths
@@ -14,7 +13,7 @@ _local = threading.local()
 def _get_conn():
     if not hasattr(_local, "conn") or _local.conn is None:
         _local.conn = sqlite3.connect(DB_PATH)
-        _local.conn.execute("PRAGMA journal_mode=WAL")
+        _local.conn.execute("PRAGMA journal_mode=DELETE")
         _local.conn.execute("""
             CREATE TABLE IF NOT EXISTS completed_tasks (
                 prompt_id TEXT PRIMARY KEY,
@@ -33,7 +32,7 @@ def save_task(prompt_id, workflow_id, files, directory):
     conn = _get_conn()
     conn.execute(
         "INSERT OR REPLACE INTO completed_tasks (prompt_id, workflow_id, files, directory) VALUES (?,?,?,?)",
-        (prompt_id, workflow_id or '', json.dumps(files), directory)
+        (prompt_id, workflow_id or '', files or '', directory)
     )
     conn.commit()
 
@@ -46,7 +45,7 @@ def get_task(prompt_id):
     return {
         "prompt_id": row[0],
         "workflow_id": row[1],
-        "files": json.loads(row[2]) if row[2] else [],
+        "files": row[2] or '',
         "directory": row[3],
         "created_at": row[4]
     }
