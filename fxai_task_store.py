@@ -91,12 +91,19 @@ def get_tasks(prompt_ids):
     }
 
 async def handle_query_task(request):
-    prompt_ids = request.query.get("prompt_ids", "") or request.query.get("prompt_id", "")
+    if request.method == "POST":
+        try:
+            data = await request.json()
+        except Exception:
+            return web.json_response({"error": "需要 JSON body"}, status=400)
+    else:
+        data = request.query
+    prompt_ids = data.get("prompt_ids", "") or data.get("prompt_id", "")
     if not prompt_ids:
         return web.json_response({"error": "缺少 prompt_ids"}, status=400)
     return web.json_response(get_tasks(prompt_ids))
 
 try:
-    PromptServer.instance.routes.get("/fxai/tasks/result")(handle_query_task)
+    PromptServer.instance.routes.post("/fxai/tasks/result")(handle_query_task)
 except Exception as e:
     print(f"[凤希AI任务存储] 路由注册失败：{e}")
