@@ -8,7 +8,7 @@ from server import PromptServer
 
 DB_DIR = os.path.join(folder_paths.base_path, "fxai")
 os.makedirs(DB_DIR, exist_ok=True)
-DB_PATH = os.path.join(DB_DIR, "database.db")
+DB_PATH = os.path.join(DB_DIR, "fxai.db")
 _local = threading.local()
 
 def _get_conn():
