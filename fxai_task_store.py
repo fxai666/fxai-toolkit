@@ -26,15 +26,27 @@ def _get_conn():
         _local.conn.commit()
     return _local.conn
 
-def save_result(prompt_id, category, subdir, files):
+def _get_current_prompt_id():
+    """自动获取当前运行中的 prompt_id"""
+    try:
+        running, _ = PromptServer.instance.prompt_queue.get_current_queue()
+        if running:
+            return running[0][1]
+    except:
+        pass
+    return ""
+
+def save_result(category, subdir, files, prompt_id=None):
     """统一保存任务结果：持久化 + WS 广播。
 
     Args:
-        prompt_id: ComfyUI prompt_id
         category: 类别 image/audio/video
         subdir:   子目录名
         files:    文件名列表
+        prompt_id: ComfyUI prompt_id（为空时自动从队列获取）
     """
+    if not prompt_id:
+        prompt_id = _get_current_prompt_id()
     if not prompt_id or not files:
         return
     dir_path = category + ("/" + subdir.replace("\\", "/") if subdir else "")

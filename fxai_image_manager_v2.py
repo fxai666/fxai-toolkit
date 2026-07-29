@@ -201,16 +201,7 @@ class FxAiImageManagerV2:
     FUNCTION = "run"
     CATEGORY = "凤希AI/图片"
 
-    def _get_current_prompt_id(self):
-        try:
-            running, _ = server.PromptServer.instance.prompt_queue.get_current_queue()
-            if running:
-                return running[0][1]
-        except:
-            pass
-        return ""
-
-    def save_tensor_image(self, image_tensor, save_dir, custom_num=None, enable_overwrite=True, prompt_id="", subdir=""):
+    def save_tensor_image(self, image_tensor, save_dir, custom_num=None, enable_overwrite=True, subdir=""):
         if image_tensor is None or not isinstance(image_tensor, torch.Tensor):
             return
         try:
@@ -232,16 +223,15 @@ class FxAiImageManagerV2:
                 print(f"[凤希AI图片资源管理] 已保存：{save_path}")
 
             if saved:
-                fxai_task_store.save_result(prompt_id, "image", subdir, saved)
+                fxai_task_store.save_result("image", subdir, saved)
         except Exception as e:
             print(f"[凤希AI图片资源管理] 保存失败：{e}")
 
     def run(self, 目录="", 图片=None, 刷新标记=0,文件名序号=None, 启用文件名覆盖=True):
         target_dir = get_image_dir(目录)
-        prompt_id = self._get_current_prompt_id()
         
         if 图片 is not None:
-            self.save_tensor_image(图片, target_dir, custom_num=文件名序号, enable_overwrite=启用文件名覆盖, prompt_id=prompt_id, subdir=目录)
+            self.save_tensor_image(图片, target_dir, custom_num=文件名序号, enable_overwrite=启用文件名覆盖, subdir=目录)
         
         files = list_images(target_dir)
         
