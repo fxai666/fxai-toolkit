@@ -25,13 +25,30 @@ def _get_conn():
         _local.conn.commit()
     return _local.conn
 
-def save_task(prompt_id, workflow_id, url):
-    if not prompt_id:
+def save_result(prompt_id, category, subdir, files):
+    """统一保存任务结果：持久化 + WS 广播。
+
+    Args:
+        prompt_id: ComfyUI prompt_id
+        category: 类别 image/audio/video
+        subdir:   子目录名
+        files:    文件名列表
+    """
+    if not prompt_id or not files:
         return
+    dir_path = category + ("/" + subdir.replace("\\", "/") if subdir else "")
+    url = dir_path + "|" + ",".join(files)
+    try:
+        PromptServer.instance.send_sync("fxai:task_saved", {
+            "prompt_id": prompt_id,
+            "url": url
+        })
+    except:
+        pass
     conn = _get_conn()
     conn.execute(
-        "INSERT OR REPLACE INTO completed_tasks (prompt_id, workflow_id, url) VALUES (?,?,?)",
-        (prompt_id, workflow_id or '', url or '')
+        "INSERT OR REPLACE INTO completed_tasks (prompt_id, url) VALUES (?,?)",
+        (prompt_id, url)
     )
     conn.commit()
 
