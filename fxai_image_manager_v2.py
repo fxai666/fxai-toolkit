@@ -7,7 +7,7 @@ import folder_paths
 import server
 from aiohttp import web
 import mimetypes
-from . import fxai_task_store
+import fxai_task_store
 
 # 安全路径校验：防止目录穿越
 def safe_path_join(base_dir, path):
