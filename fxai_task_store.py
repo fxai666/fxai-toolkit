@@ -18,21 +18,20 @@ def _get_conn():
             CREATE TABLE IF NOT EXISTS completed_tasks (
                 prompt_id TEXT PRIMARY KEY,
                 workflow_id TEXT DEFAULT '',
-                files TEXT DEFAULT '[]',
-                directory TEXT DEFAULT '',
+                url TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now','localtime'))
             )
         """)
         _local.conn.commit()
     return _local.conn
 
-def save_task(prompt_id, workflow_id, files, directory):
+def save_task(prompt_id, workflow_id, url):
     if not prompt_id:
         return
     conn = _get_conn()
     conn.execute(
-        "INSERT OR REPLACE INTO completed_tasks (prompt_id, workflow_id, files, directory) VALUES (?,?,?,?)",
-        (prompt_id, workflow_id or '', files or '', directory)
+        "INSERT OR REPLACE INTO completed_tasks (prompt_id, workflow_id, url) VALUES (?,?,?)",
+        (prompt_id, workflow_id or '', url or '')
     )
     conn.commit()
 
@@ -45,9 +44,8 @@ def get_task(prompt_id):
     return {
         "prompt_id": row[0],
         "workflow_id": row[1],
-        "files": row[2] or '',
-        "directory": row[3],
-        "created_at": row[4]
+        "url": row[2] or '',
+        "created_at": row[3]
     }
 
 async def handle_query_task(request):

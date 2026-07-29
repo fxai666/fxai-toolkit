@@ -232,12 +232,12 @@ class FxAiImageManagerV2:
                 print(f"[凤希AI图片资源管理] 已保存：{save_path}")
 
             if saved:
+                result_url = rel_dir + "|" + ",".join(saved)
                 server.PromptServer.instance.send_sync("fxai:image_saved", {
                     "prompt_id": prompt_id,
-                    "files": ",".join(saved),
-                    "directory": rel_dir
+                    "url": result_url
                 })
-                fxai_task_store.save_task(prompt_id, "", ",".join(saved), rel_dir)
+                fxai_task_store.save_task(prompt_id, "", result_url)
         except Exception as e:
             print(f"[凤希AI图片资源管理] 保存失败：{e}")
 
