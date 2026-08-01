@@ -9,6 +9,7 @@ import os
 from aiohttp import web
 from server import PromptServer
 from . import fxai_api_utils
+from . import fxai_node_update
 
 def install_package(package):
     try:
