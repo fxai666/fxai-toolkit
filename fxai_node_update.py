@@ -53,10 +53,16 @@ async def node_status(request):
     remote_branch = ""
     remote_url = ""
     remote_reachable = False
+    message = ""
 
     code, out = await asyncio.to_thread(_git, ["rev-parse", "--short", "HEAD"])
-    if code == 0:
-        local_commit = out
+    if code != 0:
+        return web.json_response({
+            "status": "error",
+            "message": f"获取本地版本失败：{out}",
+            "node_dir": NODE_DIR,
+        })
+    local_commit = out
 
     code, out = await asyncio.to_thread(_git, ["rev-parse", "--abbrev-ref", "HEAD"])
     if code == 0:
@@ -73,9 +79,12 @@ async def node_status(request):
         if parts:
             remote_commit = parts[0][:7]
             remote_branch = REMOTE_BRANCH
+    else:
+        message = f"无法连接远程仓库（ls-remote 失败）：{out}"
 
     return web.json_response({
-        "success": True,
+        "status": "ok",
+        "message": message,
         "node_dir": NODE_DIR,
         "local_commit": local_commit,
         "local_branch": local_branch,
@@ -84,7 +93,7 @@ async def node_status(request):
         "remote_url": remote_url,
         "remote_reachable": remote_reachable,
         "has_update": bool(local_commit and remote_commit and local_commit != remote_commit),
-        "git_available": bool(local_commit),
+        "git_available": True,
     })
 
 
@@ -97,14 +106,14 @@ async def node_update(request):
     logs.append(out if out else ("成功" if code == 0 else "无输出"))
     if code != 0:
         logs.append("更新失败：fetch 出错，已终止（本地代码未被修改）")
-        return web.json_response({"success": False, "logs": logs}, status=500)
+        return web.json_response({"status": "error", "message": f"git fetch 失败：{out}", "logs": logs})
 
     logs.append(f"[2/2] git reset --hard {REMOTE_NAME}/{REMOTE_BRANCH} ...")
     code, out = await asyncio.to_thread(_git, ["reset", "--hard", f"{REMOTE_NAME}/{REMOTE_BRANCH}"])
     logs.append(out if out else ("成功" if code == 0 else "无输出"))
     if code != 0:
         logs.append("更新失败：reset --hard 出错")
-        return web.json_response({"success": False, "logs": logs}, status=500)
+        return web.json_response({"status": "error", "message": f"git reset 失败：{out}", "logs": logs})
 
     new_commit = ""
     code, out = await asyncio.to_thread(_git, ["rev-parse", "--short", "HEAD"])
@@ -112,7 +121,7 @@ async def node_update(request):
         new_commit = out
 
     logs.append(f"更新完成，当前版本：{new_commit}")
-    return web.json_response({"success": True, "logs": logs, "new_commit": new_commit})
+    return web.json_response({"status": "ok", "message": "更新完成", "logs": logs, "new_commit": new_commit})
 
 
 # ===================== 路由注册 =====================
