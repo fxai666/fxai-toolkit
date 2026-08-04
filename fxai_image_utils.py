@@ -204,6 +204,28 @@ class ImageSizeController:
         w = img_tensor.shape[2]
         return h, w
 
+    def normalize_images(self, value):
+        """兼容 IMAGE batch 与 python 列表式图片，统一为 [1,H,W,3] 列表。"""
+        images = []
+        if isinstance(value, torch.Tensor):
+            candidates = [value[i] for i in range(value.shape[0])] if value.dim() == 4 else [value]
+        else:
+            candidates = []
+            for img in value:
+                if not isinstance(img, torch.Tensor):
+                    continue
+                if img.dim() == 4:
+                    candidates.extend([img[i] for i in range(img.shape[0])])
+                else:
+                    candidates.append(img)
+        for img in candidates:
+            if img.dim() == 4:
+                img = img[0]
+            if img.shape[-1] == 4:
+                img = img[..., :3]
+            images.append(img[None, ...])
+        return images
+
 # ===================== 全局导出（方法名完全不变） =====================
 _global_size_controller = ImageSizeController(bg_color=None)
 load_single_image = _global_size_controller.load_single_image
@@ -213,4 +235,5 @@ crop_fill_to_canvas = _global_size_controller.crop_fill_to_canvas
 stretch_to_size = _global_size_controller.stretch_to_size
 scale_down_by_factor = _global_size_controller.scale_down_by_factor
 grid_concat_images = _global_size_controller.grid_concat_images
+normalize_images = _global_size_controller.normalize_images
 IMAGE_EXTENSIONS = ImageSizeController.IMAGE_EXTENSIONS

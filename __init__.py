@@ -55,6 +55,8 @@ NODE_REGISTRY = [
     ("FxAIAudioFrameCalculate",   "fxai_audio_frame_calculate", "凤希AI - 音频帧数计算器"),
     ("FxAiAudioDurationSeg",      "fxai_audio_duration_seg",    "凤希AI - 多音频分片"),
     ("FxAiAudioDurationGetSeg",   "fxai_audio_duration_getseg", "凤希AI - 多音频分片获取"),
+    ("FxAiMiniMaxH3FrameCalculate","fxai_h3_frame_calculate",   "凤希AI - MiniMaxH3帧数计算器"),
+    ("FxAiMiniMaxH3AudioSegmentLoad","fxai_h3_audio_segment_load","凤希AI - MiniMaxH3音频分段加载"),
 
     # 场景/文本类
     ("FxAiMultiLineText",         "fxai_multiline_text",        "凤希AI - 场景生成器 - 进Q群与更多的群友学习：775649071"),
@@ -104,6 +106,8 @@ NODE_REGISTRY = [
     ("FxAiMultiLinePrompt",       "fxai_multiline_prompt",      "凤希AI - 多行提示词"),
 
     # 视频类
+    ("FxAiMiniMaxH3ImageToVideo", "fxai_minimax_h3",            "凤希AI - MiniMaxH3图生视频"),
+    ("FxAiMiniMaxH3RefToVideo",   "fxai_minimax_h3_ref2v",     "凤希AI - MiniMaxH3参考生视频"),
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
     ("FxAiVideoGeneratorV2",      "fxai_video_generator_v2",    "凤希AI - 视频生成V2"),
     ("FxAiVideoGeneratorV3",      "fxai_video_generator_v3",    "凤希AI - 视频生成V3"),
