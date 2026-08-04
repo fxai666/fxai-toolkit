@@ -152,8 +152,6 @@ class FxAiMiniMaxH3ImageToVideo:
                 fl, gr = _qv.process_qwen2vl_images(
                     item["data"], patch_size=16,
                     image_mean=[0.5, 0.5, 0.5], image_std=[0.5, 0.5, 0.5])
-                print(f"[FxAiMiniMaxH3] ref图#{i} shape={tuple(item['data'].shape)} "
-                      f"目标={宽度}x{高度} patches={fl.shape[0]} grid={gr.tolist()}")
             except Exception as e:
                 print(f"[FxAiMiniMaxH3] ref图#{i} 诊断失败: {e}")
         cond = CLIP模型.encode_from_tokens_scheduled(tokens)
