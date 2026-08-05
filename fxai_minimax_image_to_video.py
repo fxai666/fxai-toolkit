@@ -80,7 +80,7 @@ def _encode_ref_audio(audio_vae, audio):
     return z, z.shape[-1]
 
 
-class FxAiMiniMaxH3ImageToVideo:
+class FxAiMiniMaxImageToVideo:
     """MiniMax H3 图生视频：提示词 + 首尾帧关键帧 + 外置音频参考。
 
     输出正向条件与 AV 联合潜变量（视频[1,24,T,h,w] + 音频[1,32,2,T]）。
@@ -105,6 +105,7 @@ class FxAiMiniMaxH3ImageToVideo:
                 "尾帧图片": ("IMAGE",),
                 "参考图片列表": ("IMAGE",),
                 "外置音频": ("AUDIO",),
+                "过渡帧列表": ("IMAGE",),
             }
         }
 
@@ -114,8 +115,19 @@ class FxAiMiniMaxH3ImageToVideo:
     CATEGORY = "凤希AI/视频"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 外置音频=None):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 外置音频=None, 过渡帧列表=None):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
+
+        if 过渡帧列表 is not None:
+            # 上一段落末帧整段编码后写入潜空间开头作为采样起点，音频部分不动（采样时音频仍走参考渲染）
+            samples = latent["samples"]
+            video, audio = samples.unbind()
+            w, h = video.shape[4] * 16, video.shape[3] * 16
+            init = 视频VAE.encode(_resize(过渡帧列表, w, h, "disabled"))
+            k = min(init.shape[2], video.shape[2])
+            new_video = video.clone()
+            new_video[:, :, :k] = init[:, :, :k]
+            latent["samples"] = comfy.nested_tensor.NestedTensor((new_video, audio))
 
         ref_items = []
         ref_blocks = []
@@ -153,7 +165,7 @@ class FxAiMiniMaxH3ImageToVideo:
                     item["data"], patch_size=16,
                     image_mean=[0.5, 0.5, 0.5], image_std=[0.5, 0.5, 0.5])
             except Exception as e:
-                print(f"[FxAiMiniMaxH3] ref图#{i} 诊断失败: {e}")
+                print(f"[FxAiMiniMax] ref图#{i} 诊断失败: {e}")
         cond = CLIP模型.encode_from_tokens_scheduled(tokens)
 
         if keyframes:

@@ -23,7 +23,7 @@ def video_latent_t(frame_count):
     return 2 if frame_count <= 5 else ((frame_count - 5) // 17) * 5 + 2
 
 
-class FxAiMiniMaxH3FrameCalculate:
+class FxAiMiniMaxFrameCalculate:
     CATEGORY = "凤希AI/音频"
     FUNCTION = "calculate"
 
@@ -41,7 +41,7 @@ class FxAiMiniMaxH3FrameCalculate:
         }
 
     def calculate(self, 音频, 过渡帧数):
-        print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} MiniMaxH3帧数计算")
+        print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} MiniMax帧数计算")
 
         sample_rate = 音频["sample_rate"]
         waveform = 音频["waveform"]

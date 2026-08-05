@@ -69,7 +69,7 @@ def _encode_ref_audio(audio_vae, audio):
     return z, z.shape[-1]
 
 
-class FxAiMiniMaxH3RefToVideo:
+class FxAiMiniMaxRefToVideo:
     """MiniMax H3 Reference to Video：图片列表 + 单个音频。
 
     图片列表按 <Picture i> 顺序作为参考图注入，音频作为 <Audio 1> 参考注入；

@@ -25,7 +25,7 @@ def align_up_h3(frames):
     return 17 * k + 5
 
 
-class FxAiMiniMaxH3AudioSegmentLoad:
+class FxAiMiniMaxAudioSegmentLoad:
     CATEGORY = "凤希AI/音频"
     FUNCTION = "audio_segment"
 
@@ -37,13 +37,13 @@ class FxAiMiniMaxH3AudioSegmentLoad:
         return {
             "required": {
                 "当前索引": ("INT", {"default": 0, "min": 0}),
-                "过渡帧数": ("INT", {"default": 1, "min": 0}),
                 "分段时长列表": ("LIST", {"forceInput": True}),
                 "原始音频": ("AUDIO", {"forceInput": True}),
             },
         }
 
-    def audio_segment(self, 当前索引, 过渡帧数, 分段时长列表, 原始音频):
+    def audio_segment(self, 当前索引, 分段时长列表, 原始音频):
+        print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 开始渲染第 {当前索引+1} 个场景")
         分段时长 = [float(s) for s in 分段时长列表]
         分段数量 = len(分段时长)
         if 分段数量 == 0 or 当前索引 >= 分段数量:
@@ -63,7 +63,7 @@ class FxAiMiniMaxH3AudioSegmentLoad:
             分段对齐帧数[结束索引] = align_up_h3(分段对齐帧数[结束索引] + 缺失帧数)
             分段时长[结束索引] = 分段对齐帧数[结束索引] / FPS
 
-        生成帧数 = 分段对齐帧数[当前索引] + 过渡帧数
+        生成帧数 = 分段对齐帧数[当前索引]
 
         # 按当前段起点切音频
         前面帧数 = sum(分段对齐帧数[:当前索引])
@@ -71,7 +71,7 @@ class FxAiMiniMaxH3AudioSegmentLoad:
         waveform = 原始音频["waveform"]
         total_samples = waveform.size(-1)
         start_sample = max(0, min(int(前面帧数 / FPS * sample_rate), total_samples))
-        end_sample = max(start_sample, min(int((前面帧数 + 分段时长[当前索引] + 过渡帧数 / FPS) * sample_rate), total_samples))
+        end_sample = max(start_sample, min(int((前面帧数 + 分段时长[当前索引]) * sample_rate), total_samples))
         剪切音频 = {"waveform": waveform[..., start_sample:end_sample], "sample_rate": sample_rate}
 
         return (剪切音频, 生成帧数)
