@@ -112,7 +112,7 @@ class FxAiMiniMaxImageToVideo:
     RETURN_TYPES = ("CONDITIONING", "LATENT")
     RETURN_NAMES = ("正向条件", "AV潜变量")
     FUNCTION = "run"
-    CATEGORY = "凤希AI/视频"
+    CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
             音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 外置音频=None, 过渡帧列表=None):

@@ -24,7 +24,7 @@ def video_latent_t(frame_count):
 
 
 class FxAiMiniMaxFrameCalculate:
-    CATEGORY = "凤希AI/音频"
+    CATEGORY = "凤希AI/MiniMax"
     FUNCTION = "calculate"
 
     RETURN_TYPES = ("INT", "FLOAT", "FLOAT", "INT", "INT")

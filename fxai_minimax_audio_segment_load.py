@@ -26,7 +26,7 @@ def align_up_h3(frames):
 
 
 class FxAiMiniMaxAudioSegmentLoad:
-    CATEGORY = "凤希AI/音频"
+    CATEGORY = "凤希AI/MiniMax"
     FUNCTION = "audio_segment"
 
     RETURN_TYPES = ("AUDIO", "INT")

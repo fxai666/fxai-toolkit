@@ -191,7 +191,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
 
 
 class FxAiMiniMaxVideoSave:
-    CATEGORY = "凤希AI/视频"
+    CATEGORY = "凤希AI/MiniMax"
     FUNCTION = "run"
 
     RETURN_TYPES = ("IMAGE", "STRING", "STRING", "INT")
