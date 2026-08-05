@@ -24,6 +24,22 @@ AUDIO_LATENT_FPS = 40
 AUDIO_SAMPLE_RATE = 32000
 CANVAS_MULTIPLE = 32
 REF_IMAGE_SHORT_EDGE = 2048
+BASE_SHORT_EDGE = 768
+MAX_PIXELS = 768 * 1344
+
+
+def adapt_canvas(width, height):
+    """768-short-edge canvas with 768*1344 area cap, per-axis round to 32."""
+    ratio = width / height
+    if ratio >= 1.0:
+        nom_w, nom_h = BASE_SHORT_EDGE * ratio, BASE_SHORT_EDGE
+    else:
+        nom_w, nom_h = BASE_SHORT_EDGE, BASE_SHORT_EDGE / ratio
+    if nom_w * nom_h > MAX_PIXELS:
+        s = math.sqrt(MAX_PIXELS / (nom_w * nom_h))
+        nom_w, nom_h = nom_w * s, nom_h * s
+    return (max(CANVAS_MULTIPLE, round(nom_w / CANVAS_MULTIPLE) * CANVAS_MULTIPLE),
+            max(CANVAS_MULTIPLE, round(nom_h / CANVAS_MULTIPLE) * CANVAS_MULTIPLE))
 
 
 def align_frame_count(n):
@@ -40,6 +56,23 @@ def temporal_shape(length):
     frame_count = align_frame_count(max(5, length))
     duration = frame_count / FPS
     return frame_count, video_latent_t(frame_count), round(duration * AUDIO_LATENT_FPS)
+
+
+def _split_ref_videos(value):
+    """参考视频列表 -> 多个视频帧序列 [T,H,W,C] 的列表。
+
+    兼容两种输入形态：
+    - 纯 IMAGE 批 [T,H,W,C]：整批视为一个视频的帧序列
+    - list[images, images]：每个元素一段视频帧序列，逐个分离
+    """
+    if isinstance(value, torch.Tensor):
+        return [value]
+    videos = []
+    for img in value:
+        if not isinstance(img, torch.Tensor):
+            continue
+        videos.append(img[:1] if img.dim() == 3 else img)
+    return videos
 
 
 def _resize(image, width, height, crop):
@@ -104,8 +137,11 @@ class FxAiMiniMaxImageToVideo:
                 "首帧图片": ("IMAGE",),
                 "尾帧图片": ("IMAGE",),
                 "参考图片列表": ("IMAGE",),
+                "参考视频列表": ("IMAGE",),
                 "外置音频": ("AUDIO",),
                 "过渡帧列表": ("IMAGE",),
+                "过渡羽化": ("INT", {"default": -1, "min": -1, "max": 5, "step": 1,
+                    "tooltip": "过渡帧锁死区到自由区的平滑宽度（latent 步，约每步4帧）。-1=自动收紧（锁死前2步、只放宽1-2步，暗带最短）；0=硬锁；1-5=固定羽化步数，超过过渡帧折算步数无意义。"}),
             }
         }
 
@@ -115,19 +151,36 @@ class FxAiMiniMaxImageToVideo:
     CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 外置音频=None, 过渡帧列表=None):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 过渡帧列表=None, 过渡羽化=-1):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
 
-        if 过渡帧列表 is not None:
-            # 上一段落末帧整段编码后写入潜空间开头作为采样起点，音频部分不动（采样时音频仍走参考渲染）
+        if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
+            # 将过渡帧编码写入潜空间开头并软锁：t=0 起前 k 步的 denoise_mask 从 0 平滑
+            # 升到 1（前 lock_steps 步强锁、之后 feather 步渐放），消除硬边界产生的闪光，
+            # 使锁死区画面平滑过渡到后续自由演化。羽化步数 -1 时自动收紧：锁死前 2 步、
+            # 仅放宽 1-2 步，使暗带（两部分画面按细分权重混合的叠影）压到最短；
+            # 显式值则按该步数羽化。
             samples = latent["samples"]
             video, audio = samples.unbind()
             w, h = video.shape[4] * 16, video.shape[3] * 16
             init = 视频VAE.encode(_resize(过渡帧列表, w, h, "disabled"))
             k = min(init.shape[2], video.shape[2])
             new_video = video.clone()
-            new_video[:, :, :k] = init[:, :, :k]
+            new_video[:, :, :k] = init[:, :, :k][:, :, :k]
             latent["samples"] = comfy.nested_tensor.NestedTensor((new_video, audio))
+            mask = torch.ones([1, 1, video.shape[2], video.shape[3], video.shape[4]],
+                              dtype=torch.float32, device=video.device)
+            feather = k if 过渡羽化 < 0 else min(过渡羽化, k)
+            if 过渡羽化 < 0:
+                lock_steps = min(2, k)
+                feather = min(2, max(0, k - lock_steps))
+            else:
+                lock_steps = max(0, k - feather)
+            if lock_steps > 0:
+                mask[:, :, :lock_steps, :, :] = 0.0
+            for i in range(feather):
+                mask[:, :, lock_steps + i, :, :] = (i + 1) / (feather + 1)
+            latent["noise_mask"] = mask
 
         ref_items = []
         ref_blocks = []
@@ -139,7 +192,7 @@ class FxAiMiniMaxImageToVideo:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img})
         if 参考图片列表 is not None:
-            for img in normalize_images(参考图片列表):
+            for img in normalize_images(参考图片列表)[:9]:
                 h, w = img.shape[1], img.shape[2]
                 scale = min(1.0, math.sqrt((宽度 * 高度) / (w * h)))
                 tw = max(CANVAS_MULTIPLE, round(w * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
@@ -148,6 +201,31 @@ class FxAiMiniMaxImageToVideo:
                 z = 视频VAE.encode(resized)
                 ref_items.append({"type": "image", "data": resized})
                 ref_blocks.append({"kind": "image", "latent_h": th // 16, "latent_w": tw // 16, "latent": z})
+        if 参考视频列表 is not None:
+            for video_frames in _split_ref_videos(参考视频列表):
+                if video_frames.shape[0] > frame_count:
+                    video_frames = video_frames[:frame_count]
+                n = video_frames.shape[0]
+                if n < 5:
+                    video_frames = video_frames[-1:].repeat(5, 1, 1, 1)
+                    n = 5
+                while n % 17 != 5:
+                    n -= 1
+                video_frames = video_frames[:n]
+                vh, vw = video_frames.shape[1], video_frames.shape[2]
+                cw, ch = adapt_canvas(vw, vh)
+                if vw * vh < cw * ch:
+                    cw = max(CANVAS_MULTIPLE, round(vw / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+                    ch = max(CANVAS_MULTIPLE, round(vh / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+                resized = _resize(video_frames, cw, ch, "disabled")
+                z = 视频VAE.encode(resized)
+                sample_idx = list(range(0, resized.shape[0], FPS // 2))
+                qwen_frames = resized[sample_idx]
+                ref_items.append({"type": "video", "data": qwen_frames,
+                                  "timestamps": [i / 2.0 for i in range(len(sample_idx))]})
+                ref_blocks.append({"kind": "video", "latent_t": z.shape[2],
+                                   "latent_h": ch // 16, "latent_w": cw // 16,
+                                   "ref_audio_t": 0, "latent": z, "audio_latent": None})
         if 外置音频 is not None:
             if 音频VAE is None:
                 raise ValueError("接入外置音频时需连接音频VAE")

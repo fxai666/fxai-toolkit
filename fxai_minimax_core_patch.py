@@ -15,11 +15,35 @@ import torch
 import comfy.model_base
 import comfy.model_management
 import comfy.model_prefetch
+import comfy.model_sampling
 import comfy.ldm.common_dit
 import comfy.ldm.minimax.model as h3
 
 
 class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
+    def __init__(self, model_config, model_type=comfy.model_base.ModelType.FLOW, device=None):
+        super().__init__(model_config, model_type, device=device)
+        # 保留写入潜空间的过渡帧作为采样起点：FLOW 完整去噪时 (1-sigma)*latent 权重
+        # 在 sigma=1 处为 0，会把已写入的 init 潜空间清成纯噪声。改成 EPS 风格
+        # `sigma*noise + latent`：过渡帧区域（非零）从写入内容起步演化，其余全零
+        # 区域起点不变，行为等同原逻辑。
+        ms = self.model_sampling
+
+        def noise_scaling(sigma, noise, latent_image, max_denoise=False):
+            sigma = comfy.model_sampling.reshape_sigma(sigma, noise.ndim)
+            scale = getattr(ms, "noise_scale", 1.0)
+            return sigma * (scale * noise) + latent_image
+
+        ms.noise_scaling = noise_scaling
+
+    def scale_latent_inpaint(self, sigma, noise, latent_image, **kwargs):
+        # 掩码锁死区（过渡帧写入的 t 前 k 步）每步按 FLOW 语义注入：
+        # sigma 大时接近噪声、sigma→0 收敛到干净过渡帧 latent，避免
+        # latent 权重恒为 1 导致锁死区色彩/内容过度保留而失衡。
+        sigma = comfy.model_sampling.reshape_sigma(sigma, noise.ndim)
+        scale = getattr(self.model_sampling, "noise_scale", 1.0)
+        return sigma * (scale * noise) + (1.0 - sigma) * latent_image
+
     def extra_conds(self, **kwargs):
         out = super().extra_conds(**kwargs)
         keyframes = kwargs.get("minimax_keyframes", None)

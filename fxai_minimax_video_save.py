@@ -194,8 +194,8 @@ class FxAiMiniMaxVideoSave:
     CATEGORY = "凤希AI/MiniMax"
     FUNCTION = "run"
 
-    RETURN_TYPES = ("IMAGE", "STRING", "STRING", "INT")
-    RETURN_NAMES = ("过渡帧", "视频文件路径", "保存目录", "实际帧数")
+    RETURN_TYPES = ("IMAGE", "IMAGE", "STRING", "STRING", "INT")
+    RETURN_NAMES = ("过渡帧", "过渡帧列表", "视频文件路径", "保存目录", "实际帧数")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -203,34 +203,46 @@ class FxAiMiniMaxVideoSave:
             "required": {
                 "图片序列": ("IMAGE",),
                 "目录": ("STRING", {"default": "sucai"}),
+                "生成帧数": ("INT", {"default": 227, "min": 6, "max": 3600, "step": 17,
+                    "tooltip": "本次生成的帧数（17k+5 网格）。实际保存视频 = 生成帧数-1，图片序列剩余帧全部作为过渡帧列表输出。"}),
                 "帧率FPS": ("INT", {"default": 24, "min": 1}),
                 "视频序号": ("INT", {"default": -1, "min": -1}),
                 "音频": ("AUDIO",),
             },
         }
 
-    def run(self, 图片序列, 目录, 帧率FPS, 视频序号, 音频):
+    def run(self, 图片序列, 目录, 生成帧数, 帧率FPS, 视频序号, 音频):
         if 图片序列 is None:
-            return (图片序列, "", "", 0)
+            return (图片序列, 图片序列, "", "", 0)
 
         target_dir = get_video_dir(目录)
         total_frames = len(图片序列)
+        保存帧数 = max(1, int(生成帧数) - 1)
 
-        # 默认取最后一帧作为过渡帧，供下一段做首帧/参考图
-        过渡帧 = 图片序列[-1:]
+        if 保存帧数 >= total_frames:
+            # 图片不足：全部保存，兜底取最后一帧作为过渡帧
+            video_images = 图片序列
+            过渡帧列表 = 图片序列[-1:]
+            保存帧数 = total_frames
+        else:
+            # 正常路径：保存前 生成帧数-1 帧，剩余全部作为过渡帧列表
+            video_images = 图片序列[:保存帧数]
+            过渡帧列表 = 图片序列[保存帧数:]
+
+        # 过渡帧 = 过渡帧列表的第一帧
+        过渡帧 = 过渡帧列表[:1]
 
         video_path = save_video(
-            images=图片序列,
+            images=video_images,
             save_dir=target_dir,
             audio=音频,
             fps=帧率FPS,
             custom_num=视频序号,
         )
 
-        del 图片序列
+        del video_images, 图片序列
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        # 实际帧数 = 全部帧（不切过渡帧）
-        return (过渡帧, video_path, target_dir, total_frames)
+        return (过渡帧, 过渡帧列表, video_path, target_dir, 保存帧数)
