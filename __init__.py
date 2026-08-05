@@ -10,6 +10,7 @@ from aiohttp import web
 from server import PromptServer
 from . import fxai_api_utils
 from . import fxai_node_update
+from . import fxai_h3_core_patch
 
 def install_package(package):
     try:

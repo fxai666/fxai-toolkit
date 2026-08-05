@@ -156,8 +156,8 @@ class FxAiAudioSegmenterV2:
 		
 
     @classmethod
-    def IS_CHANGED(s):
-        return str(time.time())
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
 
 async def simple_audio_file(request):
     audio_file = request.query.get("audio_file", "")
