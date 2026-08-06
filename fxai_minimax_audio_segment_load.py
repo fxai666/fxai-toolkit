@@ -39,10 +39,11 @@ class FxAiMiniMaxAudioSegmentLoad:
                 "当前索引": ("INT", {"default": 0, "min": 0}),
                 "分段时长列表": ("LIST", {"forceInput": True}),
                 "原始音频": ("AUDIO", {"forceInput": True}),
+                "过渡帧数": ("INT", {"default": "0"}),
             },
         }
 
-    def audio_segment(self, 当前索引, 分段时长列表, 原始音频):
+    def audio_segment(self, 当前索引, 分段时长列表, 原始音频,过渡帧数):
         print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 开始渲染第 {当前索引+1} 个场景")
         分段时长 = [float(s) for s in 分段时长列表]
         分段数量 = len(分段时长)
@@ -75,4 +76,4 @@ class FxAiMiniMaxAudioSegmentLoad:
         end_sample = max(start_sample, min(int((前面帧数 + 生成帧数) / FPS * sample_rate + sample_rate), total_samples))
         剪切音频 = {"waveform": waveform[..., start_sample:end_sample], "sample_rate": sample_rate}
 
-        return (剪切音频, 生成帧数 + 1)
+        return (剪切音频, 生成帧数 + 过渡帧数)

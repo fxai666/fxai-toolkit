@@ -202,7 +202,7 @@ class _MiniMaxH3Cache:
         if self.total_blocks <= 0:
             return
         saved = 100.0 * self.skipped_blocks / self.total_blocks
-        print(f"【凤希AI】加速生效，预计节省约 {saved:.0f}% 生成时间（{self.preset_name}档）。如需调整请切换节点的【速度档位】。")
+        print(f"【凤希AI】加速生效，预计加速 {saved:.0f}% （{self.preset_name}档）。如需调整请切换节点的【速度档位】。")
 
 
 class _MiniMaxH3BlockHook:

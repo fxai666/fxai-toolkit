@@ -99,10 +99,17 @@ def _empty_av_latent(width, height, length, batch_size=1):
     return {"samples": comfy.nested_tensor.NestedTensor((video, audio))}, frame_count
 
 
-def _encode_ref_audio(audio_vae, audio):
-    """外置音频 -> ([1, 32, 2, T] 音频潜变量, 参考时长 T)；mono 复制为立体声。"""
+def _encode_ref_audio(audio_vae, audio, max_seconds=None):
+    """外置音频 -> ([1, 32, 2, T] 音频潜变量, 参考时长 T)；mono 复制为立体声。
+
+    过长音频按 max_seconds 裁剪到本段时长再编码，避免整段长音频一次性编码爆显存。
+    """
     waveform = audio["waveform"]  # [B, C, L]
     sr = audio["sample_rate"]
+    if max_seconds is not None:
+        cap = int(max_seconds * sr)
+        if waveform.shape[-1] > cap:
+            waveform = waveform[..., :cap]
     vae_sr = getattr(audio_vae, "audio_sample_rate", AUDIO_SAMPLE_RATE)
     if sr != vae_sr:
         waveform = torchaudio.functional.resample(waveform, sr, vae_sr)
@@ -229,7 +236,7 @@ class FxAiMiniMaxImageToVideo:
         if 外置音频 is not None:
             if 音频VAE is None:
                 raise ValueError("接入外置音频时需连接音频VAE")
-            audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, 外置音频)
+            audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, 外置音频, max_seconds=frame_count / 24.0)
             ref_items.append({"type": "audio"})
             ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
 
