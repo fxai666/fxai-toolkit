@@ -20,7 +20,7 @@ window.FxAiFolderSelector = function (initSubdir) {
 
         // 弹窗
         var modal = document.createElement("div");
-        modal.style.cssText = "width: 700px;height: 600px; background: #222; border-radius: 10px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;";
+        modal.style.cssText = "width: 1000px;height: 600px; background: #222; border-radius: 10px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;";
         mask.appendChild(modal);
 
         // 头部
@@ -55,7 +55,7 @@ window.FxAiFolderSelector = function (initSubdir) {
 
         // 目录列表容器 修改为网格三列布局
         var folderWrap = document.createElement("div");
-        folderWrap.style.cssText = "flex:1; overflow-y:auto; display: grid; grid-template-columns: repeat(3, 1fr); gap:8px; padding:4px;";
+        folderWrap.style.cssText = "flex:1; overflow-y:auto; display: grid; grid-template-columns: repeat(4, 1fr); gap:8px; padding:4px;";
         modal.appendChild(folderWrap);
 
         // 底部按钮栏
