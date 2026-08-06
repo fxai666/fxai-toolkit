@@ -65,13 +65,14 @@ class FxAiMiniMaxAudioSegmentLoad:
 
         生成帧数 = 分段对齐帧数[当前索引]
 
-        # 按当前段起点切音频
+        # 按当前段起点切音频：起点按对齐帧数换算秒，终点多加 1 秒尾部缓冲，
+        # 保证各段音频在拼接/衔接处不欠采样
         前面帧数 = sum(分段对齐帧数[:当前索引])
         sample_rate = 原始音频["sample_rate"]
         waveform = 原始音频["waveform"]
         total_samples = waveform.size(-1)
         start_sample = max(0, min(int(前面帧数 / FPS * sample_rate), total_samples))
-        end_sample = max(start_sample, min(int((前面帧数 + 分段时长[当前索引] + 1) * sample_rate), total_samples))
+        end_sample = max(start_sample, min(int((前面帧数 + 生成帧数) / FPS * sample_rate + sample_rate), total_samples))
         剪切音频 = {"waveform": waveform[..., start_sample:end_sample], "sample_rate": sample_rate}
 
         return (剪切音频, 生成帧数 + 1)
