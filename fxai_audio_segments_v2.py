@@ -153,7 +153,6 @@ class FxAiAudioSegmenterV2:
         selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
         return (selected, segment_list)
-		
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):

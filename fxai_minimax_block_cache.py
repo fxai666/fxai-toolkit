@@ -297,3 +297,7 @@ class FxAiMiniMaxBlockCache:
             m = nxt
             seen += 1
         return None
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
