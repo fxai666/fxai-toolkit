@@ -204,7 +204,7 @@ class FxAiMiniMaxVideoSave:
                 "图片序列": ("IMAGE",),
                 "目录": ("STRING", {"default": "sucai"}),
                 "生成帧数": ("INT", {"default": 227, "min": 6, "max": 3600, "step": 17,
-                    "tooltip": "本次生成的帧数（17k+5 网格）。实际保存视频 = 生成帧数-1，图片序列剩余帧全部作为过渡帧列表输出。"}),
+                    "tooltip": "进视频的帧数（17k+5 网格）。视频取前 N 帧，过渡帧输出视频后那一帧；图片帧数等于生成帧数时视频取全部、过渡帧取末帧。"}),
                 "帧率FPS": ("INT", {"default": 24, "min": 1}),
                 "视频序号": ("INT", {"default": -1, "min": -1}),
                 "音频": ("AUDIO",),
@@ -217,19 +217,18 @@ class FxAiMiniMaxVideoSave:
 
         target_dir = get_video_dir(目录)
         total_frames = len(图片序列)
-        保存帧数 = max(1, int(生成帧数) - 1)
+        保存帧数 = min(int(生成帧数), total_frames)
 
-        if 保存帧数 >= total_frames:
-            # 图片不足：全部保存，兜底取最后一帧作为过渡帧
-            video_images = 图片序列
-            过渡帧列表 = 图片序列[-1:]
-            保存帧数 = total_frames
-        else:
-            # 正常路径：保存前 生成帧数-1 帧，剩余全部作为过渡帧列表
-            video_images = 图片序列[:保存帧数]
+        # 视频 = 前 生成帧数 帧（不足则全部）
+        video_images = 图片序列[:保存帧数]
+        if total_frames > 保存帧数:
+            # 有剩余帧：过渡帧取视频后那一帧，列表取剩余全部
             过渡帧列表 = 图片序列[保存帧数:]
+        else:
+            # 相等或不足：无剩余，过渡帧/列表取末帧
+            过渡帧列表 = 图片序列[-1:]
 
-        # 过渡帧 = 过渡帧列表的第一帧
+        # 过渡帧 = 过渡帧列表的第一帧（始终只返回一帧）
         过渡帧 = 过渡帧列表[:1]
 
         video_path = save_video(
