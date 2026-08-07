@@ -99,7 +99,9 @@ def build_segments(total_duration, keyframes, skip_initial, include_tail, is_ave
             curr = end
         segments = new_segs
 
-        min_threshold = 5.0
+        # 最后一段太短就并入前一段：平均分段时长较大（>10s）时按 5s 标准，
+        # 否则按 3s 标准，避免尾部出现零碎小段
+        min_threshold = 5.0 if avg_dur > 10.0 else 3.0
         if len(segments) >= 2:
             last_start, last_end = segments[-1]
             last_length = last_end - last_start
