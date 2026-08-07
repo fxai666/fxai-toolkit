@@ -40,6 +40,28 @@ def align_up_h3(frames):
     return 17 * k + 5
 
 
+def align_even_h3(total_seconds, avg_seconds):
+    """MiniMax 平均分段：按每段向下对齐的帧数，把总帧数重新均匀切分。
+
+    平均分段只需算一次：每段帧数 = align_down(平均时长*24)（如 10s -> 226），
+    段数 = 总帧数 // 每段帧数，余数构成末段并向上对齐；
+    末段太短（<5s 或 <3s）时并入倒数第二段，避免尾部零碎小段。
+    返回每段实际帧数列表。
+    """
+    total = round(total_seconds * _H3_FPS)
+    per = align_down_h3(round(avg_seconds * _H3_FPS))
+    n = max(1, total // per)
+    frames = [per] * n
+    last = align_up_h3(total - per * n)
+    if last > 0:
+        frames.append(last)
+    min_threshold = 5.0 if avg_seconds > 10.0 else 3.0
+    while len(frames) >= 2 and frames[-1] < min_threshold * _H3_FPS:
+        last = frames.pop()
+        frames[-1] += last
+    return frames
+
+
 def align_segments_h3(segment_seconds, avg_dur=None):
     """每段向下对齐到 17k+5（不超目标），丢掉的帧在尾部重新分：
     - 末段太短（<5s 或 <3s）先并入前一段；
@@ -196,11 +218,17 @@ class FxAiAudioSegmenterV2:
         start_frame = int(start_sec * sample_rate)
         end_frame = int(end_sec * sample_rate)
         selected = slice_audio(audio, start_frame, end_frame)
+        selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
         if 目标模型 == "MiniMaxH3":
-            # 每段向下对齐到 17k+5（不超目标时长），逐段缺失的帧补到最后一段，
-            # 末段太短时按平均分段的合并规则并入前一段；避免整段舍帧在长循环里累积时间漂移
-            segment_list, _ = align_segments_h3(segment_list, 平均分段时长 if 是否平均分段 else None)
+            if 是否平均分段:
+                # 平均分段：只需算一次——按每段向下对齐帧数把总帧数均匀切分
+                span = end_sec - start_sec
+                frames = align_even_h3(span, 平均分段时长)
+                segment_list = [round(f / _H3_FPS, 3) for f in frames]
+            else:
+                # 手动/关键帧分段：逐段向下对齐到 17k+5，缺失帧补末段
+                segment_list, _ = align_segments_h3(segment_list, None)
         return (selected, segment_list)
 
     @classmethod

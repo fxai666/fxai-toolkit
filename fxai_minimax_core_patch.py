@@ -21,8 +21,13 @@ import comfy.ldm.minimax.model as h3
 
 
 class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
-    def __init__(self, model_config, model_type=comfy.model_base.ModelType.FLOW, device=None):
-        super().__init__(model_config, model_type, device=device)
+    def __init__(self, model_config, model_type=None, device=None):
+        # 不指定 model_type，跟随核心默认值：新版核心用 FLOW_AV（ModelSamplingAV，
+        # 含 audio_scale），旧版核心用 FLOW，避免采样时缺 audio_scale 崩溃。
+        if model_type is None:
+            super().__init__(model_config, device=device)
+        else:
+            super().__init__(model_config, model_type, device=device)
         # 保留写入潜空间的过渡帧作为采样起点：FLOW 完整去噪时 (1-sigma)*latent 权重
         # 在 sigma=1 处为 0，会把已写入的 init 潜空间清成纯噪声。改成 EPS 风格
         # `sigma*noise + latent`：过渡帧区域（非零）从写入内容起步演化，其余全零
