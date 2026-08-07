@@ -22,6 +22,47 @@ from fxai_audio_utils import (
 
 MAX_MARKERS = 64
 MIN_SEGMENT_DUR = 0.1
+_H3_FPS = 24
+
+
+def align_down_h3(frames):
+    # 最大的 17k+5 <= frames（不超目标时长）
+    if frames < 5:
+        return 5
+    return 17 * ((frames - 5) // 17) + 5
+
+
+def align_up_h3(frames):
+    # 最小的 17k+5 >= frames
+    if frames <= 5:
+        return 5
+    k = (frames - 5 + 16) // 17
+    return 17 * k + 5
+
+
+def align_segments_h3(segment_seconds, avg_dur=None):
+    """每段向下对齐到 17k+5（不超目标），丢掉的帧在尾部重新分：
+    - 末段太短（<5s 或 <3s）先并入前一段；
+    - 每段向下取整丢掉的帧累积在尾部，够一段就在尾部向后追分新段；
+    - 剩余不足一段的残余向上对齐补到最后一段。
+    返回 (每段实际秒数列表, 每段实际帧数列表)。
+    """
+    min_threshold = 5.0 if (avg_dur or 0.0) > 10.0 else 3.0
+    raw_frames = [int(s * _H3_FPS) for s in segment_seconds]
+    out_frames = [align_down_h3(f) for f in raw_frames]
+    if len(out_frames) >= 2 and out_frames[-1] < min_threshold * _H3_FPS:
+        last = out_frames.pop()
+        out_frames[-1] += last
+    residual = sum(raw_frames) - sum(out_frames)
+    while residual >= min_threshold * _H3_FPS:
+        seg = align_down_h3(residual)
+        if seg < min_threshold * _H3_FPS:
+            break
+        out_frames.append(seg)
+        residual -= seg
+    if residual > 0:
+        out_frames[-1] = align_up_h3(out_frames[-1] + residual)
+    return ([round(f / _H3_FPS, 3) for f in out_frames], out_frames)
 
 def list_input_audio_files():
     input_dir = folder_paths.get_input_directory()
@@ -124,6 +165,8 @@ class FxAiAudioSegmenterV2:
                 "包含尾部段": ("BOOLEAN", {"default": True}),
                 "是否平均分段": ("BOOLEAN", {"default": True}),
                 "平均分段时长": ("FLOAT", {"default": 15.00, "step": 0.01, "round": 0.01}),
+                "目标模型": (["LTX", "MiniMaxH3"], {"default": "LTX",
+                    "tooltip": "LTX 按原始时长输出；MiniMax 把每段时长就近对齐到 17k+5 帧网格，避免逐段舍帧在长循环中累积误差"}),
             },
             "optional": {
                 "音频": ("AUDIO", {"forceInput": True}),
@@ -142,7 +185,7 @@ class FxAiAudioSegmenterV2:
             return True
         except Exception as e:
             return str(e)
-    def select_segment(self, 音频文件="", 关键帧JSON="[]", 跳过初始段=False, 包含尾部段=True, 是否平均分段=True, 平均分段时长=15, 音频=None):
+    def select_segment(self, 音频文件="", 目标模型="LTX", 关键帧JSON="[]", 跳过初始段=False, 包含尾部段=True, 是否平均分段=True, 平均分段时长=15, 音频=None):
         audio = 音频 or load_audio_tensor_from_file(音频文件)
         waveform, sample_rate = normalize_audio_tensor(audio)
         total_duration = waveform.shape[-1] / sample_rate if sample_rate else 0.0
@@ -154,6 +197,10 @@ class FxAiAudioSegmenterV2:
         end_frame = int(end_sec * sample_rate)
         selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
+        if 目标模型 == "MiniMaxH3":
+            # 每段向下对齐到 17k+5（不超目标时长），逐段缺失的帧补到最后一段，
+            # 末段太短时按平均分段的合并规则并入前一段；避免整段舍帧在长循环里累积时间漂移
+            segment_list, _ = align_segments_h3(segment_list, 平均分段时长 if 是否平均分段 else None)
         return (selected, segment_list)
 
     @classmethod

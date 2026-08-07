@@ -54,11 +54,11 @@ class FxAiMiniMaxAudioSegmentLoad:
         if 当前索引 < 0:
             raise ValueError(f"当前索引({当前索引}) 超出分段范围 0 ~ {结束索引}")
 
-        # 每段时长 -> 帧数，向下对齐 H3 网格
-        分段对齐帧数 = [align_down_h3(int(时长 * FPS)) for 时长 in 分段时长]
+# 每段时长 -> 帧数，向下对齐 H3 网格
+        分段对齐帧数 = [align_down_h3(round(时长 * FPS)) for 时长 in 分段时长]
 
         # 累计理论帧数 - 对齐帧数 = 丢失帧数，补到最后一段并向上对齐，避免整体漂移
-        总理论帧数 = int(sum(分段时长) * FPS)
+        总理论帧数 = round(sum(分段时长) * FPS)
         缺失帧数 = 总理论帧数 - sum(分段对齐帧数)
         if 缺失帧数 > 0:
             分段对齐帧数[结束索引] = align_up_h3(分段对齐帧数[结束索引] + 缺失帧数)
