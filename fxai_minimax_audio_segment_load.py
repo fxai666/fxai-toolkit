@@ -39,7 +39,7 @@ class FxAiMiniMaxAudioSegmentLoad:
                 "当前索引": ("INT", {"default": 0, "min": 0}),
                 "分段时长列表": ("LIST", {"forceInput": True}),
                 "原始音频": ("AUDIO", {"forceInput": True}),
-                "过渡帧数": ("INT", {"default": "0"}),
+                "过渡帧数": ("INT", {"default": "0","step":17,"max":17}),
             },
         }
 
@@ -54,27 +54,19 @@ class FxAiMiniMaxAudioSegmentLoad:
         if 当前索引 < 0:
             raise ValueError(f"当前索引({当前索引}) 超出分段范围 0 ~ {结束索引}")
 
-# 每段时长 -> 帧数，向下对齐 H3 网格
         分段对齐帧数 = [align_down_h3(round(时长 * FPS)) for 时长 in 分段时长]
 
-        # 累计理论帧数 - 对齐帧数 = 丢失帧数，补到最后一段并向上对齐，避免整体漂移
         总理论帧数 = round(sum(分段时长) * FPS)
-        缺失帧数 = 总理论帧数 - sum(分段对齐帧数)
-        if 缺失帧数 > 0:
-            分段对齐帧数[结束索引] = align_up_h3(分段对齐帧数[结束索引] + 缺失帧数)
-            分段时长[结束索引] = 分段对齐帧数[结束索引] / FPS
+        分段对齐帧数[结束索引] = 总理论帧数 - sum(分段对齐帧数[:结束索引])
 
         生成帧数 = 分段对齐帧数[当前索引]
 
-        # 按当前段起点切音频：起点按对齐帧数换算秒，终点多加 1 秒尾部缓冲，
-        # 保证各段音频在拼接/衔接处不欠采样
         前面帧数 = sum(分段对齐帧数[:当前索引])
         sample_rate = 原始音频["sample_rate"]
         waveform = 原始音频["waveform"]
         total_samples = waveform.size(-1)
         start_sample = max(0, min(int(前面帧数 / FPS * sample_rate), total_samples))
-        end_sample = max(start_sample, min(int((前面帧数 + 生成帧数) / FPS * sample_rate + sample_rate), total_samples))
+        end_sample = max(start_sample, min(int((前面帧数 + 生成帧数 + 过渡帧数 + 1) / FPS * sample_rate), total_samples))
         剪切音频 = {"waveform": waveform[..., start_sample:end_sample], "sample_rate": sample_rate}
 
-        print(f"[凤希AI调试] 第{当前索引 + 1}段 送生成总帧数={生成帧数 + 过渡帧数} (本段{生成帧数}+过渡{过渡帧数}) 对齐后各段={分段对齐帧数}")
         return (剪切音频, 生成帧数 + 过渡帧数)
