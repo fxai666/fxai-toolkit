@@ -603,10 +603,22 @@ async def reboot_pc(request):
         return web.json_response({"success": False, "error": str(e)}, status=500)
 
 async def restart_comfyui(request):
-    """重启当前 ComfyUI 实例（复用 Manager 的 os.execv 方案，切换到独立线程执行，先返回响应再重启）。"""
-    try:
+    """重启当前 ComfyUI 实例（完全复用 ComfyUI-Manager 的 /manager/reboot 逻辑，含 comfy-cli 托管分支）。"""
+    def _restart():
         import sys
-        cwd = os.getcwd()
+        try:
+            sys.stdout.close_log()
+        except Exception:
+            pass
+
+        if '__COMFY_CLI_SESSION__' in os.environ:
+            with open(os.path.join(os.environ['__COMFY_CLI_SESSION__'] + '.reboot'), 'w'):
+                pass
+            print("\nRestarting...\n\n", flush=True)
+            exit(0)
+
+        print("\nRestarting... [Legacy Mode]\n\n", flush=True)
+
         sys_argv = sys.argv.copy()
         if '--windows-standalone-build' in sys_argv:
             sys_argv.remove('--windows-standalone-build')
@@ -618,19 +630,15 @@ async def restart_comfyui(request):
             cmds = ['"' + sys.executable + '"', '"' + sys_argv[0] + '"'] + sys_argv[1:]
         else:
             cmds = [sys.executable] + sys_argv
+
+        print(f"Command: {cmds}", flush=True)
+        os.execv(sys.executable, cmds)
+
+    try:
+        await asyncio.to_thread(_restart)
+        return web.json_response({"success": True, "message": "正在重启 ComfyUI 实例..."})
     except Exception as e:
-        return web.json_response({"success": False, "error": f"构建重启命令失败: {e}"}, status=500)
-
-    async def _do_restart():
-        try:
-            await asyncio.sleep(1.0)
-            print("✅ fxai: 正在重启 ComfyUI ...", flush=True)
-            os.execv(sys.executable, cmds)
-        except Exception as e:
-            print(f"❌ fxai 重启失败: {e}", flush=True)
-
-    asyncio.get_event_loop().create_task(_do_restart())
-    return web.json_response({"success": True, "message": "正在重启 ComfyUI 实例..."})
+        return web.json_response({"success": False, "error": f"重启失败: {e}"}, status=500)
 try:
     PromptServer.instance.routes.get("/fxai/health")(health_check)
     PromptServer.instance.routes.get("/fxai/folder/list")(get_folder)
