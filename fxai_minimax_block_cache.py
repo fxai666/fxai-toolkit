@@ -197,12 +197,13 @@ class _MiniMaxH3Cache:
         return 1.0
 
     def _is_final_step(self, args, sigma_n):
-        """当前采样是否已到最后一帧（全程 sigma 绝对值变化极小或已接近最低点）。"""
+        """当前采样是否已到最后一帧（sample_sigmas 中最后一个非零档位即为最终步）。"""
         sample_sigmas = args["transformer_options"].get("sample_sigmas")
         if sample_sigmas is not None:
             ss = torch.as_tensor(sample_sigmas).flatten().float()
             if ss.numel() > 1:
-                return abs(sigma_n - float(ss[-1])) < 1e-6
+                idx = int((ss - sigma_n).abs().argmin())
+                return idx >= ss.numel() - 2
         return sigma_n < 1e-3
 
     def _finish_run(self):

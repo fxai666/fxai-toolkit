@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
 app.registerExtension({
     name: "FxAiScreenManager",
@@ -88,26 +89,20 @@ app.registerExtension({
                     }
                     for (var j = 0; j < list.length; j++) {
                         var item = list[j];
-                        var duration = 15;
+                        var duration = 10;
                         var text = "";
-                        var audioNo = 0;
-                        var audioStart = 0;
-                        var imgSrc = "";
-                        var tailNeedle = -1;
-                        var transition = 1;
+                        var imgStr = "";
                         
                         if (Array.isArray(item)) {
-                            duration = Number(item[0]) || 15;
+                            duration = Number(item[0]) || 10;
                             text = item[1] || "";
-                            if(item.length >=3) audioNo = Number(item[2]) || 0;
-                            if(item.length >=4) audioStart = Number(item[3]) || 0;
-                            if(item.length >=5) imgSrc = item[4] || "";
-                            if(item.length >=6) tailNeedle = Number(item[5]) || -1;
-                            if(item.length >=7) transition = Number(item[6]) || 1;
+                            if (item.length >= 3) imgStr = String(item[2] || "");
+                            // 兼容旧格式（图片在索引4）：适配旧数据
+                            if (item.length >= 5 && !imgStr) imgStr = String(item[4] || "");
                         } else {
                             text = item || "";
                         }
-                        addLine(this, text, duration, audioNo, audioStart, imgSrc, tailNeedle, transition);
+                        addLine(this, text, duration, imgStr);
                     }
                 }
             } catch (e) {
@@ -127,11 +122,7 @@ app.registerExtension({
                     values.push([
                         this.lines[i].duration,
                         this.lines[i].value,
-                        this.lines[i].audiono,
-                        this.lines[i].audiostart,
-                        this.lines[i].imgno,
-                        this.lines[i].tailNeedle,
-                        this.lines[i].transition,
+                        this.lines[i].imgStr,
                     ]);
                 }
                 var json = JSON.stringify(values);
@@ -185,7 +176,7 @@ function openBatchPopup(node) {
     title.style.marginBottom = "8px";
     title.style.textAlign = "center";
 
-    var tip = document.createElement("div");
+var tip = document.createElement("div");
     tip.textContent = "输入 JSON 数组格式，例如：[\"场景提示词1\",\"场景提示词2\",\"场景提示词3\"]，导入后追加到现有列表末尾";
     tip.style.fontSize = "12px";
     tip.style.color = "#aaa";
@@ -256,7 +247,7 @@ function openBatchPopup(node) {
                 alert("必须是数组格式");
                 return;
             }
-            
+
             for (var k = 0; k < arr.length; k++) {
                 addLine(node, String(arr[k] || ""));
             }
@@ -284,13 +275,9 @@ function createHeader(node) {
 
     var labels = [
         { text: "场景", width: "30px" },
-        { text: "时长", width: "60px" },
-        { text: "场景控制提示词", flex: 1 },
-        { text: "音频文件", width: "60px" },
-        { text: "音频开始", width: "60px" },
-        { text: "图片文件", width: "60px" },
-        { text: "尾帧位置", width: "60px" },
-        { text: "过渡", width: "30px" },
+        { text: "时长(秒)", width: "60px" },
+        { text: "素材", width: "480px" },
+        { text: "台词", flex: 1 },
         { text: "操作", width: "90px" }
     ];
 
@@ -308,14 +295,10 @@ function createHeader(node) {
     node.scrollContainer.appendChild(header);
 }
 
-function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAudioStart, defaultImgSrc, defaultTailNeedle, defaultTransition) {
+function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
     if (defaultValue === undefined) defaultValue = "";
-    if (defaultDuration === undefined) defaultDuration = 15;
-    if (defaultAudioNo === undefined) defaultAudioNo = -1;
-    if (defaultAudioStart === undefined) defaultAudioStart = 0;
-    if (defaultImgSrc === undefined) defaultImgSrc = "";
-    if (defaultTailNeedle === undefined) defaultTailNeedle = -1;
-    if (defaultTransition === undefined) defaultTransition = 1;
+    if (defaultDuration === undefined) defaultDuration = 10;
+    if (defaultImgStr === undefined) defaultImgStr = "";
 
     var idx = node.lines.length;
     var row = document.createElement("div");
@@ -355,11 +338,118 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     durationInput.style.marginTop = "2px";
     durationInput.value = defaultDuration;
 
+    // 素材缩略图区：flex 换行网格（每行 4 张图 + "＋"），点击打开图片多选选择器，每张可删除
+    var materialBox = document.createElement("div");
+    materialBox.style.width = "480px";
+    materialBox.style.minHeight = "94px";
+    materialBox.style.padding = "4px";
+    materialBox.style.borderRadius = "4px";
+    materialBox.style.border = "1px dashed var(--comfy-menu-border-color)";
+    materialBox.style.backgroundColor = "var(--comfy-input-bg)";
+    materialBox.style.boxSizing = "border-box";
+    materialBox.style.cursor = "pointer";
+    materialBox.style.display = "flex";
+    materialBox.style.flexWrap = "wrap";
+    materialBox.style.alignContent = "flex-start";
+    materialBox.style.gap = "4px";
+    materialBox.style.flexShrink = "0";
+
+    materialBox.onclick = function (e) {
+        if (e.target && e.target.tagName === "IMG") return;
+        openMaterialSelector(item).then(function () {
+            renderMaterialBox();
+            updateHidden(node);
+        });
+    };
+
+    function openMaterialSelector(item) {
+        var initStr = (item.imgStr === undefined || item.imgStr === null) ? "" : String(item.imgStr);
+        return FxAiCharacterAssetsSelector(initStr).then(function (val) {
+            if (val !== undefined) {
+                item.imgStr = String(val);
+            }
+        });
+    }
+
+    // 渲染两列缩略图 + 序号角标 + 删除角
+    function renderMaterialBox() {
+        materialBox.innerHTML = "";
+        var imgs = (item.imgStr || "").split(",").map(function (s) { return s.trim(); }).filter(function (s) { return s !== ""; });
+        if (imgs.length === 0) {
+            var tip = document.createElement("span");
+            tip.textContent = "＋ 选择素材";
+            tip.style.cssText = "color:#999;font-size:12px;padding:30px 8px;display:block;text-align:center;";
+            materialBox.appendChild(tip);
+            return;
+        }
+        imgs.forEach(function (path, index) {
+            var parts = path.split("/");
+            var sub = parts[0] || "";
+            var fname = parts[1] || "";
+            var wrap = document.createElement("div");
+            wrap.style.width = "90px";
+            wrap.style.flexShrink = "0";
+            wrap.style.position = "relative";
+
+            var img = document.createElement("img");
+            img.style.width = "90px";
+            img.style.height = "90px";
+            img.style.objectFit = "cover";
+            img.style.display = "block";
+            img.style.borderRadius = "4px";
+            img.style.border = "1px solid var(--comfy-menu-border-color)";
+            img.onerror = function () { img.style.opacity = "0.3"; };
+            if (sub && fname) {
+                img.src = api.apiURL("/fxai/image/v2/preview?subdir=" + encodeURIComponent(sub) + "&filename=" + encodeURIComponent(fname));
+            }
+
+            var numTag = document.createElement("div");
+            numTag.textContent = index + 1;
+            numTag.style.cssText = "position:absolute;top:0;left:0;width:18px;height:18px;background:rgba(0,0,0,0.6);color:#fff;font-size:11px;text-align:center;line-height:18px;border-radius:0 0 4px 0;z-index:2;";
+
+            var delBtn = document.createElement("div");
+            delBtn.textContent = "×";
+            delBtn.style.cssText = "position:absolute;top:0;right:0;width:18px;height:18px;background:#f54242;color:#fff;text-align:center;line-height:18px;font-size:13px;cursor:pointer;z-index:3;border-radius:0 0 0 4px;";
+            delBtn.onmousedown = function (e) { e.stopPropagation(); };
+            delBtn.onclick = function (e) {
+                e.stopPropagation();
+                var arr = (item.imgStr || "").split(",").map(function (s) { return s.trim(); }).filter(function (s) { return s !== ""; });
+                arr.splice(index, 1);
+                item.imgStr = arr.join(",");
+                renderMaterialBox();
+                updateHidden(node);
+            };
+
+            wrap.appendChild(img);
+            wrap.appendChild(numTag);
+            wrap.appendChild(delBtn);
+
+            var picLabel = document.createElement("input");
+            picLabel.type = "text";
+            picLabel.value = "<Picture " + (index + 1) + ">";
+            picLabel.title = "双击选中便于复制（对应第 " + (index + 1) + " 张素材）";
+            picLabel.style.cssText = "width:100%;height:16px;box-sizing:border-box;margin-top:3px;padding:0 2px;font-size:10px;text-align:center;color:var(--fg-color);background:var(--comfy-input-bg);border:1px solid var(--comfy-menu-border-color);border-radius:3px;";
+            picLabel.onclick = function (e) { e.stopPropagation(); };
+            picLabel.onmousedown = function (e) { e.stopPropagation(); };
+            picLabel.onfocus = function () { picLabel.select(); };
+            wrap.appendChild(picLabel);
+
+            materialBox.appendChild(wrap);
+        });
+        // 追加"+"：未超过 8 张可继续添加（高度对齐图片高度）
+        if (imgs.length < 8) {
+            var plus = document.createElement("div");
+            plus.textContent = "＋";
+            plus.style.cssText = "width:90px;height:90px;border:1px dashed #555;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#999;font-size:22px;flex-shrink:0;background:transparent;margin-top:0;";
+            materialBox.appendChild(plus);
+        }
+    }
+
     var textarea = document.createElement("textarea");
-    textarea.placeholder = "输入内容...";
+    textarea.placeholder = "输入台词...";
     textarea.style.flex = "1";
     textarea.style.minWidth = "0";
-    textarea.style.minHeight = "60px";
+    textarea.style.minHeight = "109px";
     textarea.style.padding = "6px 8px";
     textarea.style.borderRadius = "4px";
     textarea.style.fontFamily = "monospace";
@@ -370,80 +460,6 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     textarea.style.resize = "vertical";
     textarea.style.boxSizing = "border-box";
     textarea.value = defaultValue;
-
-    var audionoInput = document.createElement("input");
-    audionoInput.type = "number";
-    audionoInput.min = "-1";
-    audionoInput.step = "1";
-    audionoInput.placeholder = "编号";
-    audionoInput.style.width = "60px";
-    audionoInput.style.height = "28px";
-    audionoInput.style.padding = "0 6px";
-    audionoInput.style.borderRadius = "4px";
-    audionoInput.style.border = "1px solid var(--comfy-menu-border-color)";
-    audionoInput.style.backgroundColor = "var(--comfy-input-bg)";
-    audionoInput.style.color = "var(--fg-color)";
-    audionoInput.style.textAlign = "center";
-    audionoInput.style.flexShrink = "0";
-    audionoInput.style.marginTop = "2px";
-    audionoInput.value = defaultAudioNo;
-
-    var audiostartInput = document.createElement("input");
-    audiostartInput.type = "number";
-    audiostartInput.min = "0";
-    audiostartInput.step = "0.1";
-    audiostartInput.placeholder = "秒";
-    audiostartInput.style.width = "60px";
-    audiostartInput.style.height = "28px";
-    audiostartInput.style.padding = "0 6px";
-    audiostartInput.style.borderRadius = "4px";
-    audiostartInput.style.border = "1px solid var(--comfy-menu-border-color)";
-    audiostartInput.style.backgroundColor = "var(--comfy-input-bg)";
-    audiostartInput.style.color = "var(--fg-color)";
-    audiostartInput.style.textAlign = "center";
-    audiostartInput.style.flexShrink = "0";
-    audiostartInput.style.marginTop = "2px";
-    audiostartInput.value = defaultAudioStart;
-
-    var imgnoInput = document.createElement("input");
-    imgnoInput.type = "text";
-    imgnoInput.style.width = "60px";
-    imgnoInput.style.height = "28px";
-    imgnoInput.style.padding = "0 6px";
-    imgnoInput.style.borderRadius = "4px";
-    imgnoInput.style.border = "1px solid var(--comfy-menu-border-color)";
-    imgnoInput.style.backgroundColor = "var(--comfy-input-bg)";
-    imgnoInput.style.color = "var(--fg-color)";
-    imgnoInput.style.textAlign = "center";
-    imgnoInput.style.flexShrink = "0";
-    imgnoInput.style.marginTop = "2px";
-    imgnoInput.value = defaultImgSrc;
-
-    var tailNeedleInput = document.createElement("input");
-    tailNeedleInput.type = "number";
-    tailNeedleInput.min = "-1";
-    tailNeedleInput.step = "1";
-    tailNeedleInput.placeholder = "尾针";
-    tailNeedleInput.style.width = "65px";
-    tailNeedleInput.style.height = "28px";
-    tailNeedleInput.style.padding = "0 6px";
-    tailNeedleInput.style.borderRadius = "4px";
-    tailNeedleInput.style.border = "1px solid var(--comfy-menu-border-color)";
-    tailNeedleInput.style.backgroundColor = "var(--comfy-input-bg)";
-    tailNeedleInput.style.color = "var(--fg-color)";
-    tailNeedleInput.style.textAlign = "center";
-    tailNeedleInput.style.flexShrink = "0";
-    tailNeedleInput.style.marginTop = "2px";
-    tailNeedleInput.value = defaultTailNeedle;
-
-    var transitionCheckbox = document.createElement("input");
-    transitionCheckbox.type = "checkbox";
-    transitionCheckbox.checked = defaultTransition === 1;
-    transitionCheckbox.style.width = "20px";
-    transitionCheckbox.style.height = "20px";
-    transitionCheckbox.style.marginTop = "6px";
-    transitionCheckbox.style.flexShrink = "0";
-    transitionCheckbox.style.cursor = "pointer";
 
     var upBtn = document.createElement("button");
     upBtn.textContent = "↑";
@@ -489,12 +505,8 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
 
     row.appendChild(lineNumLabel);
     row.appendChild(durationInput);
+    row.appendChild(materialBox);
     row.appendChild(textarea);
-    row.appendChild(audionoInput);
-    row.appendChild(audiostartInput);
-    row.appendChild(imgnoInput);
-    row.appendChild(tailNeedleInput);
-    row.appendChild(transitionCheckbox);
     row.appendChild(upBtn);
     row.appendChild(downBtn);
     row.appendChild(delBtn);
@@ -503,24 +515,17 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     var item = {
         textarea: textarea,
         durationInput: durationInput,
-        audionoInput: audionoInput,
-        audiostartInput: audiostartInput,
-        imgnoInput: imgnoInput,
-        tailNeedleInput: tailNeedleInput,
-        transitionCheckbox: transitionCheckbox,
         upBtn: upBtn,
         downBtn: downBtn,
         row: row,
         value: defaultValue,
         duration: defaultDuration,
-        audiono: defaultAudioNo,
-        audiostart: defaultAudioStart,
-        imgno: defaultImgSrc,
-        tailNeedle: defaultTailNeedle,
-        transition: defaultTransition,
+        imgStr: defaultImgStr,
         label: lineNumLabel
     };
     node.lines.push(item);
+
+    renderMaterialBox();
 
     textarea.addEventListener("input", function() {
         item.value = textarea.value;
@@ -528,50 +533,10 @@ function addLine(node, defaultValue, defaultDuration, defaultAudioNo, defaultAud
     });
 
     durationInput.addEventListener("input", function() {
-        var val = parseFloat(durationInput.value) || 15;
+        var val = parseFloat(durationInput.value) || 10;
         if (val < 0.1) val = 0.1;
         durationInput.value = val;
         item.duration = val;
-        updateHidden(node);
-    });
-    
-    audionoInput.addEventListener("input", function() {
-        var val = parseInt(audionoInput.value);
-        if (val < -1) val = -1;
-        audionoInput.value = val;
-        item.audiono = val;
-        updateHidden(node);
-    });
-
-    audiostartInput.addEventListener("input", function() {
-        var val = parseFloat(audiostartInput.value) || 0;
-        if (val < 0) val = 0;
-        audiostartInput.value = val;
-        item.audiostart = val;
-        updateHidden(node);
-    });
-
-    imgnoInput.addEventListener("click", function() {
-        FxAiCharacterAssetsSelector(this.value).then(val => {
-            if(val!==undefined)
-            {
-                imgnoInput.value = val;
-                item.imgno = val;
-                updateHidden(node);
-            }
-        });
-    });
-
-    tailNeedleInput.addEventListener("input", function() {
-        var val = parseInt(tailNeedleInput.value) ;
-        if (val < -1) val = -1;
-        tailNeedleInput.value = val;
-        item.tailNeedle = val;
-        updateHidden(node);
-    });
-
-    transitionCheckbox.addEventListener("change", function() {
-        item.transition = transitionCheckbox.checked ? 1 : 0;
         updateHidden(node);
     });
 
@@ -648,11 +613,7 @@ function updateHidden(node) {
         values.push([
             node.lines[i].duration,
             node.lines[i].value,
-            node.lines[i].audiono,
-            node.lines[i].audiostart,
-            node.lines[i].imgno,
-            node.lines[i].tailNeedle,
-            node.lines[i].transition
+            node.lines[i].imgStr
         ]);
     }
     var data = JSON.stringify(values);

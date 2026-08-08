@@ -7,9 +7,6 @@ class FxAiScreenManager:
         return {
             "required": {
                 "lines_data": ("STRING", {"multiline": True, "default": "[]"}),
-            },
-            "optional": {
-                "刷新标记": ("INT", {"forceInput": True}),
             }
         }
 
@@ -18,7 +15,7 @@ class FxAiScreenManager:
     FUNCTION = "execute"
     CATEGORY = "凤希AI/影视剧场"
 
-    def execute(self, lines_data="[]", 刷新标记=0) -> tuple[int, List[Dict[str, Any]], List[float]]:
+    def execute(self, lines_data="[]") -> tuple[int, List[Dict[str, Any]], List[float]]:
         try:
             if isinstance(lines_data, str):
                 lines = json.loads(lines_data.strip())
@@ -30,7 +27,7 @@ class FxAiScreenManager:
             lines = []
 
         if not isinstance(lines, list) or len(lines) == 0:
-            lines = [[15.0, "", 0, 0.0, -1, -1, 1]]
+            lines = [[15.0, "", ""]]
 
         total_count = len(lines)
         scene_data = []
@@ -39,38 +36,37 @@ class FxAiScreenManager:
         for idx, line in enumerate(lines):
             line_data = {
                 "序号": idx + 1,
-                "音频时长": 15.0,
-                "提示词文本": "",
-                "音频索引": 0,
-                "音频开始": 0.0,      
-                "图片索引": -1,
-                "尾帧位置": -1,
-                "转场": 1
+                "时长": 15.0,
+                "台词": "",
+                "素材": "",
             }
 
             if isinstance(line, list):
                 try:
                     if len(line) >= 1:
-                        line_data["音频时长"] = float(line[0])
+                        line_data["时长"] = float(line[0])
                     if len(line) >= 2:
-                        line_data["提示词文本"] = line[1]
+                        line_data["台词"] = line[1]
                     if len(line) >= 3:
-                        line_data["音频索引"] = int(line[2])
-                    if len(line) >= 4:
-                        line_data["音频开始"] = float(line[3])
-                    if len(line) >= 5:
-                        line_data["图片索引"] = int(line[4])
-                    if len(line) >= 6:
-                        line_data["尾帧位置"] = int(line[5])
-                    if len(line) >= 7:
-                        line_data["转场"] = int(line[6])
+                        line_data["素材"] = line[2]
+                except Exception:
+                    pass
+            elif isinstance(line, dict):
+                try:
+                    line_data["时长"] = float(line.get("时长", line.get("音频时长", 15.0)))
+                    line_data["台词"] = line.get("台词", line.get("提示词文本", ""))
+                    line_data["素材"] = line.get("素材", line.get("图片地址", line.get("图片文件", "")))
                 except Exception:
                     pass
             elif isinstance(line, str):
-                line_data["提示词文本"] = line
+                line_data["台词"] = line
+
+            if isinstance(line_data["素材"], (list, tuple)):
+                line_data["素材"] = ",".join(str(x) for x in line_data["素材"] if str(x).strip())
+            else:
+                line_data["素材"] = str(line_data["素材"] or "")
 
             scene_data.append(line_data)
-            segment_durations.append(line_data["音频时长"])
+            segment_durations.append(line_data["时长"])
 
         return (total_count, scene_data, segment_durations)
-

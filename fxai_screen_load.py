@@ -1,7 +1,19 @@
 import os
-import glob
-import numpy as np
-from pydub import AudioSegment
+import re
+import math
+import folder_paths
+from fxai_image_utils import load_single_image
+
+def get_image_dir(subdir=""):
+    comfy_root = folder_paths.base_path
+    base_dir = "fxai/image"
+    target_dir = os.path.join(comfy_root, base_dir)
+
+    if subdir:
+        subdir = re.sub(r'[\\/*?:"<>|]', "", subdir)
+        target_dir = os.path.join(target_dir, subdir)
+
+    return target_dir
 
 class FxAiScreenLoad:
     @classmethod
@@ -12,19 +24,24 @@ class FxAiScreenLoad:
                 "行索引": ("INT", {"forceInput": True}),
             },
             "optional": {
-                "音频目录": ("STRING", {"forceInput": True}),
                 "通用提示词": ("STRING", {"default": "", "forceInput": True}),
                 "尾部通用提示词": ("STRING", {"default": "", "forceInput": True}),
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING","BOOLEAN", "AUDIO")
-    RETURN_NAMES = ("提示词","图片地址","启用转场","截取音频")
+    RETURN_TYPES = ("STRING", "IMAGE", "INT")
+    RETURN_NAMES = ("台词", "素材", "帧数")
 
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI/影视剧场"
 
-    def get_scene_data(self, 场景数据, 行索引, 音频目录="", 通用提示词="", 尾部通用提示词=""):
+    def get_scene_data(self, 场景数据, 行索引, 通用提示词="", 尾部通用提示词=""):
+        台词 = ""
+        提示词 = ""
+        时长 = 15.0
+        frame = 0
+        images = []
+
         try:
             total_lines = len(场景数据) if isinstance(场景数据, list) else 0
 
@@ -32,59 +49,46 @@ class FxAiScreenLoad:
                 raise IndexError(f"行索引越界：{行索引} / 总行数：{total_lines}")
 
             item = 场景数据[行索引]
-            提示词 = 通用提示词 + item["提示词文本"] + 尾部通用提示词
-            音频开始 = float(item["音频开始"])
-            时长 = float(item["时长"])
-            音频索引 = int(item["音频索引"])
-            图片地址 = int(item["图片地址"])
-            启用转场 = int(item["转场"]) == 1
+            台词 = item.get("台词", item.get("提示词文本", ""))
+            提示词 = 通用提示词 + 台词 + 尾部通用提示词
+            素材 = item.get("素材", "")
+            时长 = float(item.get("时长", 15.0))
 
-            # 初始化直接 = None
-            截取音频 = None
-
-            # 索引不是 -1 才处理
-            if 音频索引 > -1 and 音频目录:
-                # 支持格式
-                audio_exts = ('.mp3', '.wav', '.flac', '.ogg', '.m4a', '.wma')
-                
-                audio_files = []
-                for ext in audio_exts:
-                    audio_files.extend(glob.glob(os.path.join(音频目录, f"*{ext}")))
-                
-                # 自动排序
-                audio_files = sorted(audio_files)
-                audio_files = [os.path.basename(f) for f in audio_files]
-
-                # 取索引对应音频
-                if 音频索引 < len(audio_files):
-                    file_path = os.path.join(音频目录, audio_files[音频索引])
-                    audio = AudioSegment.from_file(file_path)
-
-                    start_ms = int(音频开始 * 1000)
-                    duration_ms = int(时长 * 1000)
-                    cut_audio = audio[start_ms : start_ms + duration_ms]
-
-                    截取音频 = self.to_comfy_audio(cut_audio)
-
-            return (
-                提示词,
-                图片地址,
-                启用转场,
-                截取音频
-            )
+            path_list = [p.strip() for p in str(素材).split(",") if p.strip()]
+            x = max(5, round(时长 * 24))
+            frame = x + (5 - x) % 17
 
         except Exception as e:
             print(f"✅ [凤希AI场景加载] 异常：{e}")
+            x = max(5, int(round(时长 * 24)))
+            frame = x + (5 - x) % 17
             return (
-                f"{通用提示词}{尾部通用提示词}",
-                图片地址,
-                True,
-                None
+                f"{通用提示词}{台词 or ''}{尾部通用提示词}",
+                images,
+                frame,
             )
 
-    def to_comfy_audio(self, segment):
-        sample_rate = segment.frame_rate
-        channels = segment.channels
-        audio_data = np.frombuffer(segment.raw_data, dtype=np.int16).astype(np.float32) / 32767.0
-        audio_data = audio_data.reshape((-1, channels))
-        return (audio_data, sample_rate)
+        for rel_path in path_list:
+            parts = rel_path.split("/", 1)
+            if len(parts) != 2:
+                continue
+
+            subdir, filename = parts
+            full_dir = get_image_dir(subdir)
+            full_path = os.path.join(full_dir, filename)
+
+            if not os.path.exists(full_path):
+                print(f"[凤希] 图片不存在：{full_path}")
+                continue
+
+            try:
+                tensor = load_single_image(full_path)
+                images.append(tensor)
+            except Exception as e:
+                print(f"[凤希] 加载失败：{full_path} => {e}")
+
+        return (
+            提示词,
+            images,
+            frame,
+        )
