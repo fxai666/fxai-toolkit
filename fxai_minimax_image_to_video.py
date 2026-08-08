@@ -153,7 +153,6 @@ class FxAiMiniMaxImageToVideo:
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
             音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 过渡帧列表=None, 过渡羽化=-1):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
-        print(f"[凤希AI调试] 图生视频 收到帧数参数={帧数} 对齐后实际生成={frame_count}帧")
 
         if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
             # 将过渡帧编码写入潜空间开头并软锁：t=0 起前 k 步的 denoise_mask 从 0 平滑

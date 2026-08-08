@@ -217,8 +217,7 @@ class FxAiMiniMaxVideoSave:
 
         target_dir = get_video_dir(目录)
         total_frames = len(图片序列)
-        保存帧数 = min(int(生成帧数), total_frames)
-        print(f"[凤希AI调试] 视频保存 收到图片总帧数={total_frames} 指定生成帧数={生成帧数} 实际保存帧数={保存帧数}")
+        保存帧数 = min(int(生成帧数), max(0,total_frames))
 
         # 视频 = 前 生成帧数 帧（不足则全部）
         video_images = 图片序列[:保存帧数]
