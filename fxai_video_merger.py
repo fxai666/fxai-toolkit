@@ -167,13 +167,14 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
             if not audio_wav or not os.path.exists(audio_wav):
                 return None
 
-            cmd_final = [
+cmd_final = [
                 'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
                 '-i', temp_concat,
                 '-i', audio_wav,
                 '-c:v', 'copy',
                 '-c:a', 'aac', '-b:a', '192k', '-ac', '2',
                 '-map', '0:v:0', '-map', '1:a:0',
+                '-shortest',
                 '-movflags', '+faststart',
                 output_path
             ]

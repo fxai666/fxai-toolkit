@@ -76,4 +76,5 @@ class FxAiMiniMaxAudioSegmentLoad:
         end_sample = max(start_sample, min(int((前面帧数 + 生成帧数) / FPS * sample_rate + sample_rate), total_samples))
         剪切音频 = {"waveform": waveform[..., start_sample:end_sample], "sample_rate": sample_rate}
 
+        print(f"[凤希AI调试] 第{当前索引 + 1}段 送生成总帧数={生成帧数 + 过渡帧数} (本段{生成帧数}+过渡{过渡帧数}) 对齐后各段={分段对齐帧数}")
         return (剪切音频, 生成帧数 + 过渡帧数)
