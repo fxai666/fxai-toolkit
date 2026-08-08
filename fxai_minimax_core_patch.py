@@ -19,6 +19,29 @@ import comfy.model_sampling
 import comfy.ldm.common_dit
 import comfy.ldm.minimax.model as h3
 
+# 兼容新旧官方内核：time_shift_sigma 为主判断，官方有就用官方的；
+# time_shift_slope 同理，官方有就用官方的，都没有才用本地兜底实现。
+if hasattr(h3, "time_shift_sigma"):
+    time_shift_sigma = h3.time_shift_sigma
+else:
+    def time_shift_sigma(sigma, from_shift, to_shift):
+        base = sigma / (from_shift + sigma * (1.0 - from_shift))
+        return to_shift * base / (1.0 + (to_shift - 1.0) * base)
+
+
+if hasattr(h3, "time_shift_slope"):
+    time_shift_slope = h3.time_shift_slope
+else:
+    def time_shift_slope(sigma, from_shift, to_shift):
+        """d(sigma_to)/d(sigma_from) at the same base-grid point.
+
+        Scaling a stream's returned velocity by this slope makes the flat ODE that
+        any sampler integrates on the from-schedule equal to that stream's true ODE
+        on its own schedule.
+        """
+        base = sigma / (from_shift + sigma * (1.0 - from_shift))
+        return (to_shift * (1.0 + (from_shift - 1.0) * base) ** 2) / (from_shift * (1.0 + (to_shift - 1.0) * base) ** 2)
+
 
 class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
     def __init__(self, model_config, model_type=None, device=None):
@@ -220,7 +243,7 @@ def _patched_forward(self, x, timestep, context, transformer_options={}, minimax
     shift_a = float(transformer_options.get("minimax_h3_sigma_shift_audio", self.sigma_shift_audio))
     sigma_v = (timestep.flatten()[0] / 1000.0).float().clamp(min=1e-6)
     t_v = float(1.0 - sigma_v)
-    t_a = float(1.0 - h3.time_shift_sigma(sigma_v, shift_v, shift_a))
+    t_a = float(1.0 - time_shift_sigma(sigma_v, shift_v, shift_a))
 
     vis_aug = float(payload.get("visual_cond_noise_aug", h3.VISUAL_COND_TIMESTEP))
     aud_aug = float(payload.get("audio_cond_noise_aug", h3.AUDIO_COND_TIMESTEP))
@@ -319,7 +342,7 @@ def _patched_forward(self, x, timestep, context, transformer_options={}, minimax
     video_out = video_out[:, :, :orig_t, :orig_h, :orig_w]
     audio_out = h3.unpack_audio(a)
 
-    slope_a = h3.time_shift_slope(sigma_v, shift_v, shift_a).to(audio_out.dtype)
+    slope_a = time_shift_slope(sigma_v, shift_v, shift_a).to(audio_out.dtype)
     return [-video_out.to(video_x.dtype), (-slope_a) * audio_out.to(audio_x.dtype)]
 
 
