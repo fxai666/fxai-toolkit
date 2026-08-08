@@ -74,6 +74,8 @@ class _MiniMaxH3Cache:
             return {"img": self._full_step(args, kwargs, block_count, count=True)}
 
         if abs(sigma - self.last_sigma) <= 1e-6:
+            if self._is_final_step(args, sigma / self.sigma_scale):
+                self._print_stats()
             if self.last_mode == "cache":
                 return {"img": self._cache_step(args, kwargs, block_count, count=False)}
             return {"img": self._full_step(args, kwargs, block_count, count=False)}
@@ -84,7 +86,8 @@ class _MiniMaxH3Cache:
         sigma_n = sigma / self.sigma_scale
         prev_n = self.prev_sigma / self.sigma_scale
         pos = self._position(args, sigma_n)
-        if self.total_steps is not None and self.step >= self.total_steps:
+        if self._is_final_step(args, sigma_n) or (
+                self.total_steps is not None and (self.step >= self.total_steps or pos >= 0.999)):
             self._print_stats()
         k = self.boundary
         in_window = self.start_percent <= pos <= self.end_percent
@@ -193,6 +196,15 @@ class _MiniMaxH3Cache:
             return min(1.0, max(0.0, (start_n - sigma_n) / start_n))
         return 1.0
 
+    def _is_final_step(self, args, sigma_n):
+        """当前采样是否已到最后一帧（全程 sigma 绝对值变化极小或已接近最低点）。"""
+        sample_sigmas = args["transformer_options"].get("sample_sigmas")
+        if sample_sigmas is not None:
+            ss = torch.as_tensor(sample_sigmas).flatten().float()
+            if ss.numel() > 1:
+                return abs(sigma_n - float(ss[-1])) < 1e-6
+        return sigma_n < 1e-3
+
     def _finish_run(self):
         if not self.printed and (self.full_steps + self.cache_hits) > 0:
             self._print_stats()
@@ -202,7 +214,7 @@ class _MiniMaxH3Cache:
         if self.total_blocks <= 0:
             return
         saved = 100.0 * self.skipped_blocks / self.total_blocks
-        print(f"【凤希AI】加速生效，预计加速 {saved:.0f}% （{self.preset_name}档）。如需调整请切换节点的【速度档位】。")
+        print(f"【凤希AI】加速生效，已加速 {saved:.0f}% （{self.preset_name}档）。如需调整请切换节点的【速度档位】。")
 
 
 class _MiniMaxH3BlockHook:
