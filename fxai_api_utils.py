@@ -557,7 +557,7 @@ async def shutdown_pc(request):
     except Exception:
         wait = 60
     wait = max(5, min(wait, 86400))
-    import platform, subprocess
+    import platform
     sysos = platform.system()
     try:
         if sysos == "Windows":
@@ -575,6 +575,62 @@ async def shutdown_pc(request):
             return web.json_response({"success": False, "error": f"不支持的系统: {sysos}"}, status=400)
     except Exception as e:
         return web.json_response({"success": False, "error": str(e)}, status=500)
+
+async def reboot_pc(request):
+    try:
+        data = await request.json()
+        wait = int(data.get("wait_seconds", 5))
+    except Exception:
+        wait = 5
+    wait = max(0, min(wait, 86400))
+    import platform
+    sysos = platform.system()
+    try:
+        if sysos == "Windows":
+            result = subprocess.run(["shutdown", "-r", "-t", str(wait)], capture_output=True, text=True)
+            if result.returncode == 0:
+                return web.json_response({"success": True, "message": f"已设置 {wait} 秒后重启"})
+            return web.json_response({"success": False, "error": result.stderr.strip()}, status=500)
+        elif sysos in ("Linux", "Darwin"):
+            minutes = max(1, (wait + 59) // 60)
+            result = subprocess.run(["sudo", "shutdown", "-r", f"+{minutes}"], capture_output=True, text=True)
+            if result.returncode == 0:
+                return web.json_response({"success": True, "message": f"已设置 {minutes} 分钟后重启"})
+            return web.json_response({"success": False, "error": result.stderr.strip()}, status=500)
+        else:
+            return web.json_response({"success": False, "error": f"不支持的系统: {sysos}"}, status=400)
+    except Exception as e:
+        return web.json_response({"success": False, "error": str(e)}, status=500)
+
+async def restart_comfyui(request):
+    """重启当前 ComfyUI 实例（复用 Manager 的 os.execv 方案，切换到独立线程执行，先返回响应再重启）。"""
+    try:
+        import sys
+        cwd = os.getcwd()
+        sys_argv = sys.argv.copy()
+        if '--windows-standalone-build' in sys_argv:
+            sys_argv.remove('--windows-standalone-build')
+
+        if sys_argv[0].endswith("__main__.py"):
+            module_name = os.path.basename(os.path.dirname(sys_argv[0]))
+            cmds = [sys.executable, '-m', module_name] + sys_argv[1:]
+        elif sys.platform.startswith('win32'):
+            cmds = ['"' + sys.executable + '"', '"' + sys_argv[0] + '"'] + sys_argv[1:]
+        else:
+            cmds = [sys.executable] + sys_argv
+    except Exception as e:
+        return web.json_response({"success": False, "error": f"构建重启命令失败: {e}"}, status=500)
+
+    async def _do_restart():
+        try:
+            await asyncio.sleep(1.0)
+            print("✅ fxai: 正在重启 ComfyUI ...", flush=True)
+            os.execv(sys.executable, cmds)
+        except Exception as e:
+            print(f"❌ fxai 重启失败: {e}", flush=True)
+
+    asyncio.get_event_loop().create_task(_do_restart())
+    return web.json_response({"success": True, "message": "正在重启 ComfyUI 实例..."})
 try:
     PromptServer.instance.routes.get("/fxai/health")(health_check)
     PromptServer.instance.routes.get("/fxai/folder/list")(get_folder)
@@ -598,5 +654,7 @@ try:
     PromptServer.instance.routes.post("/fxai/models/delete")(delete_model_file)
     PromptServer.instance.routes.post("/fxai/models/clean-empty")(clean_empty_model_dirs)
     PromptServer.instance.routes.post("/fxai/shutdown")(shutdown_pc)
+    PromptServer.instance.routes.post("/fxai/reboot")(reboot_pc)
+    PromptServer.instance.routes.post("/fxai/restart")(restart_comfyui)
 except Exception as e:
     print(f"❌ fxai API 挂载失败：{e}")
