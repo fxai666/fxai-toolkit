@@ -362,6 +362,20 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
         });
     };
 
+    async function fetchCharactersByAvatars(avatars) {
+        try {
+            var resp = await fetch(api.apiURL("/fxai/characters/by_avatars"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ avatars: avatars })
+            });
+            var data = await resp.json();
+            return data.characters || {};
+        } catch (err) {
+            return {};
+        }
+    }
+
     function openMaterialSelector(item) {
         var initStr = (item.imgStr === undefined || item.imgStr === null) ? "" : String(item.imgStr);
         return FxAiCharacterAssetsSelector(initStr).then(function (val) {
@@ -371,7 +385,7 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
         });
     }
 
-    // 渲染两列缩略图 + 序号角标 + 删除角
+    // 渲染列缩略图 + 序号角标 + 删除角 + 声音标号
     function renderMaterialBox() {
         materialBox.innerHTML = "";
         var imgs = (item.imgStr || "").split(",").map(function (s) { return s.trim(); }).filter(function (s) { return s !== ""; });
@@ -390,6 +404,7 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
             wrap.style.width = "90px";
             wrap.style.flexShrink = "0";
             wrap.style.position = "relative";
+            wrap.setAttribute("data-path", path);
 
             var img = document.createElement("img");
             img.style.width = "90px";
@@ -434,8 +449,36 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
             picLabel.onfocus = function () { picLabel.select(); };
             wrap.appendChild(picLabel);
 
+            var audioLabel = document.createElement("input");
+            audioLabel.type = "text";
+            audioLabel.className = "fxai-screen-audio-label";
+            audioLabel.readOnly = true;
+            audioLabel.title = "双击选中便于复制（对应第 " + (index + 1) + " 张素材的声音）";
+            audioLabel.style.cssText = "width:100%;height:16px;box-sizing:border-box;margin-top:3px;padding:0 2px;font-size:10px;text-align:center;color:#f0a52b;background:var(--comfy-input-bg);border:1px solid var(--comfy-menu-border-color);border-radius:3px;display:none;";
+            audioLabel.onclick = function (e) { e.stopPropagation(); };
+            audioLabel.onmousedown = function (e) { e.stopPropagation(); };
+            audioLabel.onfocus = function () { audioLabel.select(); };
+            wrap.appendChild(audioLabel);
+
             materialBox.appendChild(wrap);
         });
+
+        // 按声音顺序编号：只有匹配到角色且角色配有声音的素材才累加 <audio N>
+        fetchCharactersByAvatars(imgs).then(function (characters) {
+            var audioSeq = 0;
+            materialBox.querySelectorAll("[data-path]").forEach(function (box) {
+                var char = characters[box.getAttribute("data-path")];
+                if (char && char.voice) {
+                    audioSeq++;
+                    var label = box.querySelector(".fxai-screen-audio-label");
+                    if (label) {
+                        label.value = "<Audio " + audioSeq + ">" + (char.name ? " " + char.name : "");
+                        label.style.display = "block";
+                    }
+                }
+            });
+        });
+
         // 追加"+"：未超过 8 张可继续添加（高度对齐图片高度）
         if (imgs.length < 8) {
             var plus = document.createElement("div");

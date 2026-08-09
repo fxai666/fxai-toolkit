@@ -1,6 +1,19 @@
 // ==============================================
 // 图片素材分类配置（共用）
 // ==============================================
+const AUDIO_CATEGORY_CONFIG = {
+    "音乐生成": "音乐生成",
+    "音乐配乐": "音乐配乐",
+    "音乐翻唱": "音乐翻唱",
+    "BGM": "BGM",
+    "音效": "音效",
+    "环境音": "环境音",
+    "语音": "语音",
+    "配音": "配音",
+    "电台": "电台",
+    "其他": "其他"
+};
+
 const CATEGORY_CONFIG = {
     "角色": "avatar",
     "视图": "views",
@@ -25,4 +38,4 @@ const CATEGORY_CONFIG = {
     "其他": "other"
 };
 
-export { CATEGORY_CONFIG };
+export { CATEGORY_CONFIG, AUDIO_CATEGORY_CONFIG };

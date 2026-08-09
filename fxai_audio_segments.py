@@ -53,6 +53,11 @@ def _resolve_audio_path(audio_file):
     input_candidate = os.path.join(folder_paths.get_input_directory(), audio_file)
     if os.path.isfile(input_candidate):
         return input_candidate
+    # 兼容相对目录格式：配音/xxx.wav → comfy_root/fxai/audio/配音/xxx.wav
+    audio_root = os.path.join(folder_paths.base_path, "fxai", "audio")
+    path_candidate = os.path.join(audio_root, audio_file)
+    if os.path.isfile(path_candidate):
+        return path_candidate
     raise ValueError(f"未找到音频文件: {audio_file}")
 
 

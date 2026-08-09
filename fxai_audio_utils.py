@@ -40,7 +40,18 @@ def resolve_audio_path(audio_file):
     wav_full_path = os.path.join(base_dir, wav_file)
     if os.path.exists(wav_full_path):
         return wav_full_path
-		
+
+    # 兼容相对目录格式：配音/xxx.wav → base_path/fxai/audio/配音/xxx.wav
+    if not audio_file.startswith("/"):
+        audio_root = os.path.join(folder_paths.base_path, "fxai", "audio")
+        rel_wav = os.path.join(audio_root, wav_file)
+        if os.path.exists(rel_wav):
+            return rel_wav
+        rel_orig = os.path.join(audio_root, target_relative)
+        if os.path.exists(rel_orig):
+            base_dir = audio_root
+            wav_full_path = rel_wav
+
     print(f"{wav_full_path}")
     original_full_path = os.path.join(base_dir, target_relative)
     if not os.path.exists(original_full_path):

@@ -1,13 +1,6 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-// ==============================================
-// 🔥 分类配置（不变）
-// ==============================================
-var CATEGORY_CONFIG = {
-    "音乐生成": "音乐生成",
-    "音乐配乐": "音乐配乐",
-    "音乐翻唱": "音乐翻唱",
-};
+import { AUDIO_CATEGORY_CONFIG } from "./fxai_category_config.js";
 // ==============================================
 // 工具：获取文件列表（复用音频管理器接口）
 // ==============================================
@@ -24,6 +17,44 @@ function fetchFileList(subdir) {
             .catch(function () {
                 resolve([]);
             });
+    });
+}
+
+// 上传音频到指定分类目录（并行多文件）
+function uploadFiles(files, subdir) {
+    var uploadPromises = [];
+    for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var formData = new FormData();
+        formData.append("audio", file, file.name);
+        formData.append("subdir", subdir);
+        uploadPromises.push(fetch(api.apiURL("/fxai/audio/upload"), {
+            method: "POST",
+            body: formData
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error("上传失败: " + response.status);
+            }
+        }));
+    }
+    return Promise.all(uploadPromises);
+}
+
+// 删除指定分类目录下的音频
+function deleteAudio(subdir, filename) {
+    return new Promise(function (resolve, reject) {
+        var url = api.apiURL("/fxai/audio/delete?subdir=" + encodeURIComponent(subdir) + "&filename=" + encodeURIComponent(filename));
+        fetch(url)
+            .then(function (resp) {
+                if (!resp.ok) {
+                    return resp.json()
+                        .catch(function () { return { error: "删除失败" }; })
+                        .then(function (errData) { throw new Error(errData.error || "删除失败: " + resp.status); });
+                }
+                return resp.json();
+            })
+            .then(resolve)
+            .catch(reject);
     });
 }
 // ==============================================
@@ -45,7 +76,7 @@ window.FxAiAudioSelector = function (initSelectPath) {
         // 弹窗
         var modal = document.createElement("div");
         modal.style.cssText = `
-            width: 970px; max-width: 95vw;
+            width: 1100px; max-width: 95vw;
             height: 750px; max-height: 90vh;
             background: #222; border-radius: 10px;
             padding: 10px; box-sizing: border-box;
@@ -58,7 +89,7 @@ window.FxAiAudioSelector = function (initSelectPath) {
         title.style.cssText = "font-size: 18px; color: #fff; font-weight: bold;";
         modal.appendChild(title);
 
-        let currentSubdir = Object.values(CATEGORY_CONFIG)[0];
+        let currentSubdir = Object.values(AUDIO_CATEGORY_CONFIG)[0];
         // 标签栏
         var tabBar = document.createElement("div");
         tabBar.style.cssText = "display: flex; gap: 5px; flex-wrap: wrap; margin-left:5px";
@@ -70,7 +101,7 @@ window.FxAiAudioSelector = function (initSelectPath) {
             });
             tab.style.background = "#4a8fff"; tab.style.color = "#fff";
         }
-        Object.entries(CATEGORY_CONFIG).forEach(function (entry) {
+        Object.entries(AUDIO_CATEGORY_CONFIG).forEach(function (entry) {
             var label = entry[0];
             var dir = entry[1];
             var btn = document.createElement("button");
@@ -99,21 +130,65 @@ window.FxAiAudioSelector = function (initSelectPath) {
 
         // 底部按钮栏
         var bottomBar = document.createElement("div");
-        bottomBar.style.cssText = "display: flex; justify-content: flex-end; gap: 10px;";
+        bottomBar.style.cssText = "display: flex; justify-content: space-between; align-items: center; gap: 10px;";
         modal.appendChild(bottomBar);
+
+        var leftBar = document.createElement("div");
+        leftBar.style.cssText = "display: flex; gap: 8px; align-items: center;";
+        bottomBar.appendChild(leftBar);
+
+        var rightBar = document.createElement("div");
+        rightBar.style.cssText = "display: flex; gap: 10px; align-items: center;";
+        bottomBar.appendChild(rightBar);
+
+        var btnUpload = document.createElement("button");
+        btnUpload.textContent = "📤 上传音频";
+        btnUpload.style.cssText = "padding: 6px 12px; border: none; border-radius: 4px; background: #2a9d3f; color: #fff; cursor: pointer;";
+        btnUpload.title = "上传音频到当前分类目录，上传成功后列表自动刷新";
+        leftBar.appendChild(btnUpload);
+
         var btnCancel = document.createElement("button");
         btnCancel.textContent = "取消";
         var btnConfirm = document.createElement("button");
         btnConfirm.textContent = "✅ 确认选择";
         btnConfirm.style.background = "#4a8fff"; btnConfirm.style.color = "#fff";
-        bottomBar.append(btnCancel, btnConfirm);
+        rightBar.append(btnCancel, btnConfirm);
+
+        btnUpload.onclick = function () {
+            var input = document.createElement("input");
+            input.type = "file";
+            input.multiple = true;
+            input.accept = "audio/*";
+            input.onchange = function () {
+                if (!input.files.length) return;
+                var files = Array.prototype.slice.call(input.files);
+                var originalText = btnUpload.textContent;
+                btnUpload.textContent = "上传中...";
+                btnUpload.disabled = true;
+                uploadFiles(files, currentSubdir)
+                    .then(function () {
+                        renderList();
+                        btnUpload.textContent = "✅ 上传成功";
+                        setTimeout(function () {
+                            btnUpload.textContent = originalText;
+                            btnUpload.disabled = false;
+                        }, 1500);
+                    })
+                    .catch(function (err) {
+                        alert("上传失败: " + err.message);
+                        btnUpload.textContent = originalText;
+                        btnUpload.disabled = false;
+                    });
+            };
+            input.click();
+        };
 
         function close() {
             document.body.removeChild(mask);
         }
         btnCancel.onclick = function () { resolve(); close(); };
         btnConfirm.onclick = function () {
-            resolve("/fxai/audio/"+selectedPath);
+            resolve(selectedPath);
             close();
         };
         mask.onclick = function (e) {
@@ -174,8 +249,32 @@ window.FxAiAudioSelector = function (initSelectPath) {
                         width:100%;
                     `;
 
+                    // 右上角删除按钮
+                    var delBtn = document.createElement("div");
+                    delBtn.textContent = "×";
+                    delBtn.style.cssText = `
+                        position:absolute; top:2px; right:2px; width:20px; height:20px;
+                        background:rgba(230,60,60,0.9); color:#fff; text-align:center;
+                        line-height:20px; font-size:14px; border-radius:4px; cursor:pointer; z-index:3;
+                    `;
+                    delBtn.title = "删除该音频";
+                    delBtn.addEventListener("click", function (e) {
+                        e.stopPropagation();
+                        delBtn.textContent = "…";
+                        deleteAudio(currentSubdir, filename)
+                            .then(function () {
+                                if (selectedPath === realPath) selectedPath = "";
+                                item.remove();
+                            })
+                            .catch(function (err) {
+                                alert("删除失败: " + err.message);
+                                delBtn.textContent = "×";
+                            });
+                    });
+
                     item.appendChild(audio);
                     item.appendChild(nameSpan);
+                    item.appendChild(delBtn);
                     listContainer.appendChild(item);
 
                     // 点击切换单选：只能选中一个

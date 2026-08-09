@@ -3,6 +3,8 @@ import re
 import math
 import folder_paths
 from fxai_image_utils import load_single_image
+from fxai_audio_utils import load_audio_tensor_from_file, slice_audio
+from fxai_character_profile_manager import get_characters_by_avatars
 
 def get_image_dir(subdir=""):
     comfy_root = folder_paths.base_path
@@ -29,8 +31,8 @@ class FxAiScreenLoad:
             }
         }
 
-    RETURN_TYPES = ("STRING", "IMAGE", "INT")
-    RETURN_NAMES = ("台词", "素材", "帧数")
+    RETURN_TYPES = ("STRING", "IMAGE", "INT", "LIST")
+    RETURN_NAMES = ("台词", "素材", "帧数", "音频")
 
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI/影视剧场"
@@ -41,6 +43,7 @@ class FxAiScreenLoad:
         时长 = 15.0
         frame = 0
         images = []
+        音频 = []
 
         try:
             total_lines = len(场景数据) if isinstance(场景数据, list) else 0
@@ -66,7 +69,11 @@ class FxAiScreenLoad:
                 f"{通用提示词}{台词 or ''}{尾部通用提示词}",
                 images,
                 frame,
+                音频,
             )
+
+        # 按图片顺序查出角色声音，转成 ComfyUI AUDIO 列表（有声音的才输出，顺序对应前端 <Audio N>）
+        characters = get_characters_by_avatars(path_list)
 
         for rel_path in path_list:
             parts = rel_path.split("/", 1)
@@ -87,8 +94,23 @@ class FxAiScreenLoad:
             except Exception as e:
                 print(f"[凤希] 加载失败：{full_path} => {e}")
 
+            # 该图片对应的角色若有声音，则加载并追加到音频列表（截取前 2 秒）
+            char = characters.get(rel_path)
+            if char and char.get("voice"):
+                try:
+                    audio = load_audio_tensor_from_file(char["voice"])
+                    waveform = audio["waveform"]
+                    sample_rate = audio["sample_rate"]
+                    cut_frames = int(2.0 * sample_rate)
+                    if waveform.size(-1) > cut_frames:
+                        audio = slice_audio(audio, 0, cut_frames)
+                    音频.append(audio)
+                except Exception as e:
+                    print(f"[凤希] 音频加载失败：{char['voice']} => {e}")
+
         return (
             提示词,
             images,
             frame,
+            音频,
         )

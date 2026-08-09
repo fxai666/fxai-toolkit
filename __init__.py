@@ -11,6 +11,9 @@ from server import PromptServer
 from . import fxai_api_utils
 from . import fxai_node_update
 from . import fxai_minimax_core_patch
+from . import fxai_character_profile_manager
+
+fxai_character_profile_manager.register_routes()
 
 def install_package(package):
     try:
@@ -94,6 +97,7 @@ NODE_REGISTRY = [
     ("FxAiCharacterBatchLoad",    "fxai_character_batch_load",  "凤希AI - 角色加载器"),
     ("FxAiCharacterImageSelector","fxai_character_image_selector","凤希AI - 角色资源图片选择器"),
     ("FxAiCharacterImageByIndex", "fxai_character_image_byindex","凤希AI - 角色资源单张图片获取"),
+    ("FxAiCharacterProfileManager","fxai_character_profile_manager","凤希AI - 短剧角色资源管理器"),
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),

@@ -139,6 +139,7 @@ class FxAiMiniMaxImageToVideo:
                 "参考图片列表": ("IMAGE",),
                 "参考视频列表": ("IMAGE",),
                 "外置音频": ("AUDIO",),
+                "参考音频列表": ("LIST",),
                 "过渡帧列表": ("IMAGE",),
                 "过渡羽化": ("INT", {"default": -1, "min": -1, "max": 5, "step": 1,
                     "tooltip": "过渡帧锁死区到自由区的平滑宽度（latent 步，约每步4帧）。-1=自动收紧（锁死前2步、只放宽1-2步，暗带最短）；0=硬锁；1-5=固定羽化步数，超过过渡帧折算步数无意义。"}),
@@ -151,7 +152,7 @@ class FxAiMiniMaxImageToVideo:
     CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 过渡帧列表=None, 过渡羽化=-1):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
 
         if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
@@ -228,12 +229,20 @@ class FxAiMiniMaxImageToVideo:
                 ref_blocks.append({"kind": "video", "latent_t": z.shape[2],
                                    "latent_h": ch // 16, "latent_w": cw // 16,
                                    "ref_audio_t": 0, "latent": z, "audio_latent": None})
+        # 参考音频：合并处理（外置音频放最前，再追加参考音频列表），逐个编码成独立 <Audio j> 参考，最多 3 段
+        ref_audios = []
         if 外置音频 is not None:
+            ref_audios.append(外置音频)
+        for audio in (参考音频列表 or []):
+            if isinstance(audio, dict) and "waveform" in audio:
+                ref_audios.append(audio)
+        if ref_audios:
             if 音频VAE is None:
-                raise ValueError("接入外置音频时需连接音频VAE")
-            audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, 外置音频)
-            ref_items.append({"type": "audio"})
-            ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
+                raise ValueError("接入参考音频时需连接音频VAE")
+            for audio in ref_audios[:3]:
+                audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, audio)
+                ref_items.append({"type": "audio"})
+                ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
 
         tokens = CLIP模型.tokenize(提示词, minimax_ref_items=ref_items)
         for i, item in enumerate(ref_items):

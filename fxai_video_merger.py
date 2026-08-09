@@ -113,9 +113,14 @@ def replace_video_audio(video_path, audio_path):
 def get_video_files(source_dir, max_count=0):
     if not os.path.isdir(source_dir):
         return []
-    
+
     exts = ('.mp4', '.webm', '.mov', '.avi')
-    files = sorted(f for f in os.listdir(source_dir) if f.lower().endswith(exts))
+
+    def sort_key(f):
+        m = re.search(r"(\d+)", f)
+        return (int(m.group(1)), f) if m else (float("inf"), f)
+
+    files = sorted((f for f in os.listdir(source_dir) if f.lower().endswith(exts)), key=sort_key)
     if max_count > 0:
         files = files[:max_count]
     return [safe_path_join(source_dir, f) for f in files]
