@@ -101,7 +101,7 @@ class FxAiScreenLoad:
                     audio = load_audio_tensor_from_file(char["voice"])
                     waveform = audio["waveform"]
                     sample_rate = audio["sample_rate"]
-                    cut_frames = int(2.0 * sample_rate)
+                    cut_frames = int(3.0 * sample_rate)
                     if waveform.size(-1) > cut_frames:
                         audio = slice_audio(audio, 0, cut_frames)
                     音频.append(audio)

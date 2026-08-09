@@ -41,24 +41,6 @@ function uploadFiles(files, subdir) {
     return Promise.all(uploadPromises);
 }
 
-// 删除指定分类目录下的图片
-function deleteImage(subdir, filename) {
-    return new Promise(function (resolve, reject) {
-        var url = api.apiURL("/fxai/image/v2/delete?subdir=" + encodeURIComponent(subdir) + "&filename=" + encodeURIComponent(filename));
-        fetch(url, { method: "DELETE" })
-            .then(function (resp) {
-                if (!resp.ok) {
-                    return resp.json()
-                        .catch(function () { return { error: "删除失败" }; })
-                        .then(function (errData) { throw new Error(errData.error || "删除失败: " + resp.status); });
-                }
-                return resp.json();
-            })
-            .then(resolve)
-            .catch(reject);
-    });
-}
-
 // ==============================================
 // 全局弹窗
 // ==============================================
@@ -298,32 +280,6 @@ window.FxAiCharacterAssetsSelector = function (selectStr) {
                     img.src = previewUrl;
                     img.style.cssText = `position:absolute; inset:0; width:100%; height:100%; object-fit:cover;`;
                     item.appendChild(img);
-
-                    // 右上角删除按钮
-                    var delBtn = document.createElement("div");
-                    delBtn.textContent = "×";
-                    delBtn.style.cssText = `
-                        position:absolute; top:2px; right:2px; width:20px; height:20px;
-                        background:rgba(230,60,60,0.9); color:#fff; text-align:center;
-                        line-height:20px; font-size:14px; border-radius:4px; cursor:pointer; z-index:3;
-                    `;
-                    delBtn.title = "删除该素材";
-delBtn.addEventListener("click", function (e) {
-                        e.stopPropagation();
-                        delBtn.textContent = "…";
-                        deleteImage(currentSubdir, filename)
-                            .then(function () {
-                                var sidx = selected.indexOf(realPath);
-                                if (sidx > -1) selected.splice(sidx, 1);
-                                item.remove();
-                                renderSelectedBar();
-                            })
-.catch(function (err) {
-                                alert("删除失败: " + err.message);
-                                delBtn.textContent = "×";
-                            });
-                    });
-                    item.appendChild(delBtn);
                     listContainer.appendChild(item);
 
                     // 核心：点击切换选中/取消选中，只改当前样式

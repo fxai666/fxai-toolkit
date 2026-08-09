@@ -40,23 +40,6 @@ function uploadFiles(files, subdir) {
     return Promise.all(uploadPromises);
 }
 
-// 删除指定分类目录下的音频
-function deleteAudio(subdir, filename) {
-    return new Promise(function (resolve, reject) {
-        var url = api.apiURL("/fxai/audio/delete?subdir=" + encodeURIComponent(subdir) + "&filename=" + encodeURIComponent(filename));
-        fetch(url)
-            .then(function (resp) {
-                if (!resp.ok) {
-                    return resp.json()
-                        .catch(function () { return { error: "删除失败" }; })
-                        .then(function (errData) { throw new Error(errData.error || "删除失败: " + resp.status); });
-                }
-                return resp.json();
-            })
-            .then(resolve)
-            .catch(reject);
-    });
-}
 // ==============================================
 // 全局弹窗 - 音频单选选择器
 // ==============================================
@@ -249,32 +232,8 @@ window.FxAiAudioSelector = function (initSelectPath) {
                         width:100%;
                     `;
 
-                    // 右上角删除按钮
-                    var delBtn = document.createElement("div");
-                    delBtn.textContent = "×";
-                    delBtn.style.cssText = `
-                        position:absolute; top:2px; right:2px; width:20px; height:20px;
-                        background:rgba(230,60,60,0.9); color:#fff; text-align:center;
-                        line-height:20px; font-size:14px; border-radius:4px; cursor:pointer; z-index:3;
-                    `;
-                    delBtn.title = "删除该音频";
-                    delBtn.addEventListener("click", function (e) {
-                        e.stopPropagation();
-                        delBtn.textContent = "…";
-                        deleteAudio(currentSubdir, filename)
-                            .then(function () {
-                                if (selectedPath === realPath) selectedPath = "";
-                                item.remove();
-                            })
-                            .catch(function (err) {
-                                alert("删除失败: " + err.message);
-                                delBtn.textContent = "×";
-                            });
-                    });
-
                     item.appendChild(audio);
                     item.appendChild(nameSpan);
-                    item.appendChild(delBtn);
                     listContainer.appendChild(item);
 
                     // 点击切换单选：只能选中一个

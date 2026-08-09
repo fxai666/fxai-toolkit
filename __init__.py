@@ -59,6 +59,7 @@ NODE_REGISTRY = [
     ("FxAIAudioFrameCalculate",   "fxai_audio_frame_calculate", "凤希AI - 音频帧数计算器"),
     ("FxAiAudioDurationSeg",      "fxai_audio_duration_seg",    "凤希AI - 多音频分片"),
     ("FxAiAudioDurationGetSeg",   "fxai_audio_duration_getseg", "凤希AI - 多音频分片获取"),
+    ("FxAiAudioListPreview",      "fxai_audio_list_preview",    "凤希AI - 音频列表预览"),
     ("FxAiMiniMaxFrameCalculate","fxai_minimax_frame_calculate",   "凤希AI - MiniMax帧数计算器"),
     ("FxAiMiniMaxAudioSegmentLoad","fxai_minimax_audio_segment_load","凤希AI - MiniMax音频分段加载"),
 
@@ -98,6 +99,7 @@ NODE_REGISTRY = [
     ("FxAiCharacterImageSelector","fxai_character_image_selector","凤希AI - 角色资源图片选择器"),
     ("FxAiCharacterImageByIndex", "fxai_character_image_byindex","凤希AI - 角色资源单张图片获取"),
     ("FxAiCharacterProfileManager","fxai_character_profile_manager","凤希AI - 短剧角色资源管理器"),
+    ("FxAiCharacterSelector",     "fxai_character_selector",      "凤希AI - 选择角色"),
 
     # 提示词类
     ("FxAiPromptGenerator",       "fxai_prompt_optimization",   "凤希AI - 提示词优化 - 本地Ollama"),
