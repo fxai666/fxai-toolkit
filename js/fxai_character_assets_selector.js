@@ -21,6 +21,26 @@ function fetchFileList(subdir) {
     });
 }
 
+// 上传图片到指定分类目录（并行多文件）
+function uploadFiles(files, subdir) {
+    var uploadPromises = [];
+    for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var formData = new FormData();
+        formData.append("image", file, file.name);
+        formData.append("subdir", subdir);
+        uploadPromises.push(fetch(api.apiURL("/fxai/image/v2/upload"), {
+            method: "POST",
+            body: formData
+        }).then(function (response) {
+            if (!response.ok) {
+                throw new Error("上传失败: " + response.status);
+            }
+        }));
+    }
+    return Promise.all(uploadPromises);
+}
+
 // ==============================================
 // 全局弹窗
 // ==============================================
@@ -174,17 +194,61 @@ window.FxAiCharacterAssetsSelector = function (selectStr) {
             });
         }
 
-        // 底部按钮栏
+        // 底部按钮栏：上传素材 | 取消 | 确认选择
         var bottomBar = document.createElement("div");
-        bottomBar.style.cssText = "display: flex; justify-content: flex-end; gap: 10px;";
+        bottomBar.style.cssText = "display: flex; justify-content: space-between; align-items: center; gap: 10px;";
         modal.appendChild(bottomBar);
+
+        var leftBar = document.createElement("div");
+        leftBar.style.cssText = "display: flex; gap: 8px; align-items: center;";
+        bottomBar.appendChild(leftBar);
+
+        var rightBar = document.createElement("div");
+        rightBar.style.cssText = "display: flex; gap: 10px; align-items: center;";
+        bottomBar.appendChild(rightBar);
+
+        var btnUpload = document.createElement("button");
+        btnUpload.textContent = "📤 上传素材";
+        btnUpload.style.cssText = "padding: 6px 12px; border: none; border-radius: 4px; background: #2a9d3f; color: #fff; cursor: pointer;";
+        btnUpload.title = "上传图片到当前分类目录，上传成功后列表自动刷新";
+        leftBar.appendChild(btnUpload);
 
         var btnCancel = document.createElement("button");
         btnCancel.textContent = "取消";
         var btnConfirm = document.createElement("button");
         btnConfirm.textContent = "✅ 确认选择";
-        btnConfirm.style.background = "#4a8fff"; btnConfirm.style.color = "#fff";
-        bottomBar.append(btnCancel, btnConfirm);
+        btnCancel.style.cssText = "padding: 6px 12px; border: none; border-radius: 4px; background: #555; color: #eee; cursor: pointer;";
+        btnConfirm.style.cssText = "padding: 6px 14px; border: none; border-radius: 4px; background: #4a8fff; color: #fff; cursor: pointer;";
+        rightBar.append(btnCancel, btnConfirm);
+
+        btnUpload.onclick = function () {
+            var input = document.createElement("input");
+            input.type = "file";
+            input.multiple = true;
+            input.accept = "image/*";
+            input.onchange = function () {
+                if (!input.files.length) return;
+                var files = Array.prototype.slice.call(input.files);
+                var originalText = btnUpload.textContent;
+                btnUpload.textContent = "上传中...";
+                btnUpload.disabled = true;
+                uploadFiles(files, currentSubdir)
+                    .then(function () {
+                        renderList();
+                        btnUpload.textContent = "✅ 上传成功";
+                        setTimeout(function () {
+                            btnUpload.textContent = originalText;
+                            btnUpload.disabled = false;
+                        }, 1500);
+                    })
+                    .catch(function (err) {
+                        alert("上传失败: " + err.message);
+                        btnUpload.textContent = originalText;
+                        btnUpload.disabled = false;
+                    });
+            };
+            input.click();
+        };
 
         function close() {
             document.body.removeChild(mask);
