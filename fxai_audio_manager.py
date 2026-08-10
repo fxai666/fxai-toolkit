@@ -166,18 +166,35 @@ async def upload_audio_custom(request):
             return web.json_response({"error": "文件名为空"}, status=400)
 
         target_dir = get_audio_dir(subdir)
-        
+
         file_list = list_audios(target_dir)
         next_num = len(file_list)
 
-        new_filename = f"{next_num:03d}_{original_filename}"
-
-        save_path = safe_path_join(target_dir, new_filename)
-        with open(save_path, "wb") as f:
+        # 原始文件先落盘（保留原后缀），再统一转成 wav
+        base_name = os.path.splitext(original_filename)[0]
+        raw_path = safe_path_join(target_dir, original_filename)
+        with open(raw_path, "wb") as f:
             f.write(audio.file.read())
-        
+
+        new_filename = f"{next_num:03d}_{base_name}.wav"
+        wav_path = safe_path_join(target_dir, new_filename)
+        cmd = [
+            "ffmpeg", "-i", raw_path,
+            "-f", "wav", "-y", wav_path
+        ]
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+
+        # 转换成功删除原始文件；转换失败保留原始文件兜底
+        if os.path.exists(wav_path):
+            try:
+                os.remove(raw_path)
+            except Exception:
+                pass
+        else:
+            new_filename = original_filename
+
         return web.json_response({
-            "success": True, 
+            "success": True,
             "name": new_filename
         })
     except Exception as e:

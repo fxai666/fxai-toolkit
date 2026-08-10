@@ -70,3 +70,7 @@ class FxAiScreenManager:
             segment_durations.append(line_data["时长"])
 
         return (total_count, scene_data, segment_durations)
+		
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")

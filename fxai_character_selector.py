@@ -38,14 +38,15 @@ class FxAiCharacterSelector:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "AUDIO", "STRING", "STRING")
-    RETURN_NAMES = ("图片", "音频", "名称", "描述")
+    RETURN_TYPES = ("IMAGE", "AUDIO", "AUDIO", "STRING", "STRING")
+    RETURN_NAMES = ("图片", "参考音色", "音频", "名称", "描述")
     FUNCTION = "select"
     CATEGORY = "凤希AI/角色"
 
     def select(self, 角色头像):
         avatar = (角色头像 or "").strip()
-        audio = None
+        参考音色 = None
+        音频 = None
         角色名 = ""
         角色描述 = ""
         头像图片 = None
@@ -58,10 +59,12 @@ class FxAiCharacterSelector:
                     角色名 = char.get("name") or ""
                     角色描述 = char.get("description") or ""
                     if char.get("voice"):
-                        audio = load_audio_tensor_from_file(char["voice"])
-                        cut_frames = int(3.0 * audio["sample_rate"])
-                        if audio["waveform"].size(-1) > cut_frames:
-                            audio = slice_audio(audio, 0, cut_frames)
+                        音频 = load_audio_tensor_from_file(char["voice"])
+                        cut_frames = int(10.0 * 音频["sample_rate"])
+                        if 音频["waveform"].size(-1) > cut_frames:
+                            参考音色 = slice_audio(音频, 0, cut_frames)
+                        else:
+                            参考音色 = 音频
             except Exception as e:
                 print(f"[凤希AI选择角色] 查询角色音频失败：{e}")
 
@@ -71,7 +74,7 @@ class FxAiCharacterSelector:
             except Exception:
                 pass
 
-        return (头像图片, audio, 角色名, 角色描述)
+        return (头像图片, 参考音色, 音频, 角色名, 角色描述)
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):

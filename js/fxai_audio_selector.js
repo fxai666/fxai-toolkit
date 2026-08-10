@@ -12,7 +12,12 @@ function fetchFileList(subdir) {
                 return resp.ok ? resp.json() : { files: [] };
             })
             .then(function (data) {
-                resolve(data.files || []);
+                var files = data.files || [];
+                // 统一只展示 wav（后台上传时已统一转成 wav 格式）
+                files = files.filter(function (f) {
+                    return typeof f === "string" && f.toLowerCase().endsWith(".wav");
+                });
+                resolve(files);
             })
             .catch(function () {
                 resolve([]);

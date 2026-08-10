@@ -31,8 +31,8 @@ class FxAiScreenLoad:
             }
         }
 
-    RETURN_TYPES = ("STRING", "IMAGE", "INT", "LIST")
-    RETURN_NAMES = ("台词", "素材", "帧数", "音频")
+    RETURN_TYPES = ("STRING", "IMAGE", "INT", "LIST", "LIST")
+    RETURN_NAMES = ("台词", "素材", "帧数", "参考音色", "音频")
 
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI/影视剧场"
@@ -43,6 +43,7 @@ class FxAiScreenLoad:
         时长 = 15.0
         frame = 0
         images = []
+        参考音色 = []
         音频 = []
 
         try:
@@ -55,7 +56,7 @@ class FxAiScreenLoad:
             台词 = item.get("台词", item.get("提示词文本", ""))
             提示词 = 通用提示词 + 台词 + 尾部通用提示词
             素材 = item.get("素材", "")
-            时长 = float(item.get("时长", 15.0))
+            时长 = float(item.get("时长", 10.0))
 
             path_list = [p.strip() for p in str(素材).split(",") if p.strip()]
             x = max(5, round(时长 * 24))
@@ -69,10 +70,11 @@ class FxAiScreenLoad:
                 f"{通用提示词}{台词 or ''}{尾部通用提示词}",
                 images,
                 frame,
+                参考音色,
                 音频,
             )
 
-        # 按图片顺序查出角色声音，转成 ComfyUI AUDIO 列表（有声音的才输出，顺序对应前端 <Audio N>）
+        # 按图片顺序查出角色声音（有声音的才输出，顺序对应前端 <Audio N>）
         characters = get_characters_by_avatars(path_list)
 
         for rel_path in path_list:
@@ -94,17 +96,18 @@ class FxAiScreenLoad:
             except Exception as e:
                 print(f"[凤希] 加载失败：{full_path} => {e}")
 
-            # 该图片对应的角色若有声音，则加载并追加到音频列表（截取前 2 秒）
+            # 该图片对应的角色若有声音：参考音色截前 2 秒，音频输出全量
             char = characters.get(rel_path)
             if char and char.get("voice"):
                 try:
                     audio = load_audio_tensor_from_file(char["voice"])
+                    音频.append(audio)
                     waveform = audio["waveform"]
                     sample_rate = audio["sample_rate"]
-                    cut_frames = int(3.0 * sample_rate)
+                    cut_frames = int(时长 * sample_rate)
                     if waveform.size(-1) > cut_frames:
                         audio = slice_audio(audio, 0, cut_frames)
-                    音频.append(audio)
+                    参考音色.append(audio)
                 except Exception as e:
                     print(f"[凤希] 音频加载失败：{char['voice']} => {e}")
 
@@ -112,5 +115,6 @@ class FxAiScreenLoad:
             提示词,
             images,
             frame,
+            参考音色,
             音频,
         )
