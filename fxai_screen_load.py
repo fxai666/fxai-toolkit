@@ -28,6 +28,8 @@ class FxAiScreenLoad:
             "optional": {
                 "通用提示词": ("STRING", {"default": "", "forceInput": True}),
                 "尾部通用提示词": ("STRING", {"default": "", "forceInput": True}),
+                "音色剪切时长": ("FLOAT", {"default": 0.0, "min": 0.0, "step": 0.1,
+                    "tooltip": "参考音色剪切秒数；0=按该行「时长」字段剪切，不足按音频实际长度"}),
             }
         }
 
@@ -37,7 +39,7 @@ class FxAiScreenLoad:
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI/影视剧场"
 
-    def get_scene_data(self, 场景数据, 行索引, 通用提示词="", 尾部通用提示词=""):
+    def get_scene_data(self, 场景数据, 行索引, 通用提示词="", 尾部通用提示词="", 音色剪切时长=0.0):
         台词 = ""
         提示词 = ""
         时长 = 15.0
@@ -104,7 +106,8 @@ class FxAiScreenLoad:
                     音频.append(audio)
                     waveform = audio["waveform"]
                     sample_rate = audio["sample_rate"]
-                    cut_frames = int(时长 * sample_rate)
+                    cut_seconds = 音色剪切时长 if 音色剪切时长 > 0 else 时长
+                    cut_frames = int(cut_seconds * sample_rate)
                     if waveform.size(-1) > cut_frames:
                         audio = slice_audio(audio, 0, cut_frames)
                     参考音色.append(audio)
