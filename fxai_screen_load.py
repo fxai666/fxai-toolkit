@@ -107,7 +107,7 @@ class FxAiScreenLoad:
                     waveform = audio["waveform"]
                     sample_rate = audio["sample_rate"]
                     cut_seconds = 音色剪切时长 if 音色剪切时长 > 0 else 时长
-                    cut_frames = int(cut_seconds * sample_rate)
+                    cut_frames = int((cut_seconds + 0.8) * sample_rate)
                     if waveform.size(-1) > cut_frames:
                         audio = slice_audio(audio, 0, cut_frames)
                     参考音色.append(audio)
