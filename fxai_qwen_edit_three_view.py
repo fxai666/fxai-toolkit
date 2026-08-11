@@ -44,10 +44,10 @@ class FxAiQwenEditThreeView:
     def encode(self, clip, vae, width, height, 用户提示词, 人物头像=None):
 
         sys_prompt = (
-            "Give a detailed description of the character's facial features, face shape and facial characteristics "
-            "in the picture, discard other elements including the background and hairstyle, and replace the original "
-            "background with white. Then strictly preserve the identity and generate structured three-view full-body character "
-            "reference images."
+            "Analyze the provided person's facial features, face shape and body build in detail, "
+            "ignore background, accessories and hairstyle, and replace the original background with "
+            "pure white. Strictly preserve the facial identity, then generate structured three-view "
+            "full-body character reference images with the entire body always fully in frame."
         )
 
         target_latent_h = self.align_size_8(height) // 8
@@ -90,7 +90,8 @@ class FxAiQwenEditThreeView:
                 "2.left side view (full body)\n"
                 "3.back view (full body)\n\n"
                 "Requirements:\n"
-                "- All three views must be complete full-body shots\n"
+                "- All three views must be complete full-body shots: the whole body from head to feet must be fully in frame, no cropping, no out-of-frame, no cut-off\n"
+                "- Center the figure with adequate headroom and footroom in every view\n"
                 "- Strictly preserve facial identity, bone structure, facial proportions\n"
                 "- Keep hairstyle and outfit completely consistent across all three views\n"
                 "- No miscellaneous background, pure white background only\n\n"
