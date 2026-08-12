@@ -145,6 +145,8 @@ window.FxAiCharacterAssetsSelector = function (selectStr) {
                 var previewUrl = api.apiURL("/fxai/image/v2/preview?subdir=" + encodeURIComponent(sub) + "&filename=" + encodeURIComponent(fname));
 
                 var item = document.createElement("div");
+                item.className = "sel-item";
+                item.dataset.path = path;
                 item.style.cssText = `
                     width:70px; height:70px; position:relative; border-radius:4px; overflow:hidden;
                     flex-shrink:0; border:2px solid #4a8fff;
@@ -164,6 +166,7 @@ window.FxAiCharacterAssetsSelector = function (selectStr) {
 
                 var delBtn = document.createElement("div");
                 delBtn.textContent = "×";
+                delBtn.className = "sel-del-btn";
                 delBtn.style.cssText = `
                     position:absolute; top:0; right:0; width:18px;height:18px;
                     background:#f54242; color:#fff; text-align:center; line-height:18px;
@@ -179,6 +182,7 @@ window.FxAiCharacterAssetsSelector = function (selectStr) {
                 item.append(img, numTag, delBtn);
                 selectedWrap.appendChild(item);
             });
+            reinitSortable();
         }
 
         // 批量刷新所有图片选中边框（仅样式，不重载列表）
@@ -304,6 +308,37 @@ window.FxAiCharacterAssetsSelector = function (selectStr) {
         // 初始渲染
         renderList();
         renderSelectedBar();
+
+        // 底部已选列表支持拖拽排序（复用 Sortable 组件）
+        var selectedSortable = null;
+        function reinitSortable() {
+            if (selectedSortable) {
+                selectedSortable.destroy();
+                selectedSortable = null;
+            }
+            if (typeof Sortable === "undefined") {
+                var script = document.createElement("script");
+                script.src = "./Sortable.min.js";
+                script.onload = reinitSortable;
+                document.head.appendChild(script);
+                return;
+            }
+            selectedSortable = new Sortable(selectedWrap, {
+                animation: 150,
+                filter: ".sel-del-btn",
+                onEnd: function () {
+                    // 按当前 DOM 顺序重建 selected 数组
+                    var ordered = [];
+                    selectedWrap.querySelectorAll(".sel-item").forEach(function (el) {
+                        ordered.push(el.dataset.path);
+                    });
+                    selected.length = 0;
+                    Array.prototype.push.apply(selected, ordered);
+                    renderSelectedBar();
+                    refreshAllItemBorder();
+                }
+            });
+        }
     });
 };
 
