@@ -266,7 +266,7 @@ class FxAiMiniMaxBlockCache:
                     "default": "均衡",
                     "tooltip": "加速档位：均衡为默认；画质优先更保守；极速更快但误差稍大；不加速为官方原速。"}),
                 "采样步数": ("INT", {
-                    "default": 20, "min": 8, "max": 100, "step": 1,
+                    "default": 20, "min": 4, "max": 100, "step": 1,
                     "tooltip": "本次生成的采样步数，会输出给采样器使用。步数越少内部自动越保守。"}),
             },
         }
