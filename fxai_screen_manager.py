@@ -6,7 +6,7 @@ class FxAiScreenManager:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "lines_data": ("STRING", {"multiline": True, "default": "[]"}),
+                "lines_data": ("STRING", {"multiline": False, "default": "[]"}),
             }
         }
 

@@ -34,19 +34,31 @@ app.registerExtension({
             this.scrollContainer.style.margin = "5px 0";
             this.scrollContainer.style.paddingRight = "5px";
             this.scrollContainer.style.boxSizing = "border-box";
+            this.scrollContainer.style.position = "relative";
+            this.scrollContainer.style.paddingBottom = "36px";
 
             this.addDOMWidget("lines_container", "container", this.scrollContainer);
             
             createHeader(this);
 
             var self = this;
-            this.addWidget("button", "➕ 添加新场景", null, function() {
-                addLine(self);
-            });
+            this.toolbar = document.createElement("div");
+            this.toolbar.style.cssText = "display:flex;align-items:center;gap:6px;padding:4px 6px;box-sizing:border-box;position:fixed;left:0;right:0;bottom:0;background:var(--comfy-menu-bg,#1e1e1e);";
 
-            this.addWidget("button", "📋 批量输入", null, function() {
-                openBatchPopup(self);
-            });
+            var addBtn = document.createElement("button");
+            addBtn.textContent = "➕ 添加新场景";
+            addBtn.style.cssText = "padding:4px 10px;border:none;border-radius:4px;cursor:pointer;background:#4a86e8;color:#fff;";
+            addBtn.onclick = function() { addLine(self); };
+            this.toolbar.appendChild(addBtn);
+
+            var batchBtn = document.createElement("button");
+            batchBtn.textContent = "🖼️ 批量选择素材";
+            batchBtn.title = "选择一个或多个素材，统一应用到所有场景";
+            batchBtn.style.cssText = "padding:4px 10px;border:none;border-radius:4px;cursor:pointer;background:#2a9d3f;color:#fff;";
+            batchBtn.onclick = function() { openBatchMaterial(self); };
+            this.toolbar.appendChild(batchBtn);
+
+            this.scrollContainer.appendChild(this.toolbar);
 
             if (this.lines.length === 0) {
                 addLine(this);
@@ -146,118 +158,16 @@ app.registerExtension({
     },
 });
 
-function openBatchPopup(node) {
-    var mask = document.createElement("div");
-    mask.style.position = "fixed";
-    mask.style.top = "0";
-    mask.style.left = "0";
-    mask.style.width = "100%";
-    mask.style.height = "100%";
-    mask.style.background = "rgba(0,0,0,0.6)";
-    mask.style.zIndex = "9999";
-    mask.style.display = "flex";
-    mask.style.alignItems = "center";
-    mask.style.justifyContent = "center";
-
-    var dialog = document.createElement("div");
-    dialog.style.width = "700px";
-    dialog.style.background = "#2a2a2a";
-    dialog.style.border = "1px solid #666";
-    dialog.style.borderRadius = "10px";
-    dialog.style.padding = "15px";
-    dialog.style.boxShadow = "0 0 20px #000";
-    dialog.style.color = "#fff";
-    dialog.style.fontFamily = "sans-serif";
-
-    var title = document.createElement("div");
-    title.textContent = "批量导入场景提示词";
-    title.style.fontSize = "16px";
-    title.style.fontWeight = "bold";
-    title.style.marginBottom = "8px";
-    title.style.textAlign = "center";
-
-var tip = document.createElement("div");
-    tip.textContent = "输入 JSON 数组格式，例如：[\"场景提示词1\",\"场景提示词2\",\"场景提示词3\"]，导入后追加到现有列表末尾";
-    tip.style.fontSize = "12px";
-    tip.style.color = "#aaa";
-    tip.style.marginBottom = "10px";
-    tip.style.lineHeight = "1.4";
-
-    var textarea = document.createElement("textarea");
-    textarea.placeholder = "粘贴你的提示词数组...";
-    textarea.style.width = "100%";
-    textarea.style.height = "320px";
-    textarea.style.boxSizing = "border-box";
-    textarea.style.background = "#1a1a1a";
-    textarea.style.color = "#fff";
-    textarea.style.border = "1px solid #555";
-    textarea.style.borderRadius = "6px";
-    textarea.style.padding = "10px";
-    textarea.style.fontSize = "12px";
-    textarea.style.fontFamily = "monospace";
-    textarea.style.resize = "vertical";
-
-    var bar = document.createElement("div");
-    bar.style.display = "flex";
-    bar.style.justifyContent = "center";
-    bar.style.gap = "10px";
-    bar.style.marginTop = "12px";
-
-    var okBtn = document.createElement("button");
-    okBtn.textContent = "✅ 确认导入";
-    okBtn.style.padding = "6px 14px";
-    okBtn.style.background = "#4a86e8";
-    okBtn.style.color = "#fff";
-    okBtn.style.border = "none";
-    okBtn.style.borderRadius = "4px";
-    okBtn.style.cursor = "pointer";
-
-    var cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "❌ 取消";
-    cancelBtn.style.padding = "6px 14px";
-    cancelBtn.style.background = "#666";
-    cancelBtn.style.color = "#fff";
-    cancelBtn.style.border = "none";
-    cancelBtn.style.borderRadius = "4px";
-    cancelBtn.style.cursor = "pointer";
-
-    bar.appendChild(okBtn);
-    bar.appendChild(cancelBtn);
-    dialog.appendChild(title);
-    dialog.appendChild(tip);
-    dialog.appendChild(textarea);
-    dialog.appendChild(bar);
-    mask.appendChild(dialog);
-    document.body.appendChild(mask);
-
-    var close = function() {
-        document.body.removeChild(mask);
-    };
-    cancelBtn.onclick = close;
-
-    okBtn.onclick = function() {
-        try {
-            var v = textarea.value.trim();
-            if (!v) {
-                alert("请输入内容");
-                return;
-            }
-            var arr = JSON.parse(v);
-            if (!Array.isArray(arr)) {
-                alert("必须是数组格式");
-                return;
-            }
-
-            for (var k = 0; k < arr.length; k++) {
-                addLine(node, String(arr[k] || ""));
-            }
-            close();
-        } catch (e) {
-            alert("格式错误：" + e.message);
+function openBatchMaterial(node) {
+    FxAiCharacterAssetsSelector("").then(function (val) {
+        if (val === undefined || val === null || val === "") return;
+        for (var i = 0; i < node.lines.length; i++) {
+            var line = node.lines[i];
+            line.imgStr = String(val);
+            if (line.renderMaterialBox) line.renderMaterialBox();
         }
-    };
-
-    textarea.focus();
+        updateHidden(node);
+    });
 }
 
 function createHeader(node) {
@@ -553,7 +463,7 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
     row.appendChild(upBtn);
     row.appendChild(downBtn);
     row.appendChild(delBtn);
-    node.scrollContainer.appendChild(row);
+    node.scrollContainer.insertBefore(row, node.toolbar);
 
     var item = {
         textarea: textarea,
@@ -564,7 +474,8 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
         value: defaultValue,
         duration: defaultDuration,
         imgStr: defaultImgStr,
-        label: lineNumLabel
+        label: lineNumLabel,
+        renderMaterialBox: renderMaterialBox
     };
     node.lines.push(item);
 
