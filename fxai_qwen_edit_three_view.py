@@ -59,32 +59,38 @@ class FxAiQwenEditThreeView:
 
         if img_batch is not None:
             if isinstance(img_batch, list):
-                avatar_img = img_batch[0][:1]
+                images = [im[:1] for im in img_batch]
             else:
-                avatar_img = img_batch[:1]
+                images = [img_batch[i:i + 1] for i in range(img_batch.shape[0])]
 
-            samples = avatar_img.movedim(-1, 1)
+            picture_tokens = []
+            for i, avatar_img in enumerate(images):
+                samples = avatar_img.movedim(-1, 1)
 
-            total = int(384 * 384)
-            scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
-            width = round(samples.shape[3] * scale_by)
-            height = round(samples.shape[2] * scale_by)
+                total = int(384 * 384)
+                scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+                width = round(samples.shape[3] * scale_by)
+                height = round(samples.shape[2] * scale_by)
 
-            s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
-            images_vl.append(s.movedim(1, -1))
+                s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
+                images_vl.append(s.movedim(1, -1))
 
-            total = int(1024 * 1024)
-            scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
-            width = round(samples.shape[3] * scale_by / 8.0) * 8
-            height = round(samples.shape[2] * scale_by / 8.0) * 8
+                total = int(1024 * 1024)
+                scale_by = math.sqrt(total / (samples.shape[3] * samples.shape[2]))
+                width = round(samples.shape[3] * scale_by / 8.0) * 8
+                height = round(samples.shape[2] * scale_by / 8.0) * 8
 
-            s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
+                s = comfy.utils.common_upscale(samples, width, height, "area", "disabled")
 
-            ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
+                ref_latents.append(vae.encode(s.movedim(1, -1)[:, :, :, :3]))
+
+                picture_tokens.append(
+                    f"Picture {i + 1}: <|vision_start|><|image_pad|><|vision_end|>"
+                )
 
             image_part = (
-                "Picture 1: <|vision_start|><|image_pad|><|vision_end|>"
-                "Generate structured three-view full-body character reference images on a pure white background strictly based on the facial identity of the provided person.\n"
+                "\n".join(picture_tokens) +
+                "\nGenerate structured three-view full-body character reference images on a pure white background strictly based on the facial identity of the provided person.\n"
                 "Output 3 full-body views in fixed order:\n"
                 "1.front view (full body)\n"
                 "2.left side view (full body)\n"
