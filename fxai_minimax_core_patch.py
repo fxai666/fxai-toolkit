@@ -2,13 +2,14 @@
 # Licensed under MIT License
 # 商用需购买商业授权
 #
-# MiniMax H3 核心补丁：不修改 ComfyUI 系统文件，通过替换模块引用注入两处修复。
+# MiniMax H3 核心补丁：不修改 ComfyUI 系统文件，通过替换模块引用注入修复。
 # 1) MiniMaxH3.extra_conds：keyframes（首尾帧）与 refs（参考图/音频）的视觉条件共存，
 #    官方逻辑里 refs 会覆盖 keyframes 的 cond_video_latents，导致首尾帧锚定失效。
-# 2) PackedLayout：standalone 参考音频不推进时间轴，保证外置音频口型时序正确。
+# 2) MiniMaxH3Model._forward / _run_blocks：支持 ("block_loop", 0) 钩子，
+#    供 FxAiMiniMaxBlockCache 块缓存加速节点使用。
 #
-# 替换引用后，系统加载 H3 checkpoint 时（supported_models -> model_base.MiniMaxH3）
-# 会实例化这里的子类，模型 forward 里硬编码的 PackedLayout 也指向这里的子类。
+# 音频参考/音频输出缩放一律走官方实现：PackedLayout 推进参考音频时间轴，
+# 音频速度场缩放由官方 forward 的 audio_scale 机制处理，这里不重写。
 
 import torch
 
@@ -19,28 +20,13 @@ import comfy.model_sampling
 import comfy.ldm.common_dit
 import comfy.ldm.minimax.model as h3
 
-# 兼容新旧官方内核：time_shift_sigma 为主判断，官方有就用官方的；
-# time_shift_slope 同理，官方有就用官方的，都没有才用本地兜底实现。
+# 兼容新旧官方内核：官方有 time_shift_sigma 就用官方的，没有才用本地兜底。
 if hasattr(h3, "time_shift_sigma"):
     time_shift_sigma = h3.time_shift_sigma
 else:
     def time_shift_sigma(sigma, from_shift, to_shift):
         base = sigma / (from_shift + sigma * (1.0 - from_shift))
         return to_shift * base / (1.0 + (to_shift - 1.0) * base)
-
-
-if hasattr(h3, "time_shift_slope"):
-    time_shift_slope = h3.time_shift_slope
-else:
-    def time_shift_slope(sigma, from_shift, to_shift):
-        """d(sigma_to)/d(sigma_from) at the same base-grid point.
-
-        Scaling a stream's returned velocity by this slope makes the flat ODE that
-        any sampler integrates on the from-schedule equal to that stream's true ODE
-        on its own schedule.
-        """
-        base = sigma / (from_shift + sigma * (1.0 - from_shift))
-        return (to_shift * (1.0 + (from_shift - 1.0) * base) ** 2) / (from_shift * (1.0 + (to_shift - 1.0) * base) ** 2)
 
 
 class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
@@ -81,119 +67,6 @@ class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
             payload["cond_video_latents"] = [kf["latent"] for kf in keyframes] + [
                 r["latent"] for r in refs if "latent" in r]
         return out
-
-
-class PackedLayoutPatch(h3.PackedLayout):
-    def __init__(self, text_len, latent_t, latent_h, latent_w, audio_t, keyframes=None, refs=None, frame_count=None):
-        frame, w_grid = h3._frame_grid(latent_h, latent_w)
-        frame_rows = frame.shape[0]
-
-        segments = [("text", text_len)]  # (kind, n_rows)
-        g = torch.zeros(text_len, 3, dtype=torch.float64)
-        g[:, 0] = torch.arange(text_len, dtype=torch.float64)
-        pos = [g]  # per segment: [n, 3] float64 (t, h, w)
-
-        img_pos, img_update = [], []
-        audio_pos, audio_update = [], []
-        cursor = text_len
-        row = text_len
-
-        if keyframes:
-            # fl2va: keyframe cond rows right after text, sharing the target spatial grid
-            for kf in keyframes:
-                pixel_index = kf["resolved_frame_index"]
-                if pixel_index == 0:
-                    cond_t = float(text_len)
-                elif frame_count is not None and pixel_index == frame_count - 1:
-                    cond_t = float(text_len) + sum(h3._video_t_spans(latent_t)) - h3.FRAME_RESCALE
-                else:
-                    raise ValueError("only first/last keyframe anchors are supported")
-                g = torch.empty(frame_rows, 3, dtype=torch.float64)
-                g[:, 0] = cond_t
-                g[:, 1:] = frame
-                segments.append(("cond", frame_rows))
-                pos.append(g)
-                img_pos.append(torch.arange(row, row + frame_rows))
-                img_update.append(torch.zeros(frame_rows, dtype=torch.bool))
-                row += frame_rows
-
-        target_audio_w = (float(w_grid[0]), float(w_grid[-1]))
-        if refs:
-            cursor = float(text_len)
-            for blk in refs:
-                kind = blk["kind"]
-                if kind == "image":
-                    r_frame, _ = h3._frame_grid(blk["latent_h"], blk["latent_w"])
-                    n = r_frame.shape[0]
-                    g = torch.empty(n, 3, dtype=torch.float64)
-                    g[:, 0] = cursor
-                    g[:, 1:] = r_frame
-                    segments.append(("ref_img", n))
-                    pos.append(g)
-                    img_pos.append(torch.arange(row, row + n))
-                    img_update.append(torch.zeros(n, dtype=torch.bool))
-                    row += n
-                    cursor += 1.0
-                elif kind == "audio":
-                    # standalone reference audio does not advance the timeline
-                    rt = blk["ref_audio_t"]
-                    if rt > 0:
-                        segments.append(("ref_audio", rt * 2))
-                        pos.append(h3._audio_grid(cursor, rt, *target_audio_w))
-                        audio_pos.append(torch.arange(row, row + rt * 2))
-                        audio_update.append(torch.zeros(rt * 2, dtype=torch.bool))
-                        row += rt * 2
-                elif kind in ("video", "video_audio"):
-                    # the block's audio rows pack immediately before its video
-                    # rows, both sharing the cursor origin
-                    rt = blk["ref_audio_t"]
-                    vt = blk["latent_t"]
-                    r_frame, r_w_grid = h3._frame_grid(blk["latent_h"], blk["latent_w"])
-                    if rt > 0:
-                        segments.append(("ref_audio", rt * 2))
-                        pos.append(h3._audio_grid(cursor, rt, float(r_w_grid[0]), float(r_w_grid[-1])))
-                        audio_pos.append(torch.arange(row, row + rt * 2))
-                        audio_update.append(torch.zeros(rt * 2, dtype=torch.bool))
-                        row += rt * 2
-                    n = vt * r_frame.shape[0]
-                    segments.append(("ref_img", n))
-                    pos.append(h3._video_grid(vt, r_frame, cursor))
-                    img_pos.append(torch.arange(row, row + n))
-                    img_update.append(torch.zeros(n, dtype=torch.bool))
-                    row += n
-                    cursor += max(float(rt), sum(h3._video_t_spans(vt)))
-
-        # target audio then target video, always the last two segments
-        segments.append(("audio", audio_t * 2))
-        pos.append(h3._audio_grid(cursor, audio_t, *target_audio_w))
-        audio_pos.append(torch.arange(row, row + audio_t * 2))
-        audio_update.append(torch.ones(audio_t * 2, dtype=torch.bool))
-        row += audio_t * 2
-
-        n_video = latent_t * frame_rows
-        segments.append(("video", n_video))
-        pos.append(h3._video_grid(latent_t, frame, cursor))
-        img_pos.append(torch.arange(row, row + n_video))
-        img_update.append(torch.ones(n_video, dtype=torch.bool))
-        row += n_video
-
-        self.seq_len = row
-        self.position_ids = torch.cat(pos)  # [S, 3] float64
-        self.img_pos = torch.cat(img_pos)
-        self.img_update = torch.cat(img_update)
-        self.audio_pos = torch.cat(audio_pos)
-        self.audio_update = torch.cat(audio_update)
-        self.signature = (text_len, latent_t, latent_h, latent_w, audio_t)
-        # contiguous segment table (start, stop, kind)
-        # kinds: text / cond / ref_img / ref_audio / audio / video
-        # the packed sequence is uniform per segment in (modality tag, timestep class),
-        # except the text span (tag runs resolved at forward time from the presentation tags)
-        seg_abs = []
-        off = 0
-        for kind, n in segments:
-            seg_abs.append((off, off + n, kind))
-            off += n
-        self.segments = seg_abs
 
 
 def _run_blocks(self, h, t_emb, mod_segments, rope_freqs, transformer_options, start=0, end=None):
@@ -342,13 +215,11 @@ def _patched_forward(self, x, timestep, context, transformer_options={}, minimax
     video_out = video_out[:, :, :orig_t, :orig_h, :orig_w]
     audio_out = h3.unpack_audio(a)
 
-    slope_a = time_shift_slope(sigma_v, shift_v, shift_a).to(audio_out.dtype)
-    return [-video_out.to(video_x.dtype), (-slope_a) * audio_out.to(audio_x.dtype)]
+    return [-video_out.to(video_x.dtype), -audio_out.to(audio_x.dtype)]
 
 
 def apply_patch():
     comfy.model_base.MiniMaxH3 = MiniMaxH3Patch
-    h3.PackedLayout = PackedLayoutPatch
     h3.MiniMaxH3Model._run_blocks = _run_blocks
     h3.MiniMaxH3Model._forward = _patched_forward
 

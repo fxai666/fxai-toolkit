@@ -104,12 +104,19 @@ def _encode_ref_audio(audio_vae, audio):
     waveform = audio["waveform"]  # [B, C, L]
     sr = audio["sample_rate"]
     vae_sr = getattr(audio_vae, "audio_sample_rate", AUDIO_SAMPLE_RATE)
+    print(f"[FxAiMiniMax音频] 原始 dict keys={list(audio.keys())} waveform.shape={tuple(waveform.shape)} ndim={waveform.ndim} dtype={waveform.dtype} sr={sr} vae_sr={vae_sr}")
     if sr != vae_sr:
         waveform = torchaudio.functional.resample(waveform, sr, vae_sr)
-    waveform = waveform[:1]
-    if waveform.shape[1] == 1:
-        waveform = waveform.repeat(1, 2, 1)
-    z = audio_vae.encode(waveform.movedim(1, -1))  # [1, 32, 2, T]
+        print(f"[FxAiMiniMax音频] resample 后 shape={tuple(waveform.shape)}")
+    waveform = waveform[:1].movedim(1, -1)  # [B, C, L] -> [B, L, C]，包装层 encode 期望
+    print(f"[FxAiMiniMax音频] [:1]+movedim 后 shape={tuple(waveform.shape)}")
+    if waveform.shape[-1] == 1:
+        waveform = waveform.repeat(1, 1, 2)
+        print(f"[FxAiMiniMax音频] mono->stereo 后 shape={tuple(waveform.shape)}")
+    if waveform.shape[1] == 0:
+        raise ValueError("参考音频为空（0 个采样），请检查接入的音频是否有效")
+    print(f"[FxAiMiniMax音频] 即将 encode shape={tuple(waveform.shape)}")
+    z = audio_vae.encode(waveform)  # [B, L, C] -> [1, 32, 2, T]
     return z, z.shape[-1]
 
 
@@ -177,9 +184,9 @@ class FxAiMiniMaxImageToVideo:
                 "过渡羽化": ("INT", {"default": -1, "min": -1, "max": 5, "step": 1,
                     "tooltip": "过渡帧锁死区到自由区的平滑宽度（latent 步，约每步4帧）。-1=自动收紧（锁死前2步、只放宽1-2步，暗带最短）；0=硬锁；1-5=固定羽化步数，超过过渡帧折算步数无意义。"}),
                 "音频模式": ("COMBO", {
-                    "options": ["参考音色", "锁定源音频", "不参考"],
-                    "default": "参考音色",
-                    "tooltip": "参考音色=外置音频仅作音色参考，模型生成内容；锁定源音频=外置音频锁进音频通道，输出音频即源音频（唱歌/数字人口播）；不参考=外置音频不参与，模型自由生成"}),
+                    "options": ["音色参考", "原音频", "系统生成"],
+                    "default": "音色参考",
+                    "tooltip": "音色参考=外置音频仅作音色参考，模型生成内容；原音频=外置音频锁进音频通道，输出音频即源音频（唱歌/数字人口播）；系统生成=外置音频不参与，模型自由生成"}),
             }
         }
 
@@ -220,14 +227,14 @@ class FxAiMiniMaxImageToVideo:
                 mask[:, :, lock_steps + i, :, :] = (i + 1) / (feather + 1)
             latent["noise_mask"] = mask
 
-        if 音频模式 == "锁定源音频":
+        if 音频模式 == "原音频":
             if 音频VAE is None:
-                raise ValueError("锁定源音频 模式需连接音频VAE")
+                raise ValueError("原音频 模式需连接音频VAE")
             if 外置音频 is None:
-                raise ValueError("锁定源音频 模式需连接外置音频")
+                raise ValueError("原音频 模式需连接外置音频")
             latent = _lock_source_audio(latent, 音频VAE, 外置音频)
-        elif 音频模式 == "参考音色" and 外置音频 is not None and 音频VAE is None:
-            raise ValueError("参考音色 接入外置音频时需连接音频VAE")
+        elif 音频模式 == "音色参考" and 外置音频 is not None and 音频VAE is None:
+            raise ValueError("音色参考 接入外置音频时需连接音频VAE")
 
         ref_items = []
         ref_blocks = []
@@ -276,18 +283,27 @@ class FxAiMiniMaxImageToVideo:
                                    "latent_h": ch // 16, "latent_w": cw // 16,
                                    "ref_audio_t": 0, "latent": z, "audio_latent": None})
         # 参考音频：合并处理（外置音频放最前，再追加参考音频列表），逐个编码成独立 <Audio j> 参考，最多 3 段
-        # 不参考 模式下外置音频不参与；参考音色/锁定源音频 才作为参考条件
+        # 系统生成 模式下外置音频不参与；音色参考/原音频 才作为参考条件
         ref_audios = []
-        if 外置音频 is not None and 音频模式 != "不参考":
+        if 外置音频 is not None and 音频模式 != "系统生成" and 外置音频.get("waveform", None) is not None and 外置音频["waveform"].shape[-1] > 0:
+            print(f"[FxAiMiniMax音频] 外置音频加入，shape={tuple(外置音频['waveform'].shape)}")
             ref_audios.append(外置音频)
         for audio in (参考音频列表 or []):
             if isinstance(audio, dict) and "waveform" in audio:
+                print(f"[FxAiMiniMax音频] 列表条目 waveform.shape={tuple(audio['waveform'].shape)} ndim={audio['waveform'].ndim} shape[-1]={audio['waveform'].shape[-1] if audio['waveform'].ndim > 0 else '?'}")
+            if isinstance(audio, dict) and "waveform" in audio and audio["waveform"].shape[-1] > 0:
                 ref_audios.append(audio)
         if ref_audios:
             if 音频VAE is None:
                 raise ValueError("接入参考音频时需连接音频VAE")
-            for audio in ref_audios[:3]:
+            _, template_audio = latent["samples"].unbind()
+            for i, audio in enumerate(ref_audios[:3]):
                 audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, audio)
+                # 外置音频（首个）fit 到目标音频时长，保证 ref_audio_t 与目标 audio_t
+                # 对齐（GH drive_audio 同款处理）；参考音频列表保持原长度
+                if i == 0 and 外置音频 is not None and 音频模式 != "系统生成":
+                    audio_latent = _fit_audio_latent(audio_latent, template_audio)
+                    ref_audio_t = int(audio_latent.shape[-1])
                 ref_items.append({"type": "audio"})
                 ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
 
