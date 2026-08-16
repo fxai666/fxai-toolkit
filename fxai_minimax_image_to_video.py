@@ -113,6 +113,39 @@ def _encode_ref_audio(audio_vae, audio):
     return z, z.shape[-1]
 
 
+def _fit_audio_latent(encoded, template):
+    """把编码音频 latent 适配到目标 audio_t，与模板同 device/dtype。"""
+    if encoded.shape[1:-1] != template.shape[1:-1]:
+        raise ValueError(
+            f"音频潜变量布局不匹配：got {tuple(encoded.shape)}，目标 {tuple(template.shape)}"
+        )
+    target_t = template.shape[-1]
+    if encoded.shape[-1] > target_t:
+        encoded = encoded[..., :target_t]
+    elif encoded.shape[-1] < target_t:
+        pad = encoded.new_zeros((*encoded.shape[:-1], target_t - encoded.shape[-1]))
+        encoded = torch.cat((encoded, pad), dim=-1)
+    return encoded.to(device=template.device, dtype=template.dtype)
+
+
+def _lock_source_audio(latent, audio_vae, audio):
+    """把源音频锁进 AV 潜空间：音频通道替换为源音频，noise_mask 音频部分全 0。"""
+    samples = latent["samples"]
+    video, template_audio = samples.unbind()
+    encoded = _fit_audio_latent(_encode_ref_audio(audio_vae, audio)[0], template_audio)
+    masks = latent.get("noise_mask")
+    if masks is not None and getattr(masks, "is_nested", False):
+        video_mask = tuple(masks.unbind())[0]
+    elif isinstance(masks, torch.Tensor):
+        video_mask = masks
+    else:
+        video_mask = torch.ones_like(video)
+    audio_mask = torch.zeros_like(encoded)
+    latent["samples"] = comfy.nested_tensor.NestedTensor((video, encoded))
+    latent["noise_mask"] = comfy.nested_tensor.NestedTensor((video_mask, audio_mask))
+    return latent
+
+
 class FxAiMiniMaxImageToVideo:
     """MiniMax H3 图生视频：提示词 + 首尾帧关键帧 + 外置音频参考。
 
@@ -143,6 +176,10 @@ class FxAiMiniMaxImageToVideo:
                 "过渡帧列表": ("IMAGE",),
                 "过渡羽化": ("INT", {"default": -1, "min": -1, "max": 5, "step": 1,
                     "tooltip": "过渡帧锁死区到自由区的平滑宽度（latent 步，约每步4帧）。-1=自动收紧（锁死前2步、只放宽1-2步，暗带最短）；0=硬锁；1-5=固定羽化步数，超过过渡帧折算步数无意义。"}),
+                "音频模式": ("COMBO", {
+                    "options": ["参考音色", "锁定源音频", "不参考"],
+                    "default": "参考音色",
+                    "tooltip": "参考音色=外置音频仅作音色参考，模型生成内容；锁定源音频=外置音频锁进音频通道，输出音频即源音频（唱歌/数字人口播）；不参考=外置音频不参与，模型自由生成"}),
             }
         }
 
@@ -152,7 +189,7 @@ class FxAiMiniMaxImageToVideo:
     CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1, 音频模式="参考音色"):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
 
         if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
@@ -182,6 +219,15 @@ class FxAiMiniMaxImageToVideo:
             for i in range(feather):
                 mask[:, :, lock_steps + i, :, :] = (i + 1) / (feather + 1)
             latent["noise_mask"] = mask
+
+        if 音频模式 == "锁定源音频":
+            if 音频VAE is None:
+                raise ValueError("锁定源音频 模式需连接音频VAE")
+            if 外置音频 is None:
+                raise ValueError("锁定源音频 模式需连接外置音频")
+            latent = _lock_source_audio(latent, 音频VAE, 外置音频)
+        elif 音频模式 == "参考音色" and 外置音频 is not None and 音频VAE is None:
+            raise ValueError("参考音色 接入外置音频时需连接音频VAE")
 
         ref_items = []
         ref_blocks = []
@@ -230,8 +276,9 @@ class FxAiMiniMaxImageToVideo:
                                    "latent_h": ch // 16, "latent_w": cw // 16,
                                    "ref_audio_t": 0, "latent": z, "audio_latent": None})
         # 参考音频：合并处理（外置音频放最前，再追加参考音频列表），逐个编码成独立 <Audio j> 参考，最多 3 段
+        # 不参考 模式下外置音频不参与；参考音色/锁定源音频 才作为参考条件
         ref_audios = []
-        if 外置音频 is not None:
+        if 外置音频 is not None and 音频模式 != "不参考":
             ref_audios.append(外置音频)
         for audio in (参考音频列表 or []):
             if isinstance(audio, dict) and "waveform" in audio:
