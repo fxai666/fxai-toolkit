@@ -19,9 +19,9 @@ app.registerExtension({
                 var w = this.widgets[i];
                 if (w && w.name === "lines_data") {
                     this.linesDataWidget = w;
-                    setTimeout(function(){
-                        w.hidden = true;
-                    },0);
+                    //setTimeout(function(){
+                    //    w.hidden = true;
+                    //},0);
                     break;
                 }
             }

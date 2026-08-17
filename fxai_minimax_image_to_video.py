@@ -278,16 +278,20 @@ class FxAiMiniMaxImageToVideo:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img})
             ref_items.append({"type": "image", "data": img})
+        ref_images = []
         if 参考图片列表 is not None:
-            for img in normalize_images(参考图片列表)[:9]:
-                h, w = img.shape[1], img.shape[2]
-                scale = min(1.0, math.sqrt((宽度 * 高度) / (w * h)))
-                tw = max(CANVAS_MULTIPLE, round(w * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
-                th = max(CANVAS_MULTIPLE, round(h * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
-                resized = _resize(img[:1], tw, th, "disabled")
-                z = 视频VAE.encode(resized)
-                ref_items.append({"type": "image", "data": resized})
-                ref_blocks.append({"kind": "image", "latent_h": th // 16, "latent_w": tw // 16, "latent": z})
+            ref_images += normalize_images(参考图片列表)[:9]
+        if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
+            ref_images += normalize_images(过渡帧列表)[:9]
+        for img in ref_images:
+            h, w = img.shape[1], img.shape[2]
+            scale = min(1.0, math.sqrt((宽度 * 高度) / (w * h)))
+            tw = max(CANVAS_MULTIPLE, round(w * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+            th = max(CANVAS_MULTIPLE, round(h * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+            resized = _resize(img[:1], tw, th, "disabled")
+            z = 视频VAE.encode(resized)
+            ref_items.append({"type": "image", "data": resized})
+            ref_blocks.append({"kind": "image", "latent_h": th // 16, "latent_w": tw // 16, "latent": z})
         if 参考视频列表 is not None:
             for video_frames in _split_ref_videos(参考视频列表):
                 if video_frames.shape[0] > frame_count:

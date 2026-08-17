@@ -7,6 +7,7 @@ import torch
 import numpy as np
 import folder_paths
 import gc
+import fxai_task_store
 
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
@@ -242,6 +243,11 @@ class FxAiVideoMerger:
         video_path = merge_videos(源视频文件夹路径, final_name, 文件数量, 音频)
         if video_path and os.path.exists(video_path):
             print(f"[凤希AI] ✅ 视频合并完成：{video_path}")
+            # 【与图片/音频一致】合并完成后统一入库 + WS 广播
+            try:
+                fxai_task_store.save_result("video", "merged", [os.path.basename(video_path)])
+            except Exception as e:
+                print(f"[凤希AI视频合并] 任务结果保存失败：{e}")
         else:
             print("[凤希AI] ❌ 视频合并失败")
             

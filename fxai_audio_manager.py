@@ -9,6 +9,7 @@ import soundfile as sf
 import numpy as np
 import subprocess
 import json
+import fxai_task_store
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -250,7 +251,7 @@ class FxAiAudioManager:
     FUNCTION = "run"
     CATEGORY = "凤希AI/音频"
 
-    def save_tensor_audio(self, audio_data, target_dir):
+    def save_tensor_audio(self, audio_data, target_dir, subdir=""):
         try:
             waveform = audio_data["waveform"]
             sample_rate = audio_data["sample_rate"]
@@ -268,13 +269,19 @@ class FxAiAudioManager:
             save_name = f"{next_num:03d}_audio.wav"
             save_path = os.path.join(target_dir, save_name)
             sf.write(save_path, audio_np, sample_rate)
+
+            # 【与图片一致】保存完成后统一入库 + WS 广播
+            try:
+                fxai_task_store.save_result("audio", subdir, [save_name])
+            except Exception as e:
+                print(f"[凤希AI音频资源管理] 任务结果保存失败：{e}")
         except Exception as e:
             print(f"❌ 保存音频失败：{e}")
 
     def run(self, 目录="", 音频=None,):
         target_dir = get_audio_dir(目录)
         if 音频 is not None:
-            self.save_tensor_audio(音频, target_dir)
+            self.save_tensor_audio(音频, target_dir, 目录)
         
         files = list_audios(target_dir)
 
