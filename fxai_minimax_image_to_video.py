@@ -8,7 +8,9 @@
 # 提示词里用 <Audio 1> 引用它，模型据此驱动口型并生成配套音频流。
 
 import math
+import subprocess
 
+import numpy as np
 import torch
 import torchaudio
 
@@ -99,24 +101,49 @@ def _empty_av_latent(width, height, length, batch_size=1):
     return {"samples": comfy.nested_tensor.NestedTensor((video, audio))}, frame_count
 
 
-def _encode_ref_audio(audio_vae, audio):
-    """外置音频 -> ([1, 32, 2, T] 音频潜变量, 参考时长 T)；mono 复制为立体声。"""
+AUDIO_DENOISE_LEVELS = {
+    "关闭": None,
+    "轻度": {"nr": 6, "nf": -50},
+    "标准": {"nr": 12, "nf": -50},
+    "强力": {"nr": 24, "nf": -50},
+}
+
+
+def _denoise_audio_ffmpeg(waveform, sr, nr, nf):
+    """用 FFmpeg afftdn 抑制稳态底噪/嘶声，逐声道独立处理。"""
+    b, c, l = waveform.shape
+    wav = waveform.detach().float().cpu().numpy()
+    data = np.ascontiguousarray(wav.reshape(b * c, l).T).tobytes()
+    cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-f", "f32le", "-ar", str(int(sr)), "-ac", str(b * c), "-i", "-",
+        "-af", f"afftdn=nr={nr}:nf={nf}",
+        "-f", "f32le", "-ar", str(int(sr)), "-ac", str(b * c), "-",
+    ]
+    proc = subprocess.run(cmd, input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    out = np.frombuffer(proc.stdout, dtype=np.float32).reshape(l, b * c).T.reshape(b, c, l)
+    return torch.from_numpy(out).to(device=waveform.device, dtype=waveform.dtype)
+
+
+def _encode_ref_audio(audio_vae, audio, denoise="关闭"):
+    """外置音频 -> ([1, 32, 2, T] 音频潜变量, 参考时长 T)。
+
+    DAC 编码器期望 stereo 双声道输入 [B, 2, L]；mono 先复制成双声道再编码。
+    denoise 为可选 FFmpeg afftdn 去噪档位（AUDIO_DENOISE_LEVELS 键）。
+    """
     waveform = audio["waveform"]  # [B, C, L]
     sr = audio["sample_rate"]
     vae_sr = getattr(audio_vae, "audio_sample_rate", AUDIO_SAMPLE_RATE)
-    print(f"[FxAiMiniMax音频] 原始 dict keys={list(audio.keys())} waveform.shape={tuple(waveform.shape)} ndim={waveform.ndim} dtype={waveform.dtype} sr={sr} vae_sr={vae_sr}")
     if sr != vae_sr:
         waveform = torchaudio.functional.resample(waveform, sr, vae_sr)
-        print(f"[FxAiMiniMax音频] resample 后 shape={tuple(waveform.shape)}")
-    waveform = waveform[:1].movedim(1, -1)  # [B, C, L] -> [B, L, C]，包装层 encode 期望
-    print(f"[FxAiMiniMax音频] [:1]+movedim 后 shape={tuple(waveform.shape)}")
-    if waveform.shape[-1] == 1:
-        waveform = waveform.repeat(1, 1, 2)
-        print(f"[FxAiMiniMax音频] mono->stereo 后 shape={tuple(waveform.shape)}")
-    if waveform.shape[1] == 0:
+    level = AUDIO_DENOISE_LEVELS.get(denoise)
+    if level is not None:
+        waveform = _denoise_audio_ffmpeg(waveform, vae_sr, **level)
+    if waveform.shape[1] == 1:
+        waveform = waveform.repeat(1, 2, 1)
+    if waveform.shape[-1] == 0:
         raise ValueError("参考音频为空（0 个采样），请检查接入的音频是否有效")
-    print(f"[FxAiMiniMax音频] 即将 encode shape={tuple(waveform.shape)}")
-    z = audio_vae.encode(waveform)  # [B, L, C] -> [1, 32, 2, T]
+    z = audio_vae.encode(waveform[:1].movedim(1, -1))  # [B, C, L] -> [B, L, C]，包装层 encode 期望
     return z, z.shape[-1]
 
 
@@ -187,6 +214,10 @@ class FxAiMiniMaxImageToVideo:
                     "options": ["音色参考", "原音频", "系统生成"],
                     "default": "音色参考",
                     "tooltip": "音色参考=外置音频仅作音色参考，模型生成内容；原音频=外置音频锁进音频通道，输出音频即源音频（唱歌/数字人口播）；系统生成=外置音频不参与，模型自由生成"}),
+                "音频去噪": ("COMBO", {
+                    "options": list(AUDIO_DENOISE_LEVELS),
+                    "default": "关闭",
+                    "tooltip": "对参考音频用 FFmpeg afftdn 抑制稳态底噪/嘶声（影响音色参考质量，不影响原音频输出本身）"}),
             }
         }
 
@@ -196,7 +227,7 @@ class FxAiMiniMaxImageToVideo:
     CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1, 音频模式="参考音色"):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1, 音频模式="参考音色", 音频去噪="关闭"):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
 
         if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
@@ -286,11 +317,8 @@ class FxAiMiniMaxImageToVideo:
         # 系统生成 模式下外置音频不参与；音色参考/原音频 才作为参考条件
         ref_audios = []
         if 外置音频 is not None and 音频模式 != "系统生成" and 外置音频.get("waveform", None) is not None and 外置音频["waveform"].shape[-1] > 0:
-            print(f"[FxAiMiniMax音频] 外置音频加入，shape={tuple(外置音频['waveform'].shape)}")
             ref_audios.append(外置音频)
         for audio in (参考音频列表 or []):
-            if isinstance(audio, dict) and "waveform" in audio:
-                print(f"[FxAiMiniMax音频] 列表条目 waveform.shape={tuple(audio['waveform'].shape)} ndim={audio['waveform'].ndim} shape[-1]={audio['waveform'].shape[-1] if audio['waveform'].ndim > 0 else '?'}")
             if isinstance(audio, dict) and "waveform" in audio and audio["waveform"].shape[-1] > 0:
                 ref_audios.append(audio)
         if ref_audios:
@@ -298,7 +326,7 @@ class FxAiMiniMaxImageToVideo:
                 raise ValueError("接入参考音频时需连接音频VAE")
             _, template_audio = latent["samples"].unbind()
             for i, audio in enumerate(ref_audios[:3]):
-                audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, audio)
+                audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, audio, denoise=音频去噪)
                 # 外置音频（首个）fit 到目标音频时长，保证 ref_audio_t 与目标 audio_t
                 # 对齐（GH drive_audio 同款处理）；参考音频列表保持原长度
                 if i == 0 and 外置音频 is not None and 音频模式 != "系统生成":
@@ -308,16 +336,6 @@ class FxAiMiniMaxImageToVideo:
                 ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
 
         tokens = CLIP模型.tokenize(提示词, minimax_ref_items=ref_items)
-        for i, item in enumerate(ref_items):
-            if item.get("type") != "image":
-                continue
-            try:
-                import comfy.text_encoders.qwen_vl as _qv
-                fl, gr = _qv.process_qwen2vl_images(
-                    item["data"], patch_size=16,
-                    image_mean=[0.5, 0.5, 0.5], image_std=[0.5, 0.5, 0.5])
-            except Exception as e:
-                print(f"[FxAiMiniMax] ref图#{i} 诊断失败: {e}")
         cond = CLIP模型.encode_from_tokens_scheduled(tokens)
 
         if keyframes:
