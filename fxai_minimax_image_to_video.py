@@ -8,6 +8,7 @@
 # 提示词里用 <Audio 1> 引用它，模型据此驱动口型并生成配套音频流。
 
 import math
+import re
 import subprocess
 
 import numpy as np
@@ -58,6 +59,33 @@ def temporal_shape(length):
     frame_count = align_frame_count(max(5, length))
     duration = frame_count / FPS
     return frame_count, video_latent_t(frame_count), round(duration * AUDIO_LATENT_FPS)
+
+
+def _validate_media_tags(prompt, ref_items):
+    """校验提示词里的 <Picture/Video/Audio N> 标签与已组装素材数量匹配。
+
+    官方 tokenizer 按 ref_items 顺序独立计数（image->Picture、audio->Audio、video->Video）。
+    提示词引用该类型的最大序号超出实际数量时，报错说明需要几个、实际传了几个。
+    """
+    counts = {"image": 0, "audio": 0, "video": 0}
+    for item in ref_items:
+        kind = item.get("type")
+        if kind in counts:
+            counts[kind] += 1
+    tag_re = re.compile(r"<\s*(?:Picture|Image|Video|Audio)\s*(\d+)\s*>", re.IGNORECASE)
+    needed = {"image": 0, "audio": 0, "video": 0}
+    for m in tag_re.finditer(prompt or ""):
+        media = re.sub(r"[^A-Za-z]", "", m.group(0)).lower()
+        kind = "image" if media in ("picture", "image") else media
+        if kind in needed:
+            needed[kind] = max(needed[kind], int(m.group(1)))
+    names = {"image": "图片(Picture)", "audio": "音频(Audio)", "video": "视频(Video)"}
+    missing = []
+    for kind, want in needed.items():
+        if want > counts[kind]:
+            missing.append(f"{names[kind]}需要 {want} 个，实际只有 {counts[kind]} 个")
+    if missing:
+        raise ValueError("提示词引用的素材不足：" + "；".join(missing))
 
 
 def _split_ref_videos(value):
@@ -205,6 +233,7 @@ class FxAiMiniMaxImageToVideo:
                 "尾帧图片": ("IMAGE",),
                 "参考图片列表": ("IMAGE",),
                 "参考视频列表": ("IMAGE",),
+                "参考视频音频": ("AUDIO",),
                 "外置音频": ("AUDIO",),
                 "参考音频列表": ("LIST",),
                 "过渡帧列表": ("IMAGE",),
@@ -227,7 +256,7 @@ class FxAiMiniMaxImageToVideo:
     CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1, 音频模式="参考音色", 音频去噪="关闭"):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 参考视频音频=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1, 音频模式="参考音色", 音频去噪="关闭"):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
 
         if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
@@ -273,11 +302,9 @@ class FxAiMiniMaxImageToVideo:
         if 首帧图片 is not None:
             img = _prepare_image(首帧图片, 宽度, 高度, "disabled")
             keyframes.append({"resolved_frame_index": 0, "image": img})
-            ref_items.append({"type": "image", "data": img})
         if 尾帧图片 is not None:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img})
-            ref_items.append({"type": "image", "data": img})
         ref_images = []
         if 参考图片列表 is not None:
             ref_images += normalize_images(参考图片列表)[:9]
@@ -292,8 +319,9 @@ class FxAiMiniMaxImageToVideo:
             z = 视频VAE.encode(resized)
             ref_items.append({"type": "image", "data": resized})
             ref_blocks.append({"kind": "image", "latent_h": th // 16, "latent_w": tw // 16, "latent": z})
+        video_audio_blocks = []
         if 参考视频列表 is not None:
-            for video_frames in _split_ref_videos(参考视频列表):
+            for idx, video_frames in enumerate(_split_ref_videos(参考视频列表)):
                 if video_frames.shape[0] > frame_count:
                     video_frames = video_frames[:frame_count]
                 n = video_frames.shape[0]
@@ -314,9 +342,21 @@ class FxAiMiniMaxImageToVideo:
                 qwen_frames = resized[sample_idx]
                 ref_items.append({"type": "video", "data": qwen_frames,
                                   "timestamps": [i / 2.0 for i in range(len(sample_idx))]})
-                ref_blocks.append({"kind": "video", "latent_t": z.shape[2],
-                                   "latent_h": ch // 16, "latent_w": cw // 16,
-                                   "ref_audio_t": 0, "latent": z, "audio_latent": None})
+                # 参考视频可配对一段音频（官方 video_audio 块：音频行与视频共享时间原点）。
+                # 块延迟到参考音频之后入列，使提示词 <Audio N> 仍对应参考音频列表
+                if idx == 0 and isinstance(参考视频音频, dict) and "waveform" in 参考视频音频:
+                    if 音频VAE is None:
+                        raise ValueError("参考视频接入音频时需连接音频VAE")
+                    encoded_soundtrack, soundtrack_t = _encode_ref_audio(音频VAE, 参考视频音频, denoise=音频去噪)
+                    video_audio_blocks.append({"kind": "video_audio",
+                                               "latent_t": z.shape[2],
+                                               "latent_h": ch // 16, "latent_w": cw // 16,
+                                               "ref_audio_t": soundtrack_t, "latent": z,
+                                               "audio_latent": encoded_soundtrack})
+                else:
+                    ref_blocks.append({"kind": "video", "latent_t": z.shape[2],
+                                       "latent_h": ch // 16, "latent_w": cw // 16,
+                                       "ref_audio_t": 0, "latent": z, "audio_latent": None})
         # 参考音频：合并处理（外置音频放最前，再追加参考音频列表），逐个编码成独立 <Audio j> 参考，最多 3 段
         # 系统生成 模式下外置音频不参与；音色参考/原音频 才作为参考条件
         ref_audios = []
@@ -338,7 +378,12 @@ class FxAiMiniMaxImageToVideo:
                     ref_audio_t = int(audio_latent.shape[-1])
                 ref_items.append({"type": "audio"})
                 ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
+        # 视频音频块最后入列：参考音频列表保持 <Audio 1..N>，视频音频接在末尾
+        for blk in video_audio_blocks:
+            ref_items.append({"type": "audio"})
+            ref_blocks.append(blk)
 
+        _validate_media_tags(提示词, ref_items)
         tokens = CLIP模型.tokenize(提示词, minimax_ref_items=ref_items)
         cond = CLIP模型.encode_from_tokens_scheduled(tokens)
 
