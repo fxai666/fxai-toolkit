@@ -31,8 +31,8 @@ class FxAIGeneratorController:
                 "开始索引": ("INT", {"default": 0, "min": 0}),
                 "结束索引": ("INT", {"default": -1, "min": -1}),
                 "帧率": ("INT", {"default": 24, "min": 1}),
-                "宽度": ("INT", {"default": 960, "min": 544, "step": 2}),
-                "高度": ("INT", {"default": 544, "min": 544, "step": 2}),
+                "宽度": ("INT", {"default": 960, "min": 360, "step": 2}),
+                "高度": ("INT", {"default": 544, "min": 360, "step": 2}),
                 "长宽对齐基数": ("INT", {"default": 32, "min": 1}),
             },
             "optional": {
