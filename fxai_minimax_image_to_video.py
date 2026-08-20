@@ -21,6 +21,13 @@ import comfy.nested_tensor
 import comfy.utils
 import node_helpers
 from fxai_image_utils import normalize_images
+from fxai_minimax_core_patch import (
+    MC_KEY,
+    MC_AUDIO_KEY,
+    FRAME_RESCALE,
+    _video_tail_from_latent,
+    _audio_tail_from_latent,
+)
 
 FPS = 24
 AUDIO_LATENT_FPS = 40
@@ -236,6 +243,9 @@ class FxAiMiniMaxImageToVideo:
                 "参考视频音频": ("AUDIO",),
                 "外置音频": ("AUDIO",),
                 "参考音频列表": ("LIST",),
+                "上一镜锚定latent": ("LATENT", {
+                    "tooltip": "上一镜 MiniMax上下文衔接 节点输出的「锚定latent」（尾部 17 帧，AV 双流）。"
+                               "作为本镜头部内部 keyframe 锚定（latent 层面，无损），模型从上一镜画面继续渲染。"}),
                 "过渡帧列表": ("IMAGE",),
                 "过渡羽化": ("INT", {"default": -1, "min": -1, "max": 5, "step": 1,
                     "tooltip": "过渡帧锁死区到自由区的平滑宽度（latent 步，约每步4帧）。-1=自动收紧（锁死前2步、只放宽1-2步，暗带最短）；0=硬锁；1-5=固定羽化步数，超过过渡帧折算步数无意义。"}),
@@ -256,7 +266,7 @@ class FxAiMiniMaxImageToVideo:
     CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 参考视频音频=None, 外置音频=None, 参考音频列表=None, 过渡帧列表=None, 过渡羽化=-1, 音频模式="参考音色", 音频去噪="关闭"):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考视频列表=None, 参考视频音频=None, 外置音频=None, 参考音频列表=None, 上一镜锚定latent=None, 过渡帧列表=None, 过渡羽化=-1, 音频模式="参考音色", 音频去噪="关闭"):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
 
         if 过渡帧列表 is not None and 过渡帧列表.shape[0] > 0:
@@ -305,6 +315,11 @@ class FxAiMiniMaxImageToVideo:
         if 尾帧图片 is not None:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img})
+        # 上一镜锚定段 latent：作为本镜头部内部 keyframe（latent 层面，无损，带 MC_KEY 真实帧位置）
+        anchor_audio_ref = None
+        if 上一镜锚定latent is not None:
+            anchor_keyframes, anchor_audio_ref = _build_anchor_keyframes(上一镜锚定latent)
+            keyframes += anchor_keyframes
         ref_images = []
         if 参考图片列表 is not None:
             ref_images += normalize_images(参考图片列表)[:9]
@@ -389,9 +404,102 @@ class FxAiMiniMaxImageToVideo:
 
         if keyframes:
             for kf in keyframes:
-                kf["latent"] = 视频VAE.encode(kf.pop("image"))
-            cond = node_helpers.conditioning_set_values(cond, {"minimax_keyframes": keyframes, "minimax_frame_count": frame_count})
+                if "image" in kf:
+                    kf["latent"] = 视频VAE.encode(kf.pop("image"))
+            # 与官方 H3 Motion Context 完全一致：先合并已有 conditioning 的 keyframes，
+            # 保留锚定区外（尾部）的锚定、丢弃落入锚定区 0..span-1 的头部锚定，再拼接本节点
+            # 的 keyframes；frame_count 一并更新并校验。
+            anchor_span = 17 if 上一镜锚定latent is not None else 0
+            merged = []
+            for emb, extra in cond:
+                d = extra.copy()
+                prior = d.get("minimax_keyframes") or []
+                pfc = d.get("minimax_frame_count")
+                if prior and pfc is not None and int(pfc) != frame_count:
+                    raise ValueError(
+                        "MiniMax图生视频: conditioning 携带的 keyframes 是为 %d 帧镜头解析的，"
+                        "本镜头为 %d 帧。请用同一节点的 conditioning 与 latent。"
+                        % (int(pfc), frame_count))
+                kept = []
+                for kf in prior:
+                    p = int(kf.get(MC_KEY, kf.get("resolved_frame_index", 0)))
+                    if p < anchor_span:
+                        continue
+                    kf = dict(kf)
+                    kf[MC_KEY] = p
+                    kept.append(kf)
+                d["minimax_keyframes"] = kept + keyframes
+                d["minimax_frame_count"] = frame_count
+                merged.append([emb, d])
+            cond = merged
         if ref_blocks:
             cond = node_helpers.conditioning_set_values(cond, {"minimax_refs": ref_blocks})
+        if anchor_audio_ref is not None:
+            # 与官方 H3 一致：锚定音频作为音频 ref 追加（append）注入，不占 tokenize 编号
+            cond = node_helpers.conditioning_set_values(
+                cond, {"minimax_refs": [anchor_audio_ref]}, append=True)
 
         return (cond, latent)
+
+
+def _build_anchor_keyframes(anchor_latent):
+    """把上一镜的「锚定latent」（AV 双流，尾部 17 帧）拆成内部 keyframe + 音频延续 ref。
+
+    锚定 latent 的视频部分应是 5 个 latent 步（17 帧）。直接遍历其视频步，每个 latent 步
+    作为独立 keyframe，offset（真实帧位置）从 0 起（0,1,5,9,13），带 MC_KEY 标记，供
+    motion context 布局 patch 锚定到本镜头部。音频部分整体作为音频 ref（end-aligned）。
+
+    每个块对齐到 patch_size (1,2,2)，否则 patchify_video reshape 会因奇数 H/W 失败
+    （上一镜像素尺寸非 32 倍数时，如 720 高 -> latent 45）。
+
+    全程 latent 层面，不解码/不重编码/不 resize —— 无损继承，消除逐镜像素级劣化。
+    返回 (keyframes, audio_ref)。
+    """
+    samples = anchor_latent["samples"]
+    if hasattr(samples, "unbind"):
+        parts = list(samples.unbind())
+    elif isinstance(samples, (tuple, list)):
+        parts = list(samples)
+    else:
+        raise ValueError("上一镜锚定latent 期望 H3 AV latent，实际 %r" % type(samples))
+    video = parts[0]
+    if video.ndim == 4:
+        video = video.unsqueeze(0)
+    if video.ndim != 5:
+        raise ValueError("上一镜锚定latent 视频期望 [B,C,T,H,W]，实际 %s" % (tuple(video.shape),))
+
+    steps = int(video.shape[2])
+    # 逐 latent 步切 keyframe，offset 为该步起始帧位置（与 FRAME_PER_TOKEN 累计一致）。
+    # 块与主 latent 一样对齐到 patch_size（(1,2,2)），否则 patchify_video reshape 会因
+    # 奇数 H/W 失败（上一镜像素尺寸非 32 倍数时，如 720 高 -> latent 45）
+    keyframes = []
+    acc = 0
+    for k in range(steps):
+        blk = video[:1, :, k:k + 1].clone()
+        blk = comfy.ldm.common_dit.pad_to_patch_size(blk, (1, 2, 2))
+        keyframes.append({
+            "resolved_frame_index": 0,
+            MC_KEY: acc,
+            "latent": blk,
+        })
+        acc += (1, 4, 4, 4, 4)[k % 5]
+
+    audio_ref = None
+    if len(parts) >= 2:
+        audio = parts[1]
+        if audio.ndim == 3:
+            audio = audio.unsqueeze(0)
+        if audio.ndim == 4 and audio.shape[-1] > 0:
+            audio_latent = audio[:1].clone()
+            ref_audio_t = int(audio.shape[-1])
+            # 锚定段音频终点 = 锚定区终点（17 帧 = FRAME_RESCALE*17/FRAME_RESCALE 时间坐标）
+            end_coord = round(FRAME_RESCALE * acc)
+            end_frame = end_coord / FRAME_RESCALE
+            audio_ref = {
+                "kind": "audio",
+                "ref_audio_t": ref_audio_t,
+                "audio_latent": audio_latent,
+                MC_AUDIO_KEY: end_frame,
+            }
+
+    return keyframes, audio_ref

@@ -20,6 +20,94 @@ import comfy.model_sampling
 import comfy.ldm.common_dit
 import comfy.ldm.minimax.model as h3
 
+# ============================================================
+# 镜头链上下文（motion context）：上一镜 AV latent 尾部直接切片，
+# 作为本镜头部内部 keyframe 锚点（视频）+ 音频延续（end-aligned）。
+# 借鉴 ComfyUI-H3-Motion-Context 思路，跳过像素级 decode/resize/re-encode。
+# ============================================================
+MC_KEY = "motion_context_index"
+MC_AUDIO_KEY = "motion_context_audio_end_frame"
+FRAME_RESCALE = h3.FRAME_RESCALE
+FRAME_PER_TOKEN = h3.FRAME_PER_TOKEN
+
+
+def _pixel_frames(latent_t):
+    return sum(FRAME_PER_TOKEN[k % 5] for k in range(latent_t))
+
+
+def _step_offsets(latent_t):
+    out, acc = [], 0
+    for k in range(latent_t):
+        out.append(acc)
+        acc += FRAME_PER_TOKEN[k % 5]
+    return out
+
+
+def _steps_for_frames(n):
+    k, covered = 0, 0
+    while covered < n:
+        covered += FRAME_PER_TOKEN[k % 5]
+        k += 1
+    return k if covered == n else None
+
+
+def _streams_from_latent(latent):
+    samples = latent["samples"]
+    if hasattr(samples, "unbind"):
+        return list(samples.unbind())
+    if isinstance(samples, (tuple, list)):
+        return list(samples)
+    raise ValueError("镜头链上下文: 期望 H3 AV latent，实际 %r" % type(samples))
+
+
+def _video_tail_from_latent(latent, n):
+    """从上一镜 latent 直接切片最后 n 像素帧对应的 latent 块（不解码/不重编码/不resize）。"""
+    parts = _streams_from_latent(latent)
+    video = parts[0]
+    if video.ndim == 4:
+        video = video.unsqueeze(0)
+    if video.ndim != 5:
+        raise ValueError("镜头链上下文: 期望视频 latent [B,C,T,H,W]，实际 %s" % (tuple(video.shape),))
+    total = int(video.shape[2])
+    steps = _steps_for_frames(n)
+    if steps is None:
+        raise ValueError("镜头链上下文: %d 帧不是整 latent 步数（可用 5/22/39/56）" % n)
+    if steps > total:
+        raise ValueError("镜头链上下文: 要 %d 步，context_latent 只有 %d 步" % (steps, total))
+    start = total - steps
+    if start % 5 != 0:
+        raise RuntimeError("镜头链上下文: 尾窗起点 %d 不在周期位置 0，拒绝生成错位接缝" % start)
+    covered = _pixel_frames(steps)
+    if covered != n:
+        raise RuntimeError("镜头链上下文: %d 步覆盖 %d 帧，期望 %d" % (steps, covered, n))
+    blocks = [video[:1, :, start + k:start + k + 1].clone() for k in range(steps)]
+    return blocks, _step_offsets(steps), covered
+
+
+def _audio_tail_from_latent(latent, a_frames):
+    parts = _streams_from_latent(latent)
+    if len(parts) < 2:
+        raise ValueError("镜头链上下文: context_latent 无音频流")
+    video, audio = parts[0], parts[1]
+    if video.ndim == 4:
+        video = video.unsqueeze(0)
+    if audio.ndim == 3:
+        audio = audio.unsqueeze(0)
+    if audio.ndim != 4:
+        raise ValueError("镜头链上下文: 期望音频 latent [B,32,2,T]，实际 %s" % (tuple(audio.shape),))
+    total_t = int(audio.shape[-1])
+    frames = _pixel_frames(int(video.shape[2]))
+    overhang = total_t - FRAME_RESCALE * frames
+    if not (-0.5 < overhang < 0.5):
+        overhang = 0.0
+    rt = int(round(a_frames / 24.0 * 40.0))
+    if rt > total_t:
+        rt = total_t
+    if rt < 1:
+        raise ValueError("镜头链上下文: 音频窗为空")
+    tail = audio[:1, ..., total_t - rt:].clone()
+    return tail, rt, float(overhang)
+
 # 兼容新旧官方内核：官方有 time_shift_sigma 就用官方的，没有才用本地兜底。
 if hasattr(h3, "time_shift_sigma"):
     time_shift_sigma = h3.time_shift_sigma
@@ -61,11 +149,18 @@ class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
     def extra_conds(self, **kwargs):
         out = super().extra_conds(**kwargs)
         keyframes = kwargs.get("minimax_keyframes", None)
-        if keyframes is not None:
+        refs = kwargs.get("minimax_refs", None)
+        if keyframes is not None or refs is not None:
             payload = out["minimax_payload"].cond
-            refs = payload.get("refs", None) or []
-            payload["cond_video_latents"] = [kf["latent"] for kf in keyframes] + [
-                r["latent"] for r in refs if "latent" in r]
+            # keyframes 与 refs 的视觉条件共存：官方 refs 会覆盖 keyframes 的
+            # cond_video_latents，这里拼接而不是覆盖。视频按 keyframe 在前、
+            # 参考块在列表序；音频独立列表，同样拼接不覆盖。
+            payload["cond_video_latents"] = (
+                [kf["latent"] for kf in (keyframes or []) if kf.get("latent") is not None]
+                + [r["latent"] for r in (refs or []) if "latent" in r])
+            payload["cond_audio_latents"] = (
+                [kf["audio_latent"] for kf in (keyframes or []) if kf.get("audio_latent") is not None]
+                + [r["audio_latent"] for r in (refs or []) if r.get("audio_latent") is not None])
         return out
 
 
@@ -218,9 +313,136 @@ def _patched_forward(self, x, timestep, context, transformer_options={}, minimax
     return [-video_out.to(video_x.dtype), -audio_out.to(audio_x.dtype)]
 
 
+# ============================================================
+# 布局 patch：放开 H3 "仅首/尾帧 keyframe 锚点" 限制
+# 0.32 及更旧的 ComfyUI，PackedLayout 只允许 pixel_index==0 或 frame_count-1，
+# 中间帧会 raise ValueError。真实帧位置藏在 MC_KEY 下，构造完成后重写 position_ids
+# 时间列到 text_len + FRAME_RESCALE * pixel_index（参考补偿从布局读回，避免漂移）。
+# 音频 ref 带 MC_AUDIO_KEY 时平移到目标时间线，模型"延续"而非"模仿"。
+# ============================================================
+
+REF_SEGMENT_KINDS = ("ref_img", "ref_audio")
+_layout_installed = False
+
+
+def _target_origin(layout):
+    a, b, kind = layout.segments[-1]
+    if kind != "video" or b <= a:
+        raise RuntimeError("镜头链上下文: 期望目标视频行是最后一个 segment，实际 %r 跨 %d 行"
+                           % (kind, b - a))
+    return float(layout.position_ids[a, 0])
+
+
+def _expected_ref_segments(blk):
+    kind = blk.get("kind")
+    if kind == "image":
+        return ("ref_img",)
+    if kind == "audio":
+        return ("ref_audio",) if int(blk.get("ref_audio_t", 0)) > 0 else ()
+    if kind in ("video", "video_audio"):
+        if int(blk.get("ref_audio_t", 0)) > 0:
+            return ("ref_audio", "ref_img")
+        return ("ref_img",)
+    raise RuntimeError("镜头链上下文: 未知参考类型 %r" % (kind,))
+
+
+def _ref_segment_map(layout, refs):
+    ref_segs = [(a, b, k) for a, b, k in layout.segments if k in REF_SEGMENT_KINDS]
+    want = [(i, k) for i, blk in enumerate(refs or []) for k in _expected_ref_segments(blk)]
+    if len(want) != len(ref_segs):
+        raise RuntimeError("镜头链上下文: %d 个参考块应产生 %d 段，布局只有 %d 段"
+                           % (len(refs or []), len(want), len(ref_segs)))
+    out = {}
+    for (i, kind), (a, b, got) in zip(want, ref_segs):
+        if got != kind:
+            raise RuntimeError("镜头链上下文: 参考块 %d (%r) 应产生 %s 段，实际 %s"
+                               % (i, refs[i].get("kind"), kind, got))
+        out.setdefault(i, {})[kind] = (a, b)
+    return out
+
+
+def _cond_t(text_len, latent_t, frame_count, p):
+    if p == 0:
+        return float(text_len)
+    if frame_count is not None and p == frame_count - 1:
+        return float(text_len) + sum(h3._video_t_spans(latent_t)) - FRAME_RESCALE
+    return float(text_len) + FRAME_RESCALE * float(p)
+
+
+def _fixup(layout, text_len, latent_t, frame_count, keyframes, refs=None):
+    offset = _target_origin(layout) - float(text_len)
+    cond_spans = [(a, b) for a, b, kind in layout.segments if kind == "cond"]
+    emitters = [kf for kf in keyframes if kf.get("latent") is not None]
+    if len(cond_spans) != len(emitters):
+        raise RuntimeError("镜头链上下文: 期望 %d 个 cond 段，布局有 %d 个"
+                           % (len(emitters), len(cond_spans)))
+    for (a, b), kf in zip(cond_spans, emitters):
+        p = kf.get(MC_KEY)
+        if p is None:
+            continue
+        layout.position_ids[a:b, 0] = _cond_t(text_len, latent_t, frame_count, p) + offset
+
+
+def _fixup_audio(layout, text_len, refs):
+    marked = [i for i, r in enumerate(refs or []) if r.get(MC_AUDIO_KEY) is not None]
+    if len(marked) != 1:
+        raise RuntimeError("镜头链上下文: 音频时间线平移需要恰好 1 个带 %s 的 ref，实际 %d 个"
+                           % (MC_AUDIO_KEY, len(marked)))
+    idx = marked[0]
+    blk = refs[idx]
+    if blk.get("kind") != "audio":
+        raise RuntimeError("镜头链上下文: %s 只能设在 audio ref 上" % MC_AUDIO_KEY)
+    rt = int(blk.get("ref_audio_t", 0))
+    if rt <= 0:
+        return
+    seg = _ref_segment_map(layout, refs).get(idx, {}).get("ref_audio")
+    if seg is None:
+        raise RuntimeError("镜头链上下文: 标记的音频 ref 没产生 ref_audio 段")
+    a, b = seg
+    if b - a != 2 * rt:
+        raise RuntimeError("镜头链上下文: 标记音频 ref %d 行应为 %d（立体声 channel-major）"
+                           % (b - a, 2 * rt))
+    target_origin = _target_origin(layout)
+    slot_start = float(layout.position_ids[a, 0])
+    end_frame = float(blk[MC_AUDIO_KEY])
+    desired_start = target_origin + FRAME_RESCALE * end_frame - float(rt)
+    layout.position_ids[a:b, 0] = (layout.position_ids[a:b, 0]
+                                   + (desired_start - slot_start))
+
+
+def _patched_layout_init(self, text_len, latent_t, latent_h, latent_w, audio_t,
+                         keyframes=None, refs=None, frame_count=None):
+    _orig_layout_init(self, text_len, latent_t, latent_h, latent_w, audio_t,
+                      keyframes=keyframes, refs=refs, frame_count=frame_count)
+    has_mc_kf = bool(keyframes) and any(kf.get(MC_KEY) is not None for kf in keyframes)
+    has_mc_audio = bool(refs) and any(r.get(MC_AUDIO_KEY) is not None for r in refs)
+    if has_mc_kf:
+        _fixup(self, text_len, latent_t, frame_count, keyframes, refs)
+    if has_mc_audio:
+        _fixup_audio(self, text_len, refs)
+
+
+_orig_layout_init = None
+
+
+def _install_layout_patch():
+    global _orig_layout_init, _layout_installed
+    if _layout_installed:
+        return True
+    if not hasattr(h3, "PackedLayout"):
+        print("[凤希AI镜头链] MiniMax H3 PackedLayout 未找到，布局 patch 未应用")
+        return False
+    _orig_layout_init = h3.PackedLayout.__init__
+    h3.PackedLayout.__init__ = _patched_layout_init
+    _layout_installed = True
+    print("[凤希AI镜头链] 内部 keyframe 锚点已启用（中间帧可锚定）")
+    return True
+
+
 def apply_patch():
     comfy.model_base.MiniMaxH3 = MiniMaxH3Patch
     h3.MiniMaxH3Model._run_blocks = _run_blocks
     h3.MiniMaxH3Model._forward = _patched_forward
+    _install_layout_patch()
 
 apply_patch()

@@ -2,8 +2,8 @@
 # Licensed under MIT License
 # 商用需购买商业授权
 #
-# MiniMax H3 专用视频保存：全部帧写入视频（不切过渡帧），
-# 默认取视频最后一帧作为过渡帧输出给下一段做首帧/参考图。
+# MiniMax H3 专用视频保存 V2：全部帧写入视频（不切过渡帧），
+# 帧率固定 24、目录固定 sucai，默认取视频最后一帧作为过渡帧输出。
 
 import os
 import re
@@ -46,29 +46,6 @@ def get_fixed_temp_audio_path():
     temp_dir = os.path.join(comfy_root, "fxai/video/temp")
     os.makedirs(temp_dir, exist_ok=True)
     return os.path.join(temp_dir, "fxai_temp_audio.wav")
-
-# 音频去噪档位（FFmpeg afftdn 参数）
-AUDIO_DENOISE_LEVELS = {
-    "关闭": None,
-    "轻度": {"nr": 6, "nf": -50},
-    "标准": {"nr": 12, "nf": -50},
-    "强力": {"nr": 24, "nf": -50},
-}
-
-# 用 FFmpeg afftdn 抑制稳态底噪/嘶声，逐声道独立处理
-def denoise_audio_ffmpeg(waveform, sr, nr, nf):
-    b, c, l = waveform.shape
-    wav = waveform.detach().float().cpu().numpy()
-    data = np.ascontiguousarray(wav.reshape(b * c, l).T).tobytes()
-    cmd = [
-        'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
-        '-f', 'f32le', '-ar', str(int(sr)), '-ac', str(b * c), '-i', '-',
-        '-af', f'afftdn=nr={nr}:nf={nf}',
-        '-f', 'f32le', '-ar', str(int(sr)), '-ac', str(b * c), '-',
-    ]
-    proc = subprocess.run(cmd, input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-    out = np.frombuffer(proc.stdout, dtype=np.float32).reshape(l, b * c).T.reshape(b, c, l)
-    return torch.from_numpy(out).to(device=waveform.device, dtype=waveform.dtype)
 
 # 音频张量转WAV
 def audio_tensor_to_wav_ffmpeg(audio_dict):
@@ -124,7 +101,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         return ""
 
 # 视频合成：全部帧写入，不切过渡帧
-def save_video(images, save_dir, audio, fps=24, custom_num=0, denoise="关闭"):
+def save_video(images, save_dir, audio, fps=24, custom_num=0):
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -158,10 +135,6 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0, denoise="关闭"):
 
             if max_sample_count > 0 and waveform.size(-1) > max_sample_count:
                 waveform = waveform[..., :max_sample_count]
-
-            level = AUDIO_DENOISE_LEVELS.get(denoise)
-            if level is not None:
-                waveform = denoise_audio_ffmpeg(waveform, sample_rate, **level)
 
             audio = {"waveform": waveform, "sample_rate": sample_rate}
             audio = audio_tensor_to_wav_ffmpeg(audio)
@@ -219,64 +192,40 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0, denoise="关闭"):
     return save_path
 
 
-class FxAiMiniMaxVideoSave:
+class FxAiMiniMaxVideoSaveV2:
     CATEGORY = "凤希AI/MiniMax"
     FUNCTION = "run"
 
-    RETURN_TYPES = ("IMAGE", "IMAGE", "STRING", "STRING", "INT", "AUDIO")
-    RETURN_NAMES = ("过渡帧", "过渡帧列表", "视频文件路径", "保存目录", "实际帧数", "过渡帧音频")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("过渡帧", "视频文件路径", "保存目录")
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
                 "图片序列": ("IMAGE",),
-                "目录": ("STRING", {"default": "sucai"}),
-                "生成帧数": ("INT", {"default": 227, "min": 6, "max": 3600, "step": 17,
-                    "tooltip": "进视频的帧数（17k+5 网格）。视频取前 N 帧；过渡帧列表固定取图片序列最后 24 帧，过渡帧取整个图片序列的最后一帧。"}),
-                "帧率FPS": ("INT", {"default": 24, "min": 1}),
                 "视频序号": ("INT", {"default": -1, "min": -1}),
                 "音频": ("AUDIO",),
-                "音频去噪": ("COMBO", {
-                    "options": list(AUDIO_DENOISE_LEVELS),
-                    "default": "关闭",
-                    "tooltip": "对输出音频用 FFmpeg afftdn 抑制稳态底噪/嘶声"}),
             },
         }
 
-    def run(self, 图片序列, 目录, 生成帧数, 帧率FPS, 视频序号, 音频, 音频去噪="关闭"):
+    def run(self, 图片序列, 视频序号, 音频):
         if 图片序列 is None:
-            return (图片序列, 图片序列, "", "", 0, None)
+            return (图片序列, "", "")
 
-        target_dir = get_video_dir(目录)
-        total_frames = len(图片序列)
-        保存帧数 = min(int(生成帧数), max(0,total_frames))
+        target_dir = get_video_dir("sucai")
 
-        # 视频 = 前 生成帧数 帧（不足则全部）
-        video_images = 图片序列[:保存帧数]
-        # 过渡帧列表 = 图片序列的最后 22 帧
-        过渡帧列表 = 图片序列[-22:]
-
-        # 过渡帧 = 整个图片序列的最后一帧（始终只返回一帧）
+        # 全部帧进视频；过渡帧 = 整个图片序列的最后一帧（始终只返回一帧）
+        video_images = 图片序列
         过渡帧 = 图片序列[-1:]
 
         video_path = save_video(
             images=video_images,
             save_dir=target_dir,
             audio=音频,
-            fps=帧率FPS,
+            fps=24,
             custom_num=视频序号,
-            denoise=音频去噪,
         )
-
-        # 过渡帧音频 = 与过渡帧列表同长的末尾音频（作为背景音延续参考）
-        tail_audio = None
-        if isinstance(音频, dict) and "waveform" in 音频:
-            wf = 音频["waveform"]
-            sr = 音频.get("sample_rate", 0)
-            n = int(len(过渡帧列表) / 帧率FPS * sr) if sr > 0 else wf.shape[-1]
-            n = min(wf.shape[-1], n)
-            tail_audio = {"waveform": wf[..., -n:], "sample_rate": sr}
 
         del video_images, 图片序列
         gc.collect()
@@ -286,11 +235,11 @@ class FxAiMiniMaxVideoSave:
         if video_path and os.path.exists(video_path):
             # 与图片/音频/合并一致：任务结果入库 + WS 广播通知
             try:
-                fxai_task_store.save_result("video", 目录, [os.path.basename(video_path)])
+                fxai_task_store.save_result("video", "sucai", [os.path.basename(video_path)])
             except Exception as e:
                 print(f"[凤希AI视频] 任务结果保存失败：{e}")
 
-        return (过渡帧, 过渡帧列表, video_path, target_dir, 保存帧数, tail_audio)
+        return (过渡帧, video_path, target_dir)
 		
     @classmethod
     def IS_CHANGED(cls, **kwargs):

@@ -141,7 +141,7 @@ class FxAiLoraLoader:
             "optional": {
                 "clip": ("CLIP",),
                 "提示词": ("STRING", {"forceInput": True}),
-                "lora_data": ("STRING", {"default": "[]", "multiline": True}),
+                "lora_data": ("STRING", {"default": "[]", "multiline": False}),
             }
         }
 
