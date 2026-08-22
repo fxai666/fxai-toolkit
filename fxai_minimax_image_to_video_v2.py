@@ -200,14 +200,19 @@ class FxAiMiniMaxImageToVideoV2:
         ref_items = []
         ref_blocks = []
         keyframes = []
+        ref_images = []
         if 首帧图片 is not None:
             img = _prepare_image(首帧图片, 宽度, 高度, "disabled")
             keyframes.append({"resolved_frame_index": 0, "image": img})
+            ref_images.append(img)
         if 尾帧图片 is not None:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img})
+            ref_images.append(img)
+        if 参考图片列表 is not None:
+            ref_images += normalize_images(参考图片列表)
 
-        for img in normalize_images(参考图片列表)[:9] if 参考图片列表 is not None else []:
+        for img in ref_images[:9]:
             h, w = img.shape[1], img.shape[2]
             scale = min(1.0, math.sqrt((宽度 * 高度) / (w * h)))
             tw = max(CANVAS_MULTIPLE, round(w * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
