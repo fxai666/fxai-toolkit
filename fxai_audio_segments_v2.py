@@ -40,51 +40,21 @@ def align_up_h3(frames):
     return 17 * k + 5
 
 
-def align_even_h3(total_seconds, avg_seconds):
-    """MiniMax 平均分段：按每段向下对齐的帧数，把总帧数重新均匀切分。
+def align_frames_last_h3(segment_seconds, avg_dur=0.0):
+    """每段先按 17k+5 向下取整算出实际帧数，最后一段 = 总帧数 - 前面各段帧数和，
+    再向上对齐到最近的 17k+5（保证 H3 支持该帧数，总时长略增）；
+    末段结果小于 3s（avg_dur>10s 按 5s）时并入其前一段。
 
-    平均分段只需算一次：每段帧数 = align_down(平均时长*24)（如 10s -> 226），
-    段数 = 总帧数 // 每段帧数，余数构成末段并向上对齐；
-    末段太短（<5s 或 <3s）时并入倒数第二段，避免尾部零碎小段。
-    返回每段实际帧数列表。
+    前面各段对齐后舍掉的帧计入末段，末段向上对齐补齐 H3 合法性。
     """
-    total = round(total_seconds * _H3_FPS)
-    per = align_down_h3(round(avg_seconds * _H3_FPS))
-    n = max(1, total // per)
-    frames = [per] * n
-    last = align_up_h3(total - per * n)
-    if last > 0:
-        frames.append(last)
-    min_threshold = 5.0 if avg_seconds > 10.0 else 3.0
-    while len(frames) >= 2 and frames[-1] < min_threshold * _H3_FPS:
-        last = frames.pop()
-        frames[-1] += last
+    total = round(sum(segment_seconds) * _H3_FPS)
+    frames = [align_down_h3(round(s * _H3_FPS)) for s in segment_seconds]
+    frames[-1] = align_up_h3(total - sum(frames[:-1]))
+    min_threshold = 5.0 if avg_dur > 10.0 else 3.0
+    if len(frames) >= 2 and frames[-1] < min_threshold * _H3_FPS:
+        frames[-2] += frames[-1]
+        frames.pop()
     return frames
-
-
-def align_segments_h3(segment_seconds, avg_dur=None):
-    """每段向下对齐到 17k+5（不超目标），丢掉的帧在尾部重新分：
-    - 末段太短（<5s 或 <3s）先并入前一段；
-    - 每段向下取整丢掉的帧累积在尾部，够一段就在尾部向后追分新段；
-    - 剩余不足一段的残余向上对齐补到最后一段。
-    返回 (每段实际秒数列表, 每段实际帧数列表)。
-    """
-    min_threshold = 5.0 if (avg_dur or 0.0) > 10.0 else 3.0
-    raw_frames = [int(s * _H3_FPS) for s in segment_seconds]
-    out_frames = [align_down_h3(f) for f in raw_frames]
-    if len(out_frames) >= 2 and out_frames[-1] < min_threshold * _H3_FPS:
-        last = out_frames.pop()
-        out_frames[-1] += last
-    residual = sum(raw_frames) - sum(out_frames)
-    while residual >= min_threshold * _H3_FPS:
-        seg = align_down_h3(residual)
-        if seg < min_threshold * _H3_FPS:
-            break
-        out_frames.append(seg)
-        residual -= seg
-    if residual > 0:
-        out_frames[-1] = align_up_h3(out_frames[-1] + residual)
-    return ([round(f / _H3_FPS, 3) for f in out_frames], out_frames)
 
 def list_input_audio_files():
     input_dir = folder_paths.get_input_directory()
@@ -126,7 +96,7 @@ def normalize_keyframe_list(keyframes, total_duration=None):
     norm.sort()
     return norm[:MAX_MARKERS]
 
-def build_segments(total_duration, keyframes, skip_initial, include_tail, is_average_split=False, avg_dur=0.0):
+def build_segments(total_duration, keyframes, skip_initial, include_tail, is_average_split=False, avg_dur=0.0, merge_short_tail=True):
     total_duration = max(0.0, total_duration)
     markers = normalize_keyframe_list(keyframes, total_duration)
     segments = []
@@ -162,16 +132,16 @@ def build_segments(total_duration, keyframes, skip_initial, include_tail, is_ave
             curr = end
         segments = new_segs
 
-        # 最后一段太短就并入前一段：平均分段时长较大（>10s）时按 5s 标准，
-        # 否则按 3s 标准，避免尾部出现零碎小段
-        min_threshold = 5.0 if avg_dur > 10.0 else 3.0
-        if len(segments) >= 2:
-            last_start, last_end = segments[-1]
-            last_length = last_end - last_start
-            if last_length < min_threshold:
-                segments.pop()
-                prev_start, _ = segments[-1]
-                segments[-1] = (prev_start, last_end)
+        # 最后一段太短就并入前一段（LTX 等不走 H3 对齐的模型用；MiniMax 在对齐后再合并）
+        if merge_short_tail:
+            min_threshold = 5.0 if avg_dur > 10.0 else 3.0
+            if len(segments) >= 2:
+                last_start, last_end = segments[-1]
+                last_length = last_end - last_start
+                if last_length <= min_threshold:
+                    segments.pop()
+                    prev_start, _ = segments[-1]
+                    segments[-1] = (prev_start, last_end)
 
     return segments, sum(e-s for s, e in segments)
 
@@ -212,23 +182,19 @@ class FxAiAudioSegmenterV2:
         waveform, sample_rate = normalize_audio_tensor(audio)
         total_duration = waveform.shape[-1] / sample_rate if sample_rate else 0.0
         keyframes = parse_keyframe_list(关键帧JSON)
-        segments, _ = build_segments(total_duration, keyframes, 跳过初始段, 包含尾部段, 是否平均分段, 平均分段时长)
+        segments, _ = build_segments(total_duration, keyframes, 跳过初始段, 包含尾部段, 是否平均分段, 平均分段时长,
+                                     merge_short_tail=目标模型 != "MiniMaxH3")
         start_sec = segments[0][0]
         end_sec = segments[-1][1]
         start_frame = int(start_sec * sample_rate)
         end_frame = int(end_sec * sample_rate)
         selected = slice_audio(audio, start_frame, end_frame)
-        selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
         if 目标模型 == "MiniMaxH3":
-            if 是否平均分段:
-                # 平均分段：只需算一次——按每段向下对齐帧数把总帧数均匀切分
-                span = end_sec - start_sec
-                frames = align_even_h3(span, 平均分段时长)
-                segment_list = [round(f / _H3_FPS, 3) for f in frames]
-            else:
-                # 手动/关键帧分段：逐段向下对齐到 17k+5，缺失帧补末段
-                segment_list, _ = align_segments_h3(segment_list, None)
+            # 只计算分段时长列表（每段向下对齐到 17k+5，末段补齐并向上对齐）；
+            # 音频输出不参与对齐计算，直接是跳过初始段、不含尾部段之后的中间段
+            frames = align_frames_last_h3(segment_list, 平均分段时长 if 是否平均分段 else 0.0)
+            segment_list = [round(f / _H3_FPS, 5) for f in frames]
         return (selected, segment_list)
 
     @classmethod

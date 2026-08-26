@@ -2,27 +2,13 @@
 # Licensed under MIT License
 # 商用需购买商业授权
 #
-# MiniMax H3 专用音频分段加载：把长音频按分段时长列表切出当前段，
-# 帧数按 H3 的 17k+5 网格对齐（帧率固定 24fps），供长视频逐段循环生成使用。
+# MiniMax H3 专用音频分段加载：把长音频按分段时长列表切出当前段。
+# 分段时长列表由 fxai_audio_segments_v2（目标模型=MiniMaxH3）按 17k+5 对齐后输出，
+# 每段已是真正的生成时长，这里直接换算帧数切片，不再重复对齐。
 
 import datetime
 
 FPS = 24
-
-
-def align_down_h3(frames):
-    # 最大的 17k+5 <= frames（H3 合法帧数，向下取整，剩余的留到下一段）
-    if frames < 5:
-        return 5
-    return 17 * ((frames - 5) // 17) + 5
-
-
-def align_up_h3(frames):
-    # 最小的 17k+5 >= frames
-    if frames <= 5:
-        return 5
-    k = (frames - 5 + 16) // 17
-    return 17 * k + 5
 
 
 class FxAiMiniMaxAudioSegmentLoad:
@@ -54,14 +40,16 @@ class FxAiMiniMaxAudioSegmentLoad:
         if 当前索引 < 0:
             raise ValueError(f"当前索引({当前索引}) 超出分段范围 0 ~ {结束索引}")
 
-        分段对齐帧数 = [align_down_h3(round(时长 * FPS)) for 时长 in 分段时长]
+        # 分段时长已是对齐后的每段真正时长，乘以 24 即每段帧数，逐段累加切片
+        分段帧数 = [int(round(时长 * FPS)) for 时长 in 分段时长]
+        if any(f > 24000 for f in 分段帧数):
+            raise ValueError(
+                f"分段时长列表疑似传入了帧数而非秒数（某段换算帧数 {max(分段帧数)} > 24000 = 1000 秒）。"
+                f"请接入 fxai_audio_segments_v2 输出的秒数分段列表，当前值：{分段时长}")
 
-        总理论帧数 = round(sum(分段时长) * FPS)
-        分段对齐帧数[结束索引] = 总理论帧数 - sum(分段对齐帧数[:结束索引])
+        生成帧数 = 分段帧数[当前索引]
 
-        生成帧数 = 分段对齐帧数[当前索引]
-
-        前面帧数 = sum(分段对齐帧数[:当前索引])
+        前面帧数 = sum(分段帧数[:当前索引])
         sample_rate = 原始音频["sample_rate"]
         waveform = 原始音频["waveform"]
         total_samples = waveform.size(-1)
