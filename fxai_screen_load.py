@@ -6,6 +6,7 @@ import folder_paths
 from fxai_image_utils import load_single_image
 from fxai_audio_utils import load_audio_tensor_from_file, slice_audio
 from fxai_character_profile_manager import get_characters_by_avatars
+from fxai_task_store import broadcast
 
 def get_image_dir(subdir=""):
     comfy_root = folder_paths.base_path
@@ -62,6 +63,12 @@ class FxAiScreenLoad:
             时长 = float(item.get("时长", 10.0))
 
             print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 正在执行第 {行索引 + 1}/{total_lines} 个场景，本场景 {时长} 秒")
+            broadcast("scene_executing", {
+                "current": 行索引 + 1,
+                "total": total_lines,
+                "duration": 时长,
+                "message": f"正在执行第 {行索引 + 1}/{total_lines} 个场景，本场景 {时长} 秒"
+            })
 
             path_list = [p.strip() for p in str(素材).split(",") if p.strip()]
             x = max(5, round(时长 * 24))

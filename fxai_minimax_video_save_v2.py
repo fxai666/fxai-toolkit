@@ -95,7 +95,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
 
         return temp_path
     except Exception as e:
-        print(f"[凤希AI FFmpeg音频转换失败] {str(e)}")
+        print(f"[凤希AI] FFmpeg音频转换失败：{str(e)}")
         import traceback
         traceback.print_exc()
         return ""
@@ -114,14 +114,14 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
 
     save_path = safe_path_join(save_dir, filename)
     if save_path is None:
-        print("[凤希AI视频] 路径安全校验失败，禁止写入")
+        print("[凤希AI] 视频路径安全校验失败，禁止写入")
         return ""
 
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
     total_frames = img_np.shape[0]
 
     if total_frames == 0:
-        print("[凤希AI视频合成失败] 没有有效帧")
+        print("[凤希AI] 视频合成失败，没有有效帧")
         return ""
 
     try:
@@ -188,7 +188,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
         return ""
 
     gc.collect()
-    print(f"[凤希AI视频] 成功保存：{save_path}")
+    print(f"[凤希AI] 视频成功保存：{save_path}")
     return save_path
 
 
@@ -233,11 +233,15 @@ class FxAiMiniMaxVideoSaveV2:
             torch.cuda.empty_cache()
 
         if video_path and os.path.exists(video_path):
-            # 与图片/音频/合并一致：任务结果入库 + WS 广播通知
             try:
-                fxai_task_store.save_result("video", "sucai", [os.path.basename(video_path)])
+                fxai_task_store.broadcast("video_saved", {
+                    "path": video_path,
+                    "dir": target_dir,
+                    "filename": os.path.basename(video_path),
+                    "message": f"视频保存完成：{os.path.basename(video_path)}"
+                })
             except Exception as e:
-                print(f"[凤希AI视频] 任务结果保存失败：{e}")
+                print(f"[凤希AI] 视频广播失败：{e}")
 
         return (过渡帧, video_path, target_dir)
 		

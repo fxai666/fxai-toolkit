@@ -7,6 +7,7 @@
 # 每段已是真正的生成时长，这里直接换算帧数切片，不再重复对齐。
 
 import datetime
+from fxai_task_store import broadcast
 
 FPS = 24
 
@@ -30,9 +31,9 @@ class FxAiMiniMaxAudioSegmentLoad:
         }
 
     def audio_segment(self, 当前索引, 分段时长列表, 原始音频,过渡帧数):
-        print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 开始渲染第 {当前索引+1} 个场景")
         分段时长 = [float(s) for s in 分段时长列表]
         分段数量 = len(分段时长)
+        print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 开始渲染第 {当前索引+1}/{分段数量} 个场景")
         if 分段数量 == 0 or 当前索引 >= 分段数量:
             return (原始音频, 5)
 
@@ -48,6 +49,13 @@ class FxAiMiniMaxAudioSegmentLoad:
                 f"请接入 fxai_audio_segments_v2 输出的秒数分段列表，当前值：{分段时长}")
 
         生成帧数 = 分段帧数[当前索引]
+        broadcast("scene_executing", {
+            "current": 当前索引 + 1,
+            "total": 分段数量,
+            "duration": 分段时长[当前索引],
+            "frames": 生成帧数,
+            "message": f"开始渲染第 {当前索引+1}/{分段数量} 个场景"
+        })
 
         前面帧数 = sum(分段帧数[:当前索引])
         sample_rate = 原始音频["sample_rate"]

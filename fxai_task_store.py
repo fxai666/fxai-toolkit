@@ -67,6 +67,28 @@ def save_result(category, subdir, files, prompt_id=None):
     )
     conn.commit()
 
+def broadcast(event, data=None, prompt_id=None):
+    """过程广播：不持久化，仅通过 WS 把「事件名 + 动态数据」实时发到前端。
+
+    与 save_result 的区别：save_result 是任务结果（落库+广播一次）；broadcast 是
+    执行过程中的事件流，前端按 data["event"] 自行拆分处理。
+
+    Args:
+        event: 调用方自定义的事件名（不同场景用不同名），前端据此分发
+        data:  动态数据（dict，JSON 序列化随事件下发），由各调用方自行约定字段
+        prompt_id: 任务ID（为空时自动从队列获取当前运行的 prompt_id）
+    """
+    if not prompt_id:
+        prompt_id = _get_current_prompt_id()
+    try:
+        PromptServer.instance.send_sync("fxai:progress", {
+            "prompt_id": prompt_id,
+            "event": event,
+            "data": data if data is not None else {}
+        })
+    except:
+        pass
+
 def get_tasks(prompt_ids):
     """批量查询任务结果。prompt_ids: 逗号分隔的字符串"""
     if not prompt_ids:
