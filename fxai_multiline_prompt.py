@@ -5,7 +5,7 @@ class FxAiMultiLinePrompt:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "lines_data": ("STRING", {"default": "[]", "multiline": True}),
+                "lines_data": ("STRING", {"default": "[]", "multiline": False}),
                 "当前索引": ("INT", {"forceInput": True, "default": 0}),
             },
             "optional": {

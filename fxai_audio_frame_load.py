@@ -1,4 +1,6 @@
 import datetime
+from fxai_task_store import broadcast
+
 class FxAIAudioSegmentLoad:
     CATEGORY = "凤希AI/音频"
     FUNCTION = "extract_audio_segment"
@@ -31,10 +33,10 @@ class FxAIAudioSegmentLoad:
         return int(((frames + base - 1) // base) * base)
 
     def extract_audio_segment(self, 帧率, 当前索引, 帧数对齐基数, 过渡帧数, 分段时长列表, 原始音频):
-        print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 开始渲染第 {当前索引+1} 个场景")
         # 1. 基础数据转换
         分段时长 = [float(s) for s in 分段时长列表]
         分段数量 = len(分段时长)
+        print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 开始渲染第 {当前索引+1}/{分段数量} 个场景")
 
         if 分段数量 == 0:
             return (原始音频, int(过渡帧数))
@@ -74,5 +76,12 @@ class FxAIAudioSegmentLoad:
         }
 
         生成帧数 = int(分段对齐帧数[当前索引] + 过渡帧数)
+        broadcast("scene_executing", {
+            "current": 当前索引 + 1,
+            "total": 分段数量,
+            "duration": 分段时长[当前索引],
+            "frames": 生成帧数,
+            "message": f"开始渲染第 {当前索引+1}/{分段数量} 个场景"
+        })
 
         return (截取后音频, 生成帧数)

@@ -5,7 +5,7 @@ class FxAiMultiLineText:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "lines_data": ("STRING", {"default": "[]", "multiline": True}),
+                "lines_data": ("STRING", {"default": "[]", "multiline": False}),
             },
             "optional": {
                 "开始序号": ("INT", {"default": 0, "min": 0}),
