@@ -169,6 +169,10 @@ class FxAiScreenLoadSimple:
             实际索引 = 行索引 % total_lines
             item = 场景数据[实际索引]
             台词 = item.get("台词", item.get("提示词文本", ""))
+            # 当前场景台词为空时，回退到第一个场景的台词
+            if not 台词.strip() and total_lines > 0:
+                first_item = 场景数据[0]
+                台词 = first_item.get("台词", first_item.get("提示词文本", ""))
             提示词 = 通用提示词 + 台词 + 尾部通用提示词
             素材 = item.get("素材", "")
 
