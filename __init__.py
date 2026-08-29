@@ -165,7 +165,8 @@ NODE_REGISTRY = [
 	
     # 影视
     ("FxAiScreenManager",         "fxai_screen_manager",       "凤希AI - 影视剧场流场景管理 - 学习交流Q群：775649071"),
-    ("FxAiScreenLoad",            "fxai_screen_load",          "凤希AI - 影视剧场数据解析"),
+    ("FxAiScreenLoad",             "fxai_screen_load",            "凤希AI - 影视剧场数据解析"),
+    ("FxAiScreenLoadSimple",       "fxai_screen_load",            "凤希AI - 场景加载器(简化版)"),
 ]
 
 NODE_CLASS_MAPPINGS = {}

@@ -131,3 +131,78 @@ class FxAiScreenLoad:
             参考音色,
             音频,
         )
+
+
+class FxAiScreenLoadSimple:
+    """简化版场景加载：只取台词+图片，循环取值（取余数），去掉音频和帧数。"""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "场景数据": ("LIST", {"forceInput": True}),
+                "行索引": ("INT", {"forceInput": True}),
+            },
+            "optional": {
+                "通用提示词": ("STRING", {"default": "", "forceInput": True}),
+                "尾部通用提示词": ("STRING", {"default": "", "forceInput": True}),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "IMAGE")
+    RETURN_NAMES = ("台词", "素材")
+
+    FUNCTION = "get_scene_data"
+    CATEGORY = "凤希AI/影视剧场"
+
+    def get_scene_data(self, 场景数据, 行索引, 通用提示词="", 尾部通用提示词=""):
+        台词 = ""
+        提示词 = ""
+        images = []
+
+        try:
+            total_lines = len(场景数据) if isinstance(场景数据, list) else 0
+
+            if total_lines == 0:
+                raise ValueError("场景数据为空")
+
+            实际索引 = 行索引 % total_lines
+            item = 场景数据[实际索引]
+            台词 = item.get("台词", item.get("提示词文本", ""))
+            提示词 = 通用提示词 + 台词 + 尾部通用提示词
+            素材 = item.get("素材", "")
+
+            print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 正在执行第 {行索引 + 1}/{total_lines} 个场景（循环取值：实际场景={实际索引 + 1}）")
+            broadcast("scene_executing", {
+                "current": 行索引 + 1,
+                "total": total_lines,
+                "actual_index": 实际索引,
+                "message": f"正在执行第 {行索引 + 1}/{total_lines} 个场景"
+            })
+
+            path_list = [p.strip() for p in str(素材).split(",") if p.strip()]
+
+        except Exception as e:
+            print(f"✅ [凤希AI场景加载] 异常：{e}")
+            return (提示词, images)
+
+        for rel_path in path_list:
+            parts = rel_path.split("/", 1)
+            if len(parts) != 2:
+                continue
+
+            subdir, filename = parts
+            full_dir = get_image_dir(subdir)
+            full_path = os.path.join(full_dir, filename)
+
+            if not os.path.exists(full_path):
+                print(f"[凤希] 图片不存在：{full_path}")
+                continue
+
+            try:
+                tensor = load_single_image(full_path)
+                images.append(tensor)
+            except Exception as e:
+                print(f"[凤希] 加载失败：{full_path} => {e}")
+
+        return (提示词, images)
