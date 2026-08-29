@@ -157,7 +157,7 @@ class FxAiAudioSegmenterV2:
                 "包含尾部段": ("BOOLEAN", {"default": True}),
                 "是否平均分段": ("BOOLEAN", {"default": True}),
                 "平均分段时长": ("FLOAT", {"default": 15.00, "step": 0.01, "round": 0.01}),
-                "目标模型": (["LTX", "MiniMaxH3"], {"default": "LTX",
+                "目标模型": (["LTX", "MiniMax"], {"default": "LTX",
                     "tooltip": "LTX 按原始时长输出；MiniMax 把每段时长就近对齐到 17k+5 帧网格，避免逐段舍帧在长循环中累积误差"}),
             },
             "optional": {
@@ -178,19 +178,20 @@ class FxAiAudioSegmenterV2:
         except Exception as e:
             return str(e)
     def select_segment(self, 音频文件="", 目标模型="LTX", 关键帧JSON="[]", 跳过初始段=False, 包含尾部段=True, 是否平均分段=True, 平均分段时长=15, 音频=None):
+        target_model = str(目标模型).lower()
         audio = 音频 or load_audio_tensor_from_file(音频文件)
         waveform, sample_rate = normalize_audio_tensor(audio)
         total_duration = waveform.shape[-1] / sample_rate if sample_rate else 0.0
         keyframes = parse_keyframe_list(关键帧JSON)
         segments, _ = build_segments(total_duration, keyframes, 跳过初始段, 包含尾部段, 是否平均分段, 平均分段时长,
-                                     merge_short_tail=目标模型 != "MiniMaxH3")
+                                     merge_short_tail=target_model != "minimax")
         start_sec = segments[0][0]
         end_sec = segments[-1][1]
         start_frame = int(start_sec * sample_rate)
         end_frame = int(end_sec * sample_rate)
         selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
-        if 目标模型 == "MiniMaxH3":
+        if target_model == "minimax":
             # 只计算分段时长列表（每段向下对齐到 17k+5，末段补齐并向上对齐）；
             # 音频输出不参与对齐计算，直接是跳过初始段、不含尾部段之后的中间段
             frames = align_frames_last_h3(segment_list, 平均分段时长 if 是否平均分段 else 0.0)

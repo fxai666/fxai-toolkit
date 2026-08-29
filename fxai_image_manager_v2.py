@@ -196,8 +196,8 @@ class FxAiImageManagerV2:
             }
         }
 
-    RETURN_TYPES = ("STRING", "INT", "IMAGE", "INT")
-    RETURN_NAMES = ("文件夹路径", "图片总数", "图片", "刷新标记")
+    RETURN_TYPES = ("STRING", "INT", "IMAGE")
+    RETURN_NAMES = ("文件夹路径", "图片总数", "图片")
     FUNCTION = "run"
     CATEGORY = "凤希AI/图片"
 
@@ -235,4 +235,8 @@ class FxAiImageManagerV2:
         
         files = list_images(target_dir)
         
-        return (target_dir, len(files), 图片,刷新标记)
+        return (target_dir, len(files), 图片)
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
