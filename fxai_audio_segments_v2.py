@@ -198,7 +198,11 @@ class FxAiAudioSegmenterV2:
             frames_per_seg = align_down_h3(round(平均分段时长 * _H3_FPS)) if 平均分段时长 > 0 else 226
             num_full_segs = total_frames // frames_per_seg
             tail_frames = total_frames - num_full_segs * frames_per_seg
-            # 构建帧数列表
+            # 尾段太短合并到前一段（与 build_segments 公共阈值一致）
+            min_threshold_frames = int((5.0 if 平均分段时长 > 10.0 else 3.0) * _H3_FPS)
+            if tail_frames > 0 and tail_frames < min_threshold_frames and num_full_segs > 0:
+                num_full_segs -= 1
+                tail_frames += frames_per_seg
             frames = [frames_per_seg] * num_full_segs
             if tail_frames > 0:
                 frames.append(tail_frames)
