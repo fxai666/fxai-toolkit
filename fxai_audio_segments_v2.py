@@ -96,7 +96,7 @@ def normalize_keyframe_list(keyframes, total_duration=None):
     norm.sort()
     return norm[:MAX_MARKERS]
 
-def build_segments(total_duration, keyframes, skip_initial, include_tail, is_average_split=False, avg_dur=0.0, merge_short_tail=True):
+def build_segments(total_duration, keyframes, skip_initial, include_tail, is_average_split=False, avg_dur=0.0):
     total_duration = max(0.0, total_duration)
     markers = normalize_keyframe_list(keyframes, total_duration)
     segments = []
@@ -132,16 +132,15 @@ def build_segments(total_duration, keyframes, skip_initial, include_tail, is_ave
             curr = end
         segments = new_segs
 
-        # 最后一段太短就并入前一段（LTX 等不走 H3 对齐的模型用；MiniMax 在对齐后再合并）
-        if merge_short_tail:
-            min_threshold = 5.0 if avg_dur > 10.0 else 3.0
-            if len(segments) >= 2:
-                last_start, last_end = segments[-1]
-                last_length = last_end - last_start
-                if last_length <= min_threshold:
-                    segments.pop()
-                    prev_start, _ = segments[-1]
-                    segments[-1] = (prev_start, last_end)
+        # 最后一段太短就并入前一段：>10秒分段按5秒阈值，否则按3秒
+        min_threshold = 5.0 if avg_dur > 10.0 else 3.0
+        if len(segments) >= 2:
+            last_start, last_end = segments[-1]
+            last_length = last_end - last_start
+            if last_length <= min_threshold:
+                segments.pop()
+                prev_start, _ = segments[-1]
+                segments[-1] = (prev_start, last_end)
 
     return segments, sum(e-s for s, e in segments)
 
@@ -183,8 +182,7 @@ class FxAiAudioSegmenterV2:
         waveform, sample_rate = normalize_audio_tensor(audio)
         total_duration = waveform.shape[-1] / sample_rate if sample_rate else 0.0
         keyframes = parse_keyframe_list(关键帧JSON)
-        segments, _ = build_segments(total_duration, keyframes, 跳过初始段, 包含尾部段, 是否平均分段, 平均分段时长,
-                                     merge_short_tail=target_model != "minimax")
+        segments, _ = build_segments(total_duration, keyframes, 跳过初始段, 包含尾部段, 是否平均分段, 平均分段时长)
         start_sec = segments[0][0]
         end_sec = segments[-1][1]
         start_frame = int(start_sec * sample_rate)
@@ -192,9 +190,19 @@ class FxAiAudioSegmenterV2:
         selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
         if target_model == "minimax":
-            # 只计算分段时长列表（每段向下对齐到 17k+5，末段补齐并向上对齐）；
-            # 音频输出不参与对齐计算，直接是跳过初始段、不含尾部段之后的中间段
-            frames = align_frames_last_h3(segment_list, 平均分段时长 if 是否平均分段 else 0.0)
+            # MiniMax：直接用帧数分段，避免秒数→帧数→秒数的累积误差
+            # 1. 总帧数 = round(总时长 × 24)
+            # 2. 每段帧数 = align_down_h3(round(平均分段时长 × 24))，如10秒=226帧
+            # 3. 段数 = total_frames // 每段帧数，尾段 = total_frames % 每段帧数
+            total_frames = round(end_sec * _H3_FPS)
+            frames_per_seg = align_down_h3(round(平均分段时长 * _H3_FPS)) if 平均分段时长 > 0 else 226
+            num_full_segs = total_frames // frames_per_seg
+            tail_frames = total_frames - num_full_segs * frames_per_seg
+            # 构建帧数列表
+            frames = [frames_per_seg] * num_full_segs
+            if tail_frames > 0:
+                frames.append(tail_frames)
+            # 帧数→秒数（5位小数）
             segment_list = [round(f / _H3_FPS, 5) for f in frames]
         return (selected, segment_list)
 
