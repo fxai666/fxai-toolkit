@@ -190,11 +190,9 @@ class FxAiAudioSegmenterV2:
         selected = slice_audio(audio, start_frame, end_frame)
         segment_list = [round(e - s, 2) for s, e in segments]
         if target_model == "minimax":
-            # MiniMax：直接用帧数分段，避免秒数→帧数→秒数的累积误差
-            # 1. 总帧数 = round(总时长 × 24)
-            # 2. 每段帧数 = align_down_h3(round(平均分段时长 × 24))，如10秒=226帧
-            # 3. 段数 = total_frames // 每段帧数，尾段 = total_frames % 每段帧数
-            total_frames = round(end_sec * _H3_FPS)
+            # MiniMax：在已选择的区间内按帧数重新分段
+            interval_duration = end_sec - start_sec
+            total_frames = round(interval_duration * _H3_FPS)
             frames_per_seg = align_down_h3(round(平均分段时长 * _H3_FPS)) if 平均分段时长 > 0 else 226
             num_full_segs = total_frames // frames_per_seg
             tail_frames = total_frames - num_full_segs * frames_per_seg
