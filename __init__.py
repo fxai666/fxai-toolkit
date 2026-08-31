@@ -158,6 +158,7 @@ NODE_REGISTRY = [
     ("FxAiLatentGetFrames",       "fxai_latent_get_frames",     "凤希AI - 潜空间获取"),
     ("FxAiLatentGetFrameCount",   "fxai_latent_get_frame_count","凤希AI - 潜空间总数"),
     ("FxAiLTX23Sampler",          "fxai_ltx23_sampler",         "凤希AI - LTX2.3采集器"),
+    ("FxAiMiniMaxUpscaler",       "fxai_minimax_upscaler",      "凤希AI - MiniMax放大器"),
 	
     # 模型/LoRA
     ("FxAiLoraLoader",            "fxai_lora_loader",           "凤希AI - LoRa加载器"),
