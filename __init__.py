@@ -8,6 +8,18 @@ import importlib
 import os
 from aiohttp import web
 from server import PromptServer
+
+# Windows 下抑制 asyncio Proactor 远程连接断开的噪音日志
+if sys.platform == "win32":
+    import asyncio.proactor_events
+    _orig = asyncio.proactor_events._ProactorBasePipeTransport._call_connection_lost
+    def _patched(self, exc):
+        try:
+            _orig(self, exc)
+        except ConnectionResetError:
+            pass
+    asyncio.proactor_events._ProactorBasePipeTransport._call_connection_lost = _patched
+
 from . import fxai_api_utils
 from . import fxai_node_update
 from . import fxai_minimax_core_patch

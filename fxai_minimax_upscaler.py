@@ -318,8 +318,8 @@ def _detect_arch(sd):
 
     return cfg
 
-def load_model(name, device, precision):
-    cache_key = f"{name}::{device}::{precision}"
+def load_model(name, device):
+    cache_key = f"{name}::{device}"
     if cache_key in MODEL_CACHE:
         return MODEL_CACHE[cache_key].to(device, non_blocking=True)
 
@@ -339,10 +339,15 @@ def load_model(name, device, precision):
     )
     model.load_state_dict(up_sd, strict=True)
 
-    dtype = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}.get(precision, torch.float32)
-    model = model.to(device).eval().requires_grad_(False)
-    if dtype != torch.float32:
-        model = model.to(dtype)
+    # 自动检测模型精度
+    sample_sd = up_sd if not up_sd else up_sd
+    model_dtype = torch.float32
+    for k, v in model.state_dict().items():
+        if v.dtype in (torch.float16, torch.bfloat16):
+            model_dtype = v.dtype
+            break
+
+    model = model.to(device, dtype=model_dtype).eval().requires_grad_(False)
 
     MODEL_CACHE[cache_key] = model
     return model
@@ -358,9 +363,8 @@ class FxAiMiniMaxUpscaler:
         return {
             "required": {
                 "latent": ("LATENT",),
-                "模型": (scan_models(), {"tooltip": "模型及参考代码来至：https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler"}),
+                "模型": (scan_models(), {"tooltip": "模型及参考代码由：https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler提供"}),
                 "放大倍数": ([2, 3, 4], {"default": 2}),
-                "精度": (["fp32", "fp16", "bf16"], {"default": "bf16"}),
             },
             "optional": {
                 "时间分块": ("BOOLEAN", {"default": True}),
@@ -370,9 +374,9 @@ class FxAiMiniMaxUpscaler:
 
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "run"
-    CATEGORY = "凤希AI/MiniMax"
+    CATEGORY = "凤希AI/视频"
 
-    def run(self, latent, 模型, 放大倍数, 精度, 时间分块=True, 释放显存=True):
+    def run(self, latent, 模型, 放大倍数, 时间分块=True, 释放显存=True):
 
         if 模型.startswith('('):
             raise ValueError("请将模型文件放入 latent_upscale_models 目录")
@@ -382,9 +386,8 @@ class FxAiMiniMaxUpscaler:
         was_4d = (src.dim() == 4)
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        compute_dtype = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}[精度]
 
-        s = src.to(device=device, dtype=compute_dtype, copy=True)
+        s = src.to(device=device, copy=True)
         if was_4d:
             s = s.unsqueeze(2)
 
@@ -407,11 +410,15 @@ class FxAiMiniMaxUpscaler:
         if w_out == w_in and h_out == h_in:
             return (latent,)
 
-        print(f"[凤希AI] MiniMax放大 {w_in}x{h_in} -> {w_out}x{h_out} | {放大倍数}x")
+        print(f"[凤希AI] MiniMax放大 - {放大倍数}x")
 
         # 加载模型
-        model = load_model(模型, device, 精度)
-        norm_mean, norm_std = _make_norm_tensors(device, compute_dtype)
+        model = load_model(模型, device)
+        model_dtype = next(model.parameters()).dtype
+        norm_mean, norm_std = _make_norm_tensors(device, model_dtype)
+
+        # 将输入转为模型精度
+        s = s.to(dtype=model_dtype)
 
         with torch.inference_mode():
             s_norm = (s - norm_mean) / norm_std
