@@ -358,9 +358,9 @@ class FxAiMiniMaxUpscaler:
         return {
             "required": {
                 "latent": ("LATENT",),
-                "模型": (scan_models(), {"tooltip": "模型及参考代码由https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler提供"}),
+                "模型": (scan_models(), {"tooltip": "模型及参考代码来至：https://huggingface.co/LBH-123-AI/Minimax_h3_latent_Upscaler"}),
                 "放大倍数": ([2, 3, 4], {"default": 2}),
-                "精度": (["fp32", "fp16", "bf16"], {"default": "fp16"}),
+                "精度": (["fp32", "fp16", "bf16"], {"default": "bf16"}),
             },
             "optional": {
                 "时间分块": ("BOOLEAN", {"default": True}),
