@@ -215,6 +215,8 @@ class FxAiMiniMaxImageToVideoV2:
         for img in ref_images[:9]:
             h, w = img.shape[1], img.shape[2]
             scale = min(1.0, math.sqrt((宽度 * 高度) / (w * h)))
+            if h < 400 or w < 400:
+                scale *= 2
             tw = max(CANVAS_MULTIPLE, round(w * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
             th = max(CANVAS_MULTIPLE, round(h * scale / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
             resized = _resize(img[:1], tw, th, "disabled")

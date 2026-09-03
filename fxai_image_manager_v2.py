@@ -220,12 +220,12 @@ class FxAiImageManagerV2:
                 save_path = os.path.join(save_dir, filename)
                 img.save(save_path, format="PNG")
                 saved.append(filename)
-                print(f"[凤希AI图片资源管理] 已保存：{save_path}")
+                print(f"[凤希AI] 图片已保存：{save_path}")
 
             if saved:
                 fxai_task_store.save_result("image", subdir, saved)
         except Exception as e:
-            print(f"[凤希AI图片资源管理] 保存失败：{e}")
+            print(f"[凤希AI] 图片保存失败：{e}")
 
     def run(self, 目录="", 图片=None, 刷新标记=0,文件名序号=None, 启用文件名覆盖=True):
         target_dir = get_image_dir(目录)
