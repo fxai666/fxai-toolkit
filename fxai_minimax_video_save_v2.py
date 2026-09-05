@@ -234,12 +234,17 @@ class FxAiMiniMaxVideoSaveV2:
 
         if video_path and os.path.exists(video_path):
             try:
-                fxai_task_store.broadcast("video_saved", {
-                    "path": video_path,
-                    "dir": target_dir,
-                    "filename": os.path.basename(video_path),
-                    "message": f"视频保存完成：{os.path.basename(video_path)}"
-                })
+                if 视频序号 < 0:
+                    # 保存结果（持久化+广播）
+                    fxai_task_store.save_result("video", "sucai", [os.path.basename(video_path)])
+                else:
+                    # 广播过程信息：当前第几个场景
+                    fxai_task_store.broadcast("scene_saved", {
+                        "scene_index": 视频序号,
+                        "scene_count": 视频序号 + 1,
+                        "path": video_path,
+                        "message": f"第 {视频序号 + 1} 个场景视频已生成"
+                    })
             except Exception as e:
                 print(f"[凤希AI] 视频广播失败：{e}")
 

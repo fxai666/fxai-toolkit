@@ -10,6 +10,8 @@ import io
 import gc
 from datetime import datetime
 
+import fxai_task_store
+
 # 安全路径校验
 def safe_path_join(base_dir, path):
     base_dir = os.path.abspath(base_dir)
@@ -92,7 +94,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         return ""
 
 # 视频合成 仅修改文件名分支，其余逻辑不变
-def save_video(images, save_dir, audio, fps=24, custom_num=0, transition_frames=1):
+def save_video(images, save_dir, audio, fps=24, custom_num=-1, transition_frames=1):
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -252,5 +254,21 @@ class FxAiVideoGeneratorV4:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+        if video_path and os.path.exists(video_path):
+            try:
+                if 视频序号 < 0:
+                    # 保存结果（持久化+广播）
+                    fxai_task_store.save_result("video", 目录, [os.path.basename(video_path)])
+                else:
+                    # 广播过程信息：当前第几个场景
+                    fxai_task_store.broadcast("scene_saved", {
+                        "scene_index": 视频序号,
+                        "scene_count": 视频序号 + 1,
+                        "path": video_path,
+                        "message": f"第 {视频序号 + 1} 个场景视频已生成"
+                    })
+            except Exception as e:
+                print(f"[凤希AI] 视频广播失败：{e}")
         
         return (transition_frames, video_path, target_dir, actual_frames)
