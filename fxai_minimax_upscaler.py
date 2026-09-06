@@ -20,6 +20,8 @@ import folder_paths
 import re
 from einops import rearrange
 
+import fxai_task_store
+
 try:
     import comfy.model_management as mm
     HAS_COMFY_MM = True
@@ -412,6 +414,14 @@ class FxAiMiniMaxUpscaler:
 
         print(f"[凤希AI] MiniMax放大 - {放大倍数}x")
 
+        try:
+            fxai_task_store.broadcast("upscale_start", {
+                "放大倍数": 放大倍数,
+                "message": f"正在放大：{放大倍数}x"
+            })
+        except Exception as e:
+            print(f"[凤希AI] 放大广播失败：{e}")
+
         # 加载模型
         model = load_model(模型, device)
         model_dtype = next(model.parameters()).dtype
@@ -444,5 +454,13 @@ class FxAiMiniMaxUpscaler:
             else:
                 torch.cuda.empty_cache()
             gc.collect()
+
+        try:
+            fxai_task_store.broadcast("upscale_done", {
+                "放大倍数": 放大倍数,
+                "message": f"放大完成：{放大倍数}x"
+            })
+        except Exception as e:
+            print(f"[凤希AI] 放大广播失败：{e}")
 
         return ({"samples": out},)
