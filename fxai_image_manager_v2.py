@@ -125,31 +125,42 @@ async def apply_changes(request):
 async def upload_image_custom(request):
     try:
         data = await request.post()
-        image = data.get("image")
+        images = data.getall("image")
         subdir = data.get("subdir", "")
 
-        if not image or not hasattr(image, 'file'):
+        if not images:
             return web.json_response({"error": "未上传有效图片"}, status=400)
 
-        original_filename = re.sub(r'[\\/*?:"<>|]', "", image.filename)
-        if not original_filename:
-            return web.json_response({"error": "文件名为空"}, status=400)
-
         target_dir = get_image_dir(subdir)
-        next_num = get_next_number(target_dir)
-        
-        ext = original_filename.split('.')[-1].lower()
-        if ext not in ['png', 'jpg', 'jpeg', 'webp']:
-            ext = 'png'
-        
-        # =============== 网页上传永远自动计数，不受文件名序号影响 ===============
-        new_filename = f"{next_num:03d}.{ext}"
-        save_path = safe_path_join(target_dir, new_filename)
+        results = []
+        for image in images:
+            if not image or not hasattr(image, 'file'):
+                continue
 
-        with open(save_path, "wb") as f:
-            f.write(image.file.read())
+            original_filename = re.sub(r'[\\/*?:"<>|]', "", image.filename)
+            if not original_filename:
+                continue
 
-        return web.json_response({"success": True, "name": new_filename})
+            next_num = get_next_number(target_dir)
+            
+            ext = original_filename.split('.')[-1].lower()
+            if ext not in ['png', 'jpg', 'jpeg', 'webp']:
+                ext = 'png'
+            
+            new_filename = f"{next_num:03d}.{ext}"
+            save_path = safe_path_join(target_dir, new_filename)
+
+            with open(save_path, "wb") as f:
+                f.write(image.file.read())
+
+            results.append(new_filename)
+
+        if not results:
+            return web.json_response({"error": "未上传有效图片"}, status=400)
+
+        if len(results) == 1:
+            return web.json_response({"success": True, "name": results[0]})
+        return web.json_response({"success": True, "names": results, "count": len(results)})
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
@@ -171,15 +182,7 @@ async def delete_image(request):
     except Exception as e:
         return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
 
-# 注册路由
-try:
-    server.PromptServer.instance.routes.get("/fxai/image/v2/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxai/image/v2/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxai/image/v2/apply")(apply_changes)
-    server.PromptServer.instance.routes.post("/fxai/image/v2/upload")(upload_image_custom)
-    server.PromptServer.instance.routes.delete("/fxai/image/v2/delete")(delete_image)
-except Exception as e:
-    print(f"❌ 凤希AI图片资源管理器启动失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py
 
 class FxAiImageManagerV2:
     @classmethod

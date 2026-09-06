@@ -63,11 +63,7 @@ async def api_get_config(request):
     name = request.query.get("name")
     return web.json_response(load_lora_config(name))
 
-try:
-    server.PromptServer.instance.routes.get("/fxai/lora/list")(api_list_loras)
-    server.PromptServer.instance.routes.get("/fxai/lora/config")(api_get_config)
-except Exception:
-    pass
+# 路由已统一注册在 fxai_api_utils.py
 
 # ===================== 核心：LoRA 高级加载函数（所有参数都生效） =====================
 def load_lora_with_config(model, clip, lora_name, cfg):

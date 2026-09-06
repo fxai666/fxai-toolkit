@@ -231,7 +231,4 @@ async def simple_audio_waveform(request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=400)
 
-prompt_server_instance = getattr(server.PromptServer, "instance", None)
-if prompt_server_instance:
-    prompt_server_instance.routes.get("/fxai/audio/segments/file")(simple_audio_file)
-    prompt_server_instance.routes.get("/fxai/audio/segments/waveform")(simple_audio_waveform)
+# 路由已统一注册在 fxai_api_utils.py

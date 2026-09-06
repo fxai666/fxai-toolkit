@@ -29,11 +29,7 @@ async def api_get_ollama_models(request):
         pass
     return web.json_response({"models": [default_modes]})
 
-if PromptServer:
-    try:
-        PromptServer.instance.routes.get("/fxai/prompt/get_models")(api_get_ollama_models)
-    except Exception:
-        pass
+# 路由已统一注册在 fxai_api_utils.py
 
 # ------------------------------
 # 节点主体

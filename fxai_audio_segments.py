@@ -383,7 +383,4 @@ async def simple_audio_waveform(request):
         return web.json_response({"error": str(e)}, status=400)
 
 
-_prompt_server_instance = getattr(server.PromptServer, "instance", None)
-if _prompt_server_instance is not None:
-    _prompt_server_instance.routes.get("/fxai/audio-file")(simple_audio_file)
-    _prompt_server_instance.routes.get("/fxai/audio-waveform")(simple_audio_waveform)
+# 路由已统一注册在 fxai_api_utils.py

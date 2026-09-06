@@ -124,9 +124,4 @@ async def node_update(request):
     return web.json_response({"status": "ok", "message": "更新完成", "logs": logs, "new_commit": new_commit})
 
 
-# ===================== 路由注册 =====================
-try:
-    PromptServer.instance.routes.get("/fxai/node/status")(node_status)
-    PromptServer.instance.routes.get("/fxai/node/update")(node_update)
-except Exception as e:
-    print(f"❌ fxai 节点更新接口挂载失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py

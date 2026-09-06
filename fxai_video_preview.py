@@ -24,10 +24,8 @@ async def get_preview(request):
     return web.FileResponse(path, headers=headers)
 
 
-try:
-    PromptServer.instance.routes.get("/fxai/video/preview")(get_preview)
-except Exception as e:
-    print(f"❌ 凤希AI视频预览接口挂载失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py
+
 class FxAiVideoPreview:
     @classmethod
     def INPUT_TYPES(s):

@@ -122,8 +122,7 @@ async def api_get_lora_config(request):
     name = request.query.get("name", "")
     return web.json_response(load_config(name))
 
-server.PromptServer.instance.routes.get("/fxai/lora/files")(api_get_lora_files)
-server.PromptServer.instance.routes.get("/fxai/lora/config")(api_get_lora_config)
+# 路由已统一注册在 fxai_api_utils.py
 
 # ====================== 主节点 ======================
 class FxAiLoraLoader:

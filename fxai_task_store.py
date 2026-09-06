@@ -125,7 +125,4 @@ async def handle_query_task(request):
         return web.json_response({"error": "缺少 prompt_ids"}, status=400)
     return web.json_response(get_tasks(prompt_ids))
 
-try:
-    PromptServer.instance.routes.post("/fxai/tasks/result")(handle_query_task)
-except Exception as e:
-    print(f"[凤希AI任务存储] 路由注册失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py

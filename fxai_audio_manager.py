@@ -156,48 +156,54 @@ async def apply_changes(request):
 async def upload_audio_custom(request):
     try:
         data = await request.post()
-        audio = data.get("audio")
+        audios = data.getall("audio")
         subdir = data.get("subdir", "")
 
-        if not audio or not hasattr(audio, 'file'):
+        if not audios:
             return web.json_response({"error": "未上传有效音频"}, status=400)
 
-        original_filename = sanitize_filename(audio.filename)
-        if not original_filename:
-            return web.json_response({"error": "文件名为空"}, status=400)
-
         target_dir = get_audio_dir(subdir)
+        results = []
+        for audio in audios:
+            if not audio or not hasattr(audio, 'file'):
+                continue
 
-        file_list = list_audios(target_dir)
-        next_num = len(file_list)
+            original_filename = sanitize_filename(audio.filename)
+            if not original_filename:
+                continue
 
-        # 原始文件先落盘（保留原后缀），再统一转成 wav
-        base_name = os.path.splitext(original_filename)[0]
-        raw_path = safe_path_join(target_dir, original_filename)
-        with open(raw_path, "wb") as f:
-            f.write(audio.file.read())
+            file_list = list_audios(target_dir)
+            next_num = len(file_list)
 
-        new_filename = f"{next_num:03d}_{base_name}.wav"
-        wav_path = safe_path_join(target_dir, new_filename)
-        cmd = [
-            "ffmpeg", "-i", raw_path,
-            "-f", "wav", "-y", wav_path
-        ]
-        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+            base_name = os.path.splitext(original_filename)[0]
+            raw_path = safe_path_join(target_dir, original_filename)
+            with open(raw_path, "wb") as f:
+                f.write(audio.file.read())
 
-        # 转换成功删除原始文件；转换失败保留原始文件兜底
-        if os.path.exists(wav_path):
-            try:
-                os.remove(raw_path)
-            except Exception:
-                pass
-        else:
-            new_filename = original_filename
+            new_filename = f"{next_num:03d}_{base_name}.wav"
+            wav_path = safe_path_join(target_dir, new_filename)
+            cmd = [
+                "ffmpeg", "-i", raw_path,
+                "-f", "wav", "-y", wav_path
+            ]
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
 
-        return web.json_response({
-            "success": True,
-            "name": new_filename
-        })
+            if os.path.exists(wav_path):
+                try:
+                    os.remove(raw_path)
+                except Exception:
+                    pass
+            else:
+                new_filename = original_filename
+
+            results.append(new_filename)
+
+        if not results:
+            return web.json_response({"error": "未上传有效音频"}, status=400)
+
+        if len(results) == 1:
+            return web.json_response({"success": True, "name": results[0]})
+        return web.json_response({"success": True, "names": results, "count": len(results)})
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
@@ -223,15 +229,7 @@ async def delete_single_audio(request):
     except Exception as e:
         return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
 
-# 注册路由
-try:
-    server.PromptServer.instance.routes.get("/fxai/audio/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxai/audio/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxai/audio/apply")(apply_changes)
-    server.PromptServer.instance.routes.post("/fxai/audio/upload")(upload_audio_custom)
-    server.PromptServer.instance.routes.get("/fxai/audio/delete")(delete_single_audio)
-except Exception as e:
-    print(f"❌ 启动失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py
 
 class FxAiAudioManager:
     @classmethod

@@ -137,47 +137,46 @@ async def apply_changes(request):
 async def upload_image_custom(request):
     try:
         data = await request.post()
-        image = data.get("image")
+        images = data.getall("image")
         subdir = data.get("subdir", "")
 
-        if not image or not hasattr(image, 'file'):
+        if not images:
             return web.json_response({"error": "未上传有效图片"}, status=400)
 
-        # 安全过滤文件名
-        original_filename = re.sub(r'[\\/*?:"<>|]', "", image.filename)
-        if not original_filename:
-            return web.json_response({"error": "文件名为空"}, status=400)
-
         target_dir = get_image_dir(subdir)
-        
-        # ✅ 自动获取当前最大序号 + 1
-        next_num = get_last_number(target_dir)
-        
-        # ✅ 保留原始后缀！！！
-        ext = original_filename.split('.')[-1].lower()
-        if ext not in ['png', 'jpg', 'jpeg', 'webp']:
-            ext = 'png'
-        
-        new_filename = f"{next_num:03d}.{ext}"
-        save_path = safe_path_join(target_dir, new_filename)
+        results = []
+        for image in images:
+            if not image or not hasattr(image, 'file'):
+                continue
 
-        # 保存
-        with open(save_path, "wb") as f:
-            f.write(image.file.read())
+            original_filename = re.sub(r'[\\/*?:"<>|]', "", image.filename)
+            if not original_filename:
+                continue
 
-        return web.json_response({"success": True, "name": new_filename})
+            next_num = get_last_number(target_dir)
+            
+            ext = original_filename.split('.')[-1].lower()
+            if ext not in ['png', 'jpg', 'jpeg', 'webp']:
+                ext = 'png'
+            
+            new_filename = f"{next_num:03d}.{ext}"
+            save_path = safe_path_join(target_dir, new_filename)
+
+            with open(save_path, "wb") as f:
+                f.write(image.file.read())
+
+            results.append(new_filename)
+
+        if not results:
+            return web.json_response({"error": "未上传有效图片"}, status=400)
+
+        if len(results) == 1:
+            return web.json_response({"success": True, "name": results[0]})
+        return web.json_response({"success": True, "names": results, "count": len(results)})
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
-# 注册路由
-try:
-    server.PromptServer.instance.routes.get("/fxai/image/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxai/image/next_number")(get_next_number)
-    server.PromptServer.instance.routes.get("/fxai/image/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxai/image/apply")(apply_changes)
-    server.PromptServer.instance.routes.post("/fxai/image/upload")(upload_image_custom)
-except Exception as e:
-    print(f"❌ 凤希AI图片资源管理器启动失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py
 
 class FxAiImageManager:
     @classmethod

@@ -96,13 +96,7 @@ async def delete_prompt(request):
     except Exception as e:
         return web.json_response({"error": f"删除失败：{str(e)}"}, status=500)
 
-# ------------------- 接口路由注册 -------------------
-try:
-    server.PromptServer.instance.routes.get("/fxai/prompt/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxai/prompt/save_manual")(save_manual_prompt)
-    server.PromptServer.instance.routes.get("/fxai/prompt/delete")(delete_prompt)
-except Exception as e:
-    print(f"❌ 凤希AI提示词资源管理器启动失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py
 
 # ------------------- ComfyUI 核心节点定义 -------------------
 class FxAiPromptManager:

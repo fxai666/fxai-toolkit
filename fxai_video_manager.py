@@ -170,46 +170,43 @@ async def apply_changes(request):
 async def upload_video_custom(request):
     try:
         data = await request.post()
-        video = data.get("video")
+        videos = data.getall("video")
         subdir = data.get("subdir", "")
 
-        if not video or not hasattr(video, 'file'):
+        if not videos:
             return web.json_response({"error": "未上传有效视频"}, status=400)
 
-        original_filename = sanitize_filename(video.filename)
-        if not original_filename:
-            return web.json_response({"error": "文件名为空"}, status=400)
-
         target_dir = get_video_dir(subdir)
-        
-        # 获取下一个序号
-        file_list = list_videos(target_dir)
-        next_num = len(file_list)
+        results = []
+        for video in videos:
+            if not video or not hasattr(video, 'file'):
+                continue
 
-        # 生成带序号的文件名
-        new_filename = f"{next_num:03d}_{original_filename}"
+            original_filename = sanitize_filename(video.filename)
+            if not original_filename:
+                continue
 
-        # 保存文件
-        save_path = safe_path_join(target_dir, new_filename)
-        with open(save_path, "wb") as f:
-            f.write(video.file.read())
-        
-        return web.json_response({
-            "success": True, 
-            "name": new_filename
-        })
+            file_list = list_videos(target_dir)
+            next_num = len(file_list)
+
+            new_filename = f"{next_num:03d}_{original_filename}"
+
+            save_path = safe_path_join(target_dir, new_filename)
+            with open(save_path, "wb") as f:
+                f.write(video.file.read())
+
+            results.append(new_filename)
+
+        if not results:
+            return web.json_response({"error": "未上传有效视频"}, status=400)
+
+        if len(results) == 1:
+            return web.json_response({"success": True, "name": results[0]})
+        return web.json_response({"success": True, "names": results, "count": len(results)})
     except Exception as e:
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
-# 注册路由
-try:
-    server.PromptServer.instance.routes.get("/fxai/video/loop/preview")(get_preview)
-    server.PromptServer.instance.routes.get("/fxai/video/list")(get_file_list)
-    server.PromptServer.instance.routes.post("/fxai/video/apply")(apply_changes)
-    server.PromptServer.instance.routes.post("/fxai/video/upload")(upload_video_custom)
-    server.PromptServer.instance.routes.get("/fxai/video/delete")(delete_single_video)
-except Exception as e:
-    print(f"❌ 视频管理器启动失败：{e}")
+# 路由已统一注册在 fxai_api_utils.py
 
 # ComfyUI节点定义
 class FxAiVideoManager:

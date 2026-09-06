@@ -213,14 +213,7 @@ async def api_characters_by_avatars(request):
     return web.json_response({"characters": get_characters_by_avatars(avatars)})
 
 
-def register_routes():
-    routes = server.PromptServer.instance.routes
-    routes.get("/fxai/characters/list")(api_list_characters)
-    routes.post("/fxai/characters/save")(api_save_character)
-    routes.post("/fxai/characters/save_batch")(api_save_characters_batch)
-    routes.post("/fxai/characters/delete")(api_delete_character)
-    routes.post("/fxai/characters/by_avatars")(api_characters_by_avatars)
-
+# 路由已统一注册在 fxai_api_utils.py
 
 # ==============================================
 # 节点：短剧角色资源管理器（行内弹窗式编辑，只存库不输出）
