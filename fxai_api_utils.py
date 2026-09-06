@@ -1870,7 +1870,7 @@ async def audio_segments_waveform(request):
         return web.json_response({"error": str(e)}, status=400)
 
 # ===================== 音频分段 API（V2） =====================
-from fxai_audio_utils import (
+from .fxai_audio_utils import (
     resolve_audio_path,
     load_audio_tensor_from_file,
     normalize_audio_tensor,
@@ -1900,7 +1900,7 @@ async def audio_segments_v2_waveform(request):
         return web.json_response({"error": str(e)}, status=400)
 
 # ===================== 角色管理 API =====================
-from fxai_character_profile_manager import (
+from .fxai_character_profile_manager import (
     list_characters as _char_list,
     save_character as _char_save,
     delete_character as _char_delete,
