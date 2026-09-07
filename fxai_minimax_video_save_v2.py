@@ -126,17 +126,8 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
 
     try:
         height, width = img_np[0].shape[0], img_np[0].shape[1]
-        video_duration = total_frames / fps
 
         if isinstance(audio, dict) and "waveform" in audio:
-            waveform = audio["waveform"]
-            sample_rate = audio.get("sample_rate", 0)
-            max_sample_count = int(video_duration * sample_rate) if sample_rate > 0 else 0
-
-            if max_sample_count > 0 and waveform.size(-1) > max_sample_count:
-                waveform = waveform[..., :max_sample_count]
-
-            audio = {"waveform": waveform, "sample_rate": sample_rate}
             audio = audio_tensor_to_wav_ffmpeg(audio)
 
         cmd = [
@@ -149,7 +140,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
             '-i', '-',
         ]
         if isinstance(audio, str) and os.path.exists(audio):
-            cmd += ['-i', audio, '-c:a', 'aac', '-b:a', '192k']
+            cmd += ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-shortest']
         cmd += [
             '-c:v', 'libx264',
             '-preset', 'slow',
