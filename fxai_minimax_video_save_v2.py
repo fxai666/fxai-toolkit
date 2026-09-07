@@ -161,7 +161,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
             '-i', '-',
         ]
         if isinstance(audio, str) and os.path.exists(audio):
-            cmd += ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-shortest']
+            cmd += ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-t', f'{video_duration:.6f}']
         cmd += [
             '-c:v', 'libx264',
             '-preset', 'slow',

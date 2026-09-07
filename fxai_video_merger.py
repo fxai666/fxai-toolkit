@@ -252,7 +252,7 @@ class FxAiVideoMerger:
             try:
                 fxai_task_store.save_result("video", "merged", [os.path.basename(video_path)])
             except Exception as e:
-                print(f"[凤希AI视频合并] 任务结果保存失败：{e}")
+                print(f"[凤希AI] 视频合并保存失败：{e}")
         else:
             print("[凤希AI] ❌ 视频合并失败")
             
