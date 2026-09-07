@@ -128,45 +128,14 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
     try:
         height, width = img_np[0].shape[0], img_np[0].shape[1]
 
-        video_duration = total_frames / fps
-        print(f"[凤希AI-DEBUG] 视频: frames={total_frames}, fps={fps}, duration={video_duration:.3f}s, size={width}x{height}")
-
         if isinstance(audio, dict) and "waveform" in audio:
-            wf = audio["waveform"]
-            sr = audio.get("sample_rate", 0)
-            print(f"[凤希AI-DEBUG] 音频输入: shape={list(wf.shape)}, ndim={wf.ndim}, sample_rate={sr}")
-            if wf.ndim == 3 and wf.shape[0] == 1:
-                wf = wf.squeeze(0)
-            if wf.ndim == 2:
-                samples = wf.shape[-1]
-                channels = wf.shape[0]
-            else:
-                samples = wf.shape[0] if wf.ndim == 1 else wf.shape[-1]
-                channels = 1
-            audio_duration = samples / sr if sr > 0 else 0
-            print(f"[凤希AI-DEBUG] 音频解析: channels={channels}, samples={samples}, sample_rate={sr}, duration={audio_duration:.3f}s")
-            print(f"[凤希AI-DEBUG] img_np.shape={list(img_np.shape)}, img_np[0].shape={list(img_np[0].shape)}")
             temp_wav = audio
             audio = audio_tensor_to_wav_ffmpeg(audio)
-            if audio and os.path.exists(audio):
-                wav_size = os.path.getsize(audio)
-                print(f"[凤希AI-DEBUG] WAV输出: path={audio}, size={wav_size} bytes")
-                try:
-                    wav_probe = subprocess.run(
-                        ['ffprobe', '-v', 'error', '-show_entries',
-                         'stream=codec_name,sample_rate,channels,duration,nb_frames',
-                         '-of', 'default=noprint_wrappers=1', audio],
-                        capture_output=True, text=True, timeout=30
-                    )
-                    print(f"[凤希AI-DEBUG] WAV详情: {wav_probe.stdout.strip()}")
-                except Exception as e:
-                    print(f"[凤希AI-DEBUG] WAV探测失败: {e}")
-            else:
-                print(f"[凤希AI-DEBUG] WAV转换失败: {audio}")
-        else:
-            temp_wav = None
 
-        cmd = [
+        has_audio = isinstance(audio, str) and os.path.exists(audio)
+        temp_video = os.path.join(folder_paths.base_path, "fxai/video/temp", "fxai_temp_video.mp4") if has_audio else save_path
+
+        cmd_video = [
             'ffmpeg', '-y',
             '-f', 'rawvideo',
             '-vcodec', 'rawvideo',
@@ -174,21 +143,18 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
             '-pix_fmt', 'rgb24',
             '-r', str(fps),
             '-i', '-',
-        ]
-        if isinstance(audio, str) and os.path.exists(audio):
-            cmd += ['-i', audio, '-c:a', 'aac', '-b:a', '192k', '-t', f'{video_duration:.6f}']
-        cmd += [
             '-c:v', 'libx264',
             '-preset', 'slow',
             '-crf', '17',
             '-pix_fmt', 'yuv420p',
             '-frames:v', str(total_frames),
+            '-an',
             '-movflags', '+faststart',
-            save_path
+            temp_video
         ]
 
         proc = subprocess.Popen(
-            cmd,
+            cmd_video,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
@@ -207,23 +173,24 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
             proc.wait()
 
         if proc.returncode != 0:
-            print(f"[凤希AI-DEBUG] ffmpeg错误(code={proc.returncode}): {stderr_out[:500]}")
-            raise subprocess.CalledProcessError(proc.returncode, cmd)
-        elif stderr_out.strip():
-            print(f"[凤希AI-DEBUG] ffmpeg输出: {stderr_out[:500]}")
+            print(f"[凤希AI] ffmpeg视频编码失败(code={proc.returncode}): {stderr_out[:500]}")
+            raise subprocess.CalledProcessError(proc.returncode, cmd_video)
 
-        if os.path.exists(save_path):
-            mb = os.path.getsize(save_path) / (1024*1024)
-            print(f"[凤希AI-DEBUG] 输出视频: {save_path}, size={mb:.2f}MB")
-            try:
-                probe = subprocess.run(
-                    ['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_type,duration,nb_frames',
-                     '-of', 'default=noprint_wrappers=1', save_path],
-                    capture_output=True, text=True, timeout=30
-                )
-                print(f"[凤希AI-DEBUG] ffprobe: {probe.stdout.strip()}")
-            except Exception as e:
-                print(f"[凤希AI-DEBUG] ffprobe失败: {e}")
+        if has_audio:
+            cmd_mux = [
+                'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
+                '-i', temp_video,
+                '-i', audio,
+                '-c:v', 'copy',
+                '-c:a', 'aac', '-b:a', '192k',
+                '-shortest',
+                '-movflags', '+faststart',
+                save_path
+            ]
+            result = subprocess.run(cmd_mux, capture_output=True, text=True, timeout=3600)
+            if result.returncode != 0:
+                print(f"[凤希AI] ffmpeg合并失败: {result.stderr[:500]}")
+                raise subprocess.CalledProcessError(result.returncode, cmd_mux)
 
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
