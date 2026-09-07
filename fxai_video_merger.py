@@ -124,7 +124,7 @@ def get_video_files(source_dir, max_count=0):
     files = sorted((f for f in os.listdir(source_dir) if f.lower().endswith(exts)), key=sort_key)
     if max_count > 0:
         files = files[:max_count]
-    return [safe_path_join(source_dir, f) for f in files]
+    return [os.path.normpath(safe_path_join(source_dir, f)) for f in files]
 
 # --------------------------
 # 视频合并主函数
@@ -138,6 +138,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
     temp_concat = None
 
     try:
+        source_dir = os.path.normpath(source_dir)
         videos = get_video_files(source_dir, max_count)
         output_dir = get_merge_output_dir()
         output_name = re.sub(r'[\\/*?:"<>|]', "", output_name.strip())
