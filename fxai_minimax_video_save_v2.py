@@ -200,6 +200,15 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
         if os.path.exists(save_path):
             mb = os.path.getsize(save_path) / (1024*1024)
             print(f"[凤希AI-DEBUG] 输出视频: {save_path}, size={mb:.2f}MB")
+            try:
+                probe = subprocess.run(
+                    ['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_type,duration,nb_frames',
+                     '-of', 'default=noprint_wrappers=1', save_path],
+                    capture_output=True, text=True, timeout=30
+                )
+                print(f"[凤希AI-DEBUG] ffprobe: {probe.stdout.strip()}")
+            except Exception as e:
+                print(f"[凤希AI-DEBUG] ffprobe失败: {e}")
 
     except Exception as e:
         print(f"[凤希AI视频合成失败] {str(e)}")
