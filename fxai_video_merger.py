@@ -72,11 +72,11 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         if result.returncode == 0 and os.path.exists(temp_path):
             return temp_path
         else:
-            print(f"[凤希AI音频] ffmpeg错误: {result.stderr}")
+            print(f"[凤希AI] ffmpeg错误: {result.stderr}")
             return ""
 
     except Exception as e:
-        print(f"[凤希AI音频转换失败] {e}")
+        print(f"[凤希AI] 音频转换失败：{e}")
         return ""
 
 # --------------------------
@@ -105,7 +105,7 @@ def replace_video_audio(video_path, audio_path):
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=3600)
         shutil.copy2(temp_video, video_path)
     except Exception as e:
-        print(f"[凤希AI音频替换失败] {e}")
+        print(f"[凤希AI] 音频替换失败：{e}")
     finally:
         if os.path.exists(temp_video):
             os.remove(temp_video)
@@ -144,30 +144,32 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
         output_path = os.path.join(output_dir, f"{output_name}.mp4")
 
         if not videos:
-            print("[凤希AI视频合并] 未找到视频文件")
+            print("[凤希AI] 视频合并，未找到视频文件")
             return None
 
-        # 生成拼接列表
+        # 生成拼接列表（统一用 / 分隔符，避免 Windows ffmpeg 报错）
         list_path = os.path.join(source_dir, "merge_list.txt")
         with open(list_path, "w", encoding="utf-8") as f:
             for p in videos:
-                # 统一路径分隔符，避免Windows报错
                 safe_path = p.replace("\\", "/")
                 f.write(f"file '{safe_path}'\n")
 
         # 带音频合并
         if audio and isinstance(audio, dict) and "waveform" in audio:
-            temp_concat = os.path.join(output_dir, "_temp_no_audio.mp4")
-            
+            temp_concat = os.path.join(output_dir, "temp_no_audio.mp4")
+
+            # copy 拼接
             cmd_concat = [
                 'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
                 '-f', 'concat', '-safe', '0', '-i', list_path,
-                '-c:v', 'copy',
-                '-an',
+                '-c:v', 'copy', '-an',
                 '-movflags', '+faststart',
                 temp_concat
             ]
-            subprocess.run(cmd_concat, check=True, capture_output=True, text=True)
+            result = subprocess.run(cmd_concat, capture_output=True, text=True, timeout=3600)
+            if result.returncode != 0:
+                print(f"[凤希AI] 视频合并失败: {result.stderr.strip()}")
+                return None
 
             audio_wav = audio_tensor_to_wav_ffmpeg(audio)
             if not audio_wav or not os.path.exists(audio_wav):
@@ -184,7 +186,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
                 '-movflags', '+faststart',
                 output_path
             ]
-            subprocess.run(cmd_final, check=True, capture_output=True, text=True)
+            subprocess.run(cmd_final, check=True, capture_output=True, text=True, timeout=3600)
 
         # 无音频直接拼接
         else:
@@ -195,12 +197,15 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
                 '-movflags', '+faststart',
                 output_path
             ]
-            subprocess.run(cmd_concat, check=True, capture_output=True, text=True)
+            result = subprocess.run(cmd_concat, capture_output=True, text=True, timeout=3600)
+            if result.returncode != 0:
+                print(f"[凤希AI] 视频合并失败: {result.stderr.strip()}")
+                return None
 
         return output_path
 
     except Exception as e:
-        print(f"[凤希AI视频合并失败] {str(e)}")
+        print(f"[凤希AI] 视频合并失败{str(e)}")
         return None
 
     finally:
