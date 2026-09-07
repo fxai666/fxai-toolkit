@@ -42,10 +42,11 @@ def get_video_dir(subdir=""):
 
 # 获取全局临时音频路径
 def get_fixed_temp_audio_path():
+    import uuid
     comfy_root = folder_paths.base_path
     temp_dir = os.path.join(comfy_root, "fxai/video/temp")
     os.makedirs(temp_dir, exist_ok=True)
-    return os.path.join(temp_dir, "fxai_temp_audio.wav")
+    return os.path.join(temp_dir, f"fxai_temp_audio_{uuid.uuid4().hex[:8]}.wav")
 
 # 音频张量转WAV
 def audio_tensor_to_wav_ffmpeg(audio_dict):
@@ -124,6 +125,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
         print("[凤希AI] 视频合成失败，没有有效帧")
         return ""
 
+    temp_wav = None
     try:
         height, width = img_np[0].shape[0], img_np[0].shape[1]
 
@@ -144,12 +146,15 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
                 channels = 1
             audio_duration = samples / sr if sr > 0 else 0
             print(f"[凤希AI-DEBUG] 音频解析: channels={channels}, samples={samples}, sample_rate={sr}, duration={audio_duration:.3f}s")
+            temp_wav = audio
             audio = audio_tensor_to_wav_ffmpeg(audio)
             if audio and os.path.exists(audio):
                 wav_size = os.path.getsize(audio)
                 print(f"[凤希AI-DEBUG] WAV输出: path={audio}, size={wav_size} bytes")
             else:
                 print(f"[凤希AI-DEBUG] WAV转换失败: {audio}")
+        else:
+            temp_wav = None
 
         cmd = [
             'ffmpeg', '-y',
@@ -215,6 +220,12 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
         import traceback
         traceback.print_exc()
         return ""
+    finally:
+        if temp_wav and isinstance(temp_wav, str) and os.path.exists(temp_wav):
+            try:
+                os.remove(temp_wav)
+            except Exception:
+                pass
 
     gc.collect()
     print(f"[凤希AI] 视频成功保存：{save_path}")

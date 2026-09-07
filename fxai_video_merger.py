@@ -21,10 +21,11 @@ def get_merge_output_dir():
     return target_dir
 
 def get_fixed_temp_audio_path():
+    import uuid
     comfy_root = folder_paths.base_path
     temp_dir = os.path.join(comfy_root, "fxai", "video", "temp")
     os.makedirs(temp_dir, exist_ok=True)
-    return os.path.join(temp_dir, "fxai_merge_temp_audio.wav")
+    return os.path.join(temp_dir, f"fxai_merge_temp_audio_{uuid.uuid4().hex[:8]}.wav")
 
 def audio_tensor_to_wav_ffmpeg(audio_dict):
     gc.collect()
