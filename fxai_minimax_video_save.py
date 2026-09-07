@@ -42,11 +42,10 @@ def get_video_dir(subdir=""):
 
 # 获取全局临时音频路径
 def get_fixed_temp_audio_path():
-    import uuid
     comfy_root = folder_paths.base_path
     temp_dir = os.path.join(comfy_root, "fxai/video/temp")
     os.makedirs(temp_dir, exist_ok=True)
-    return os.path.join(temp_dir, f"fxai_temp_audio_{uuid.uuid4().hex[:8]}.wav")
+    return os.path.join(temp_dir, "fxai_temp_audio.wav")
 
 # 音频去噪档位（FFmpeg afftdn 参数）
 AUDIO_DENOISE_LEVELS = {
