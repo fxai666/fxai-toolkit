@@ -151,8 +151,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
         list_path = os.path.join(source_dir, "merge_list.txt")
         with open(list_path, "w", encoding="utf-8") as f:
             for p in videos:
-                safe_path = p.replace("\\", "/")
-                f.write(f"file '{safe_path}'\n")
+                f.write(f"file '{p}'\n")
 
         # 带音频合并
         if audio and isinstance(audio, dict) and "waveform" in audio:
