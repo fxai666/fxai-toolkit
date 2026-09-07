@@ -206,14 +206,16 @@ class FxAiMiniMaxVideoSaveV2:
                 "图片序列": ("IMAGE",),
                 "视频序号": ("INT", {"default": -1, "min": -1}),
                 "音频": ("AUDIO",),
+                "保存目录": ("STRING", {"default": "sucai"}),
             },
         }
 
-    def run(self, 图片序列, 视频序号, 音频):
+    def run(self, 图片序列, 视频序号, 音频, 保存目录="sucai"):
         if 图片序列 is None:
             return (图片序列, "", "")
 
-        target_dir = get_video_dir("sucai")
+        save_subdir = re.sub(r'[\\/*?:"<>|]', "", (保存目录 or "sucai").strip()) or "sucai"
+        target_dir = get_video_dir(save_subdir)
 
         # 全部帧进视频；过渡帧 = 整个图片序列的最后一帧（始终只返回一帧）
         video_images = 图片序列
@@ -236,7 +238,7 @@ class FxAiMiniMaxVideoSaveV2:
             try:
                 if 视频序号 < 0:
                     # 保存结果（持久化+广播）
-                    fxai_task_store.save_result("video", "sucai", [os.path.basename(video_path)])
+                    fxai_task_store.save_result("video", save_subdir, [os.path.basename(video_path)])
                 else:
                     # 广播过程信息：当前第几个场景
                     fxai_task_store.broadcast("scene_saved", {
