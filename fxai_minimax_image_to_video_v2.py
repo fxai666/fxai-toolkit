@@ -23,6 +23,8 @@ from fxai_image_utils import normalize_images
 FPS = 24
 AUDIO_LATENT_FPS = 40
 AUDIO_SAMPLE_RATE = 32000
+VOICE_REF_MAX_SECONDS = 10  # 音色参考模式外置参考音频最长秒数（防跟读+控序列长度）
+VOICE_REF_MAX_T = VOICE_REF_MAX_SECONDS * AUDIO_LATENT_FPS
 CANVAS_MULTIPLE = 32
 BASE_SHORT_EDGE = 768
 MAX_PIXELS = 768 * 1344
@@ -238,11 +240,16 @@ class FxAiMiniMaxImageToVideoV2:
             _, template_audio = latent["samples"].unbind()
             for i, audio in enumerate(ref_audios[:3]):
                 audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, audio)
-                # 外置音频（首个）fit 到目标音频时长，保证 ref_audio_t 与目标 audio_t
-                # 对齐（GH drive_audio 同款处理）；参考音频列表保持原长度
-                if i == 0 and 外置音频 is not None and 音频模式 != "系统生成":
+                # 原音频 模式：外置音频 fit 到目标音频时长（整段锁进音频通道）。
+                # 音色参考 模式：参考保持原始长度（官方独立 ref_audio 同款），
+                # 不再拉伸/补零——零 latent 不在分布内，全长对齐还会诱发模型
+                # 跟读参考内容而不是只取音色；超过 VOICE_REF_MAX_SECONDS 截断。
+                if i == 0 and 音频模式 == "原音频":
                     audio_latent = _fit_audio_latent(audio_latent, template_audio)
                     ref_audio_t = int(audio_latent.shape[-1])
+                elif i == 0 and 音频模式 == "音色参考" and ref_audio_t > VOICE_REF_MAX_T:
+                    audio_latent = audio_latent[..., :VOICE_REF_MAX_T]
+                    ref_audio_t = VOICE_REF_MAX_T
                 ref_items.append({"type": "audio"})
                 ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
 

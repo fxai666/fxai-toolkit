@@ -59,9 +59,20 @@ def resolve_audio_path(audio_file):
 
     cmd = [
         "ffmpeg", "-i", original_full_path,
+        "-vn", "-c:a", "pcm_f32le",
+        "-af", "aresample=resampler=soxr:precision=28",
         "-f", "wav", "-y", wav_full_path
     ]
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+    try:
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # 旧版 ffmpeg 可能没有 soxr 重采样器，回退默认参数（仍保留 f32 无损格式）
+        cmd = [
+            "ffmpeg", "-i", original_full_path,
+            "-vn", "-c:a", "pcm_f32le",
+            "-f", "wav", "-y", wav_full_path
+        ]
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
 
     if os.path.exists(wav_full_path):
         try:
