@@ -5,8 +5,7 @@ from PIL import Image
 import folder_paths
 import hashlib
 
-CACHE_DIR = os.path.join(folder_paths.temp_directory, "persist_preview")
-os.makedirs(CACHE_DIR, exist_ok=True)
+CACHE_DIR = folder_paths.temp_directory
 
 class FxAiImagePreview:
     def __init__(self):
@@ -58,7 +57,7 @@ class FxAiImagePreview:
 
                 images.append({
                     "filename": img_filename,
-                    "subfolder": "persist_preview",
+                    "subfolder": "",
                     "type": "temp"
                 })
                 img_index += 1

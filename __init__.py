@@ -101,6 +101,7 @@ NODE_REGISTRY = [
     ("FxAiQwenEditMultiView",     "fxai_qwen_edit_multi_view",  "凤希AI - 多视图生成器"),
     ("FxAiQwenEditThreeView",     "fxai_qwen_edit_three_view",  "凤希AI - 三视图生成器"),
     ("FxAiImageSelectorByIndex",  "fxai_image_selector_byindex","凤希AI - 获取资源图片"),
+    ("FxAiQwenImage21Edit",       "fxai_qwen_image2_1_edit",    "凤希AI - 千问2.1图片编辑"),
 	
     # 角色类
     ("FxAiCharacterAssets",       "fxai_character_assets",      "凤希AI - 角色资源管理器 - Q群：775649071 - 官网:www.fxai.site"),
