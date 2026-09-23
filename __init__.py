@@ -125,7 +125,6 @@ NODE_REGISTRY = [
     ("FxAiMultiLinePrompt",       "fxai_multiline_prompt",      "凤希AI - 多行提示词"),
 
     # 视频类
-    ("FxAiMiniMaxImageToVideo","fxai_minimax_image_to_video",      "凤希AI - MiniMax图生视频"),
     ("FxAiMiniMaxImageToVideoV2","fxai_minimax_image_to_video_v2", "凤希AI - MiniMax图生视频V2"),
     ("FxAiMiniMaxVideoSave",   "fxai_minimax_video_save",        "凤希AI - MiniMax视频保存"),
     ("FxAiMiniMaxVideoSaveV2", "fxai_minimax_video_save_v2",     "凤希AI - MiniMax视频保存V2"),

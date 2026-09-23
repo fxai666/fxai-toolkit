@@ -50,14 +50,6 @@ class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
 
         ms.noise_scaling = noise_scaling
 
-    def scale_latent_inpaint(self, sigma, noise, latent_image, **kwargs):
-        # 掩码锁死区（过渡帧写入的 t 前 k 步）每步按 FLOW 语义注入：
-        # sigma 大时接近噪声、sigma→0 收敛到干净过渡帧 latent，避免
-        # latent 权重恒为 1 导致锁死区色彩/内容过度保留而失衡。
-        sigma = comfy.model_sampling.reshape_sigma(sigma, noise.ndim)
-        scale = getattr(self.model_sampling, "noise_scale", 1.0)
-        return sigma * (scale * noise) + (1.0 - sigma) * latent_image
-
     def extra_conds(self, **kwargs):
         out = super().extra_conds(**kwargs)
         keyframes = kwargs.get("minimax_keyframes", None)
