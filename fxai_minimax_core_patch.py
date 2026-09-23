@@ -3,8 +3,8 @@
 # 商用需购买商业授权
 #
 # MiniMax H3 核心补丁：不修改 ComfyUI 系统文件，通过替换模块引用注入修复。
-# 1) MiniMaxH3.extra_conds：keyframes（首尾帧）与 refs（参考图/音频）的视觉条件共存，
-#    官方逻辑里 refs 会覆盖 keyframes 的 cond_video_latents，导致首尾帧锚定失效。
+# 1) MiniMaxH3.extra_conds：把 keyframe 视觉 latent 对齐到布局目标空间网格，
+#    并让 ref 的 latent_h/w/t 跟张量一致，避免 layout 行数与 patchify 分叉。
 # 2) MiniMaxH3Model._forward / _run_blocks：支持 ("block_loop", 0) 钩子，
 #    供 FxAiMiniMaxBlockCache 块缓存加速节点使用。
 #
@@ -51,21 +51,32 @@ class MiniMaxH3Patch(comfy.model_base.MiniMaxH3):
         ms.noise_scaling = noise_scaling
 
     def extra_conds(self, **kwargs):
-        out = super().extra_conds(**kwargs)
-        keyframes = kwargs.get("minimax_keyframes", None)
-        refs = kwargs.get("minimax_refs", None)
-        if keyframes is not None or refs is not None:
-            payload = out["minimax_payload"].cond
-            # keyframes 与 refs 的视觉条件共存：官方 refs 会覆盖 keyframes 的
-            # cond_video_latents，这里拼接而不是覆盖。视频按 keyframe 在前、
-            # 参考块在列表序；音频独立列表，同样拼接不覆盖。
-            payload["cond_video_latents"] = (
-                [kf["latent"] for kf in (keyframes or []) if kf.get("latent") is not None]
-                + [r["latent"] for r in (refs or []) if "latent" in r])
-            payload["cond_audio_latents"] = (
-                [kf["audio_latent"] for kf in (keyframes or []) if kf.get("audio_latent") is not None]
-                + [r["audio_latent"] for r in (refs or []) if r.get("audio_latent") is not None])
-        return out
+        # 尺寸兜底：布局按目标 even-rounded 网格计行，_cond_video_rows 按 keyframe
+        # 自身 H/W patchify，分叉会 shape mismatch。放大后优先用
+        # FxAiMiniMaxResampleCond 按实际宽高 VAE 重编码；此处仅在仍不一致时
+        # 三线性对齐，避免漏接二采条件直接崩采样。
+        latent_shapes = kwargs.get("latent_shapes", None)
+        if latent_shapes is not None and len(latent_shapes) > 1:
+            vs = latent_shapes[0]
+            th = (vs[3] + 1) // 2 * 2
+            tw = (vs[4] + 1) // 2 * 2
+            for kf in kwargs.get("minimax_keyframes") or ():
+                z = kf.get("latent")
+                if z is None:
+                    continue
+                if z.shape[-2] != th or z.shape[-1] != tw:
+                    kf["latent"] = torch.nn.functional.interpolate(
+                        z.to(torch.float32), size=(z.shape[2], th, tw),
+                        mode="trilinear", align_corners=False).to(z.dtype)
+            for r in kwargs.get("minimax_refs") or ():
+                z = r.get("latent")
+                if z is None:
+                    continue
+                r["latent_h"] = z.shape[-2]
+                r["latent_w"] = z.shape[-1]
+                if r.get("kind") in ("video", "video_audio"):
+                    r["latent_t"] = z.shape[2]
+        return super().extra_conds(**kwargs)
 
 
 def _run_blocks(self, h, t_emb, mod_segments, rope_freqs, transformer_options, start=0, end=None):
@@ -112,8 +123,7 @@ def _patched_forward(self, x, timestep, context, transformer_options={}, minimax
     if layout is None or layout.signature != (text_len, latent_t, lat_h, lat_w, audio_t):
         layout = h3.PackedLayout(text_len, latent_t, lat_h, lat_w, audio_t,
                                  keyframes=payload.get("keyframes"),
-                                 refs=payload.get("refs"),
-                                 frame_count=payload.get("frame_count"))
+                                 refs=payload.get("refs"))
 
     shift_v = float(transformer_options.get("minimax_h3_sigma_shift_video", self.sigma_shift_video))
     shift_a = float(transformer_options.get("minimax_h3_sigma_shift_audio", self.sigma_shift_audio))

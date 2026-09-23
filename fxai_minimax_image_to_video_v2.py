@@ -204,12 +204,14 @@ class FxAiMiniMaxImageToVideoV2:
         keyframes = []
         ref_images = []
         if 首帧图片 is not None:
+            src = 首帧图片[:1, ..., :3]
             img = _prepare_image(首帧图片, 宽度, 高度, "disabled")
-            keyframes.append({"resolved_frame_index": 0, "image": img})
+            keyframes.append({"resolved_frame_index": 0, "image": img, "image_src": src, "crop": "disabled"})
             ref_images.append(img)
         if 尾帧图片 is not None:
+            src = 尾帧图片[:1, ..., :3]
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
-            keyframes.append({"resolved_frame_index": frame_count - 1, "image": img})
+            keyframes.append({"resolved_frame_index": frame_count - 1, "image": img, "image_src": src, "crop": "center"})
             ref_images.append(img)
         if 参考图片列表 is not None:
             ref_images += normalize_images(参考图片列表)
@@ -260,9 +262,55 @@ class FxAiMiniMaxImageToVideoV2:
         if keyframes:
             for kf in keyframes:
                 if "image" in kf:
-                    kf["latent"] = 视频VAE.encode(kf.pop("image"))
+                    kf["latent"] = 视频VAE.encode(kf["image"])
             cond = node_helpers.conditioning_set_values(cond, {"minimax_keyframes": keyframes, "minimax_frame_count": frame_count})
         if ref_blocks:
             cond = node_helpers.conditioning_set_values(cond, {"minimax_refs": ref_blocks})
 
         return (cond, latent)
+
+
+class FxAiMiniMaxResampleCond:
+    """放大后二采：用未缩小的原图按 AV 潜变量实际宽高重编码关键帧。"""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "正向条件": ("CONDITIONING",),
+                "视频VAE": ("VAE",),
+                "AV潜变量": ("LATENT",),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING",)
+    RETURN_NAMES = ("二采正向条件",)
+    FUNCTION = "run"
+    CATEGORY = "凤希AI/MiniMax"
+
+    def run(self, 正向条件, 视频VAE, AV潜变量):
+        samples = AV潜变量["samples"]
+        video = samples.tensors[0] if getattr(samples, "is_nested", False) else samples
+        if video.ndim != 5:
+            raise ValueError("二采条件需要 MiniMax H3 的 5D 视频潜变量")
+        th = int(video.shape[3]) * 16
+        tw = int(video.shape[4]) * 16
+
+        c = []
+        for t in 正向条件:
+            n = [t[0], t[1].copy()]
+            keyframes = n[1].get("minimax_keyframes")
+            if keyframes:
+                rebuilt = []
+                for kf in keyframes:
+                    kf = dict(kf)
+                    img = kf.get("image_src", kf.get("image"))
+                    if img is not None:
+                        crop = kf.get("crop", "disabled")
+                        if img.shape[1] != th or img.shape[2] != tw:
+                            img = _resize(img[:1], tw, th, crop)
+                        kf["latent"] = 视频VAE.encode(img)
+                    rebuilt.append(kf)
+                n[1]["minimax_keyframes"] = rebuilt
+            c.append(n)
+        return (c,)
