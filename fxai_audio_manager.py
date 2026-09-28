@@ -267,12 +267,15 @@ class FxAiAudioManager:
             save_name = f"{next_num:03d}_audio.wav"
             save_path = os.path.join(target_dir, save_name)
             sf.write(save_path, audio_np, sample_rate)
+            duration = audio_np.shape[0] / float(sample_rate)
+            dur_str = f"{int(duration // 60)}分{duration % 60:.1f}秒"
+            print(f"[凤希AI] ✅ 音频保存成功，保存路径：{save_path}，时长：{dur_str}")
 
             # 【与图片一致】保存完成后统一入库 + WS 广播
             try:
                 fxai_task_store.save_result("audio", subdir, [save_name])
             except Exception as e:
-                print(f"[凤希AI音频资源管理] 任务结果保存失败：{e}")
+                print(f"[凤希AI] 任务结果保存失败：{e}")
         except Exception as e:
             print(f"❌ 保存音频失败：{e}")
 
