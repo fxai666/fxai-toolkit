@@ -1302,6 +1302,41 @@ async def task_query(request):
         return web.json_response({"error": "缺少 prompt_ids"}, status=400)
     return web.json_response(get_tasks(prompt_ids))
 
+
+# ===================== 统一文件下载（按令牌，本地/远端通用） =====================
+# 配合客户端「全部走 HTTP 接口」模式：不再让客户端直接读 <ComfyUI>/fxai 本地目录，
+# 而是把 /fxai/tasks/result 返回的 url 令牌（如 "image/mv_scene|scene1.png"）原样传回，
+# 由服务端解析到 <comfy_root>/fxai/<category>/<subdir>/<file> 并吐出文件。
+# 这样无论 ComfyUI 在本地还是远端服务器，客户端只需一个 comfy_url 基址即可下载。
+async def task_file(request):
+    token = request.query.get("url", "")
+    if not token:
+        return web.json_response({"error": "缺少 url 参数"}, status=400)
+    left, _, files = token.partition("|")
+    if not left or not files:
+        return web.json_response({"error": "url 格式错误（应为 category/subdir|file）：%s" % token}, status=400)
+    category, _, subdir = left.partition("/")
+    if category not in ("image", "audio", "video"):
+        return web.json_response({"error": "不支持的类别（仅 image/audio/video）：%s" % category}, status=400)
+    fname = files.split(",")[0].strip()
+    if not fname:
+        return web.json_response({"error": "文件名为空"}, status=400)
+    # 解析到 <comfy_root>/fxai/<category>/<subdir>/<fname>，并做路径穿越防护
+    comfy_root = os.path.abspath(folder_paths.base_path)
+    allowed = os.path.abspath(os.path.join(comfy_root, "fxai"))
+    rel = os.path.normpath(os.path.join("fxai", category, subdir, fname))
+    full = os.path.abspath(os.path.join(comfy_root, rel))
+    if not full.startswith(allowed + os.sep) and full != allowed:
+        return web.json_response({"error": "禁止访问：路径越界 %s" % rel}, status=403)
+    if not os.path.isfile(full):
+        return web.json_response({"error": "文件不存在：%s" % rel}, status=404)
+    return web.FileResponse(full, headers={
+        "Content-Type": mimetypes.guess_type(full)[0] or "application/octet-stream",
+        "Content-Disposition": 'inline; filename="%s"' % os.path.basename(full),
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+    })
+
+
 # ===================== 提示词管理 API =====================
 def _prompt_get_dir(subdir=""):
     comfy_root = folder_paths.base_path
@@ -2033,6 +2068,8 @@ try:
 
     # 任务查询
     PromptServer.instance.routes.post("/fxai/tasks/result")(task_query)
+    # 统一文件下载（按令牌，本地/远端通用）：/fxai/down/file?url=image/sub|file.png
+    PromptServer.instance.routes.get("/fxai/down/file")(task_file)
 
     # 提示词管理
     PromptServer.instance.routes.get("/fxai/prompt/list")(prompt_list)
