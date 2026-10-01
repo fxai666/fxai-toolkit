@@ -59,6 +59,7 @@ NODE_REGISTRY = [
     # 音频类
     ("FxAiAudioSegmenter",        "fxai_audio_segments",        "凤希AI - 音频分段器"),
     ("FxAiAudioSegmenterV2",      "fxai_audio_segments_v2",     "凤希AI - 音频分段器V2"),
+    ("FxAiAudioSelector",         "fxai_audio_selector",        "凤希AI - 音频选择器"),
     ("FxAIAudioSegmentLoad",      "fxai_audio_frame_load",      "凤希AI - 音频与帧数获取器"),
     ("FxAiMultiAudioLoad",        "fxai_multi_audio_load",      "凤希AI - 多音频加载"),
     ("FxAiAudioManager",          "fxai_audio_manager",         "凤希AI - 音频管理器"),
