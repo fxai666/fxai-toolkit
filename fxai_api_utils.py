@@ -864,6 +864,11 @@ async def image_v2_upload(request):
         images = data.getall("image")
         subdir = data.get("subdir", "")
 
+        # 覆盖模式：传 overwrite=true(或 1/yes/覆盖) + filename=<指定文件名> → 直接覆盖该文件名（不递增）
+        _ov = str(data.get("overwrite", "false")).strip().lower()
+        overwrite = _ov in ("1", "true", "yes", "覆盖", "y")
+        filename_arg = (data.get("filename", "") or "").strip()
+
         if not images:
             return web.json_response({"error": "未上传有效图片"}, status=400)
 
@@ -877,13 +882,19 @@ async def image_v2_upload(request):
             if not original_filename:
                 continue
 
-            next_num = _image_v2_get_next_number(target_dir)
-
             ext = original_filename.split('.')[-1].lower()
             if ext not in ['png', 'jpg', 'jpeg', 'webp']:
                 ext = 'png'
 
-            new_filename = f"{next_num:03d}.{ext}"
+            if overwrite and filename_arg:
+                # 覆盖模式：用调用方指定的文件名（剥离非法字符，保留扩展名），直接覆盖同名文件
+                _base = re.sub(r'[\\/*?:"<>|]', "", os.path.splitext(filename_arg)[0])
+                if not _base:
+                    _base = f"{_image_v2_get_next_number(target_dir):03d}"
+                new_filename = f"{_base}.{ext}"
+            else:
+                next_num = _image_v2_get_next_number(target_dir)
+                new_filename = f"{next_num:03d}.{ext}"
             save_path = _safe_path_join(target_dir, new_filename)
 
             with open(save_path, "wb") as f:
