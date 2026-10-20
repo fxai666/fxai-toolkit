@@ -24,6 +24,7 @@ from . import fxai_api_utils
 from . import fxai_node_update
 from . import fxai_minimax_core_patch
 from . import fxai_character_profile_manager
+from . import fxai_assets_ui
 
 def install_package(package):
     try:
