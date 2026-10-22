@@ -2,12 +2,13 @@
 # Licensed under MIT License
 # 商用需购买商业授权
 #
-# MiniMax H3 块缓存加速节点（block_loop 钩子由 fxai_minimax_core_patch 注入，
-# 这里只负责按 denoise 步选择 FULL/CACHE 执行，不修改任何系统文件）。
+# MiniMax H3 块缓存加速节点。只依赖 ComfyUI 官方的 ("double_block", i) 钩子，
+# 不修改也不复制官方 MiniMaxH3Model._forward，官方核心升级后本节点自动跟随。
 #
-# 原理：FULL 步跑全部 transformer 块，并用 ("double_block", i) 钩子测量每个块
-# 的更新幅度（|h_out - h_in|），同时在当前缓存边界处捕获快照，残差 = 全块输出
-# - 快照。CACHE 步只重算前 k 个 warm 块，加上残差近似尾部块贡献。
+# 原理：FULL 步跑全部 transformer 块，并测量每个块的更新幅度（|h_out - h_in|），
+# 同时在缓存边界处捕获入口快照，残差 = 全块输出 - 快照。CACHE 步对前 k 个 warm
+# 块正常计算，其后各块直接透传输入（不调用原块即等于跳过），最后在边界处叠加残差
+# 近似被跳过块的贡献。
 #
 # 自适应块选择：跳过哪些块不固定为尾部比例，而是按 FULL 步实测的各块更新幅度
 # 决定——更新幅度小的块优先跳过，跳过的累计贡献不超过 cache_depth 预算。这样
@@ -18,7 +19,11 @@ import torch
 
 
 class _MiniMaxH3Cache:
-    """按 denoise 步在 FULL 与 CACHE 之间切换的块缓存控制。"""
+    """按 denoise 步在 FULL 与 CACHE 之间切换的块缓存控制。
+
+    每步第一个块进入时由 begin_step 决定本步模式，随后每个块的钩子按模式
+    决定「正常计算 / 叠加残差后返回 / 直接透传」。
+    """
 
     def __init__(self, control_value, start_percent, end_percent, mcs, device, cache_depth=0.75):
         self.threshold = float(control_value)
@@ -29,6 +34,8 @@ class _MiniMaxH3Cache:
         self.cache_depth = float(cache_depth)
         self.enabled = (self.threshold > 0.0) and (self.mcs > 0) and (self.cache_depth > 0.0)
         self.preset_name = "均衡"
+        # 一旦加速逻辑抛错就永久降级到官方原速，避免状态错乱后每步反复失败
+        self.disabled = False
         self.reset()
 
     def reset(self):
@@ -52,16 +59,20 @@ class _MiniMaxH3Cache:
         self.boundary = 0
         self.block_deltas = None
         self.measure_counts = None
+        self.mode = "bypass"
+        self.step_input = None
 
-    def __call__(self, args, kwargs):
-        """("block_loop", 0) 钩子入口。args 为打包的隐藏态，kwargs 含原块循环。"""
-        original_block = kwargs["original_block"]
-        block_count = int(args["block_count"])
+    def begin_step(self, args, block_count):
+        """每步首个块进入时推进状态，返回本步模式："full" / "cache" / "bypass"。"""
+        if block_count > 0:
+            self.block_count = block_count
         sigma = self._current_sigma(args)
         if sigma is None:
-            return {"img": original_block(args)["img"]}
+            self.mode = "bypass"
+            return self.mode
 
         if self.last_sigma is None or sigma > self.last_sigma + 1e-6:
+            # 采样换挡：新的一轮 run 从 FULL 起步，重新测各块幅度
             self._finish_run()
             self.reset()
             self.block_count = block_count
@@ -70,15 +81,15 @@ class _MiniMaxH3Cache:
             self.sigma_scale = self._detect_scale(args, sigma)
             self.last_sigma = sigma
             self.step = 0
-            self.last_mode = "full"
-            return {"img": self._full_step(args, kwargs, block_count, count=True)}
+            return self._enter_full(count=True)
 
         if abs(sigma - self.last_sigma) <= 1e-6:
+            # 同一步内的重复调用（如二次采样前的复用）沿用上一步模式
             if self._is_final_step(args, sigma / self.sigma_scale):
                 self._print_stats()
             if self.last_mode == "cache":
-                return {"img": self._cache_step(args, kwargs, block_count, count=False)}
-            return {"img": self._full_step(args, kwargs, block_count, count=False)}
+                return self._enter_cache(count=False)
+            return self._enter_full(count=False)
 
         self.prev_sigma = self.last_sigma
         self.last_sigma = sigma
@@ -95,10 +106,73 @@ class _MiniMaxH3Cache:
         can_skip = (self.enabled and k < block_count and self.residual is not None
                     and in_window and slow and self.consecutive_skips < self.mcs)
         if can_skip:
-            self.last_mode = "cache"
-            return {"img": self._cache_step(args, kwargs, block_count, count=True)}
+            return self._enter_cache(count=True)
+        return self._enter_full(count=True)
+
+    def _enter_full(self, count):
         self.last_mode = "full"
-        return {"img": self._full_step(args, kwargs, block_count, count=True)}
+        self.mode = "full"
+        if count:
+            self.full_steps += 1
+            self.consecutive_skips = 0
+            self.total_blocks += self.block_count
+        self.measuring = True
+        self._adapt_boundary()
+        return self.mode
+
+    def _enter_cache(self, count):
+        self.last_mode = "cache"
+        self.mode = "cache"
+        if count:
+            self.cache_hits += 1
+            self.consecutive_skips += 1
+            self.total_blocks += self.block_count
+            self.skipped_blocks += self.block_count - self.boundary
+        return self.mode
+
+    def full_block(self, index, args, kwargs, h_in):
+        """FULL 步：正常计算，顺便测量幅度并捕获边界快照。"""
+        if index == 0 and self.snapshot is None:
+            # 无快照时残差以本步输入为基准，先留一份备份（与原逻辑一致，仅首步发生）
+            self.step_input = h_in.clone()
+        elif index == 0:
+            self.step_input = h_in
+        out = kwargs["original_block"](args)["img"]
+        if self.measuring:
+            self.measure(index, h_in, out)
+        if index == self.boundary:
+            self.snapshot = h_in.clone()
+        if index == self.block_count - 1:
+            self._finish_full(out)
+        return out
+
+    def cache_block(self, index, args, kwargs, h_in):
+        """CACHE 步：前 boundary 个块照常算，边界处叠加残差，其余块直接透传。"""
+        if index < self.boundary:
+            return kwargs["original_block"](args)["img"]
+        h = h_in
+        if index == self.boundary and self.residual is not None:
+            h = h + self.residual.to(h.device)
+        return h
+
+    def _finish_full(self, h_full):
+        self.measuring = False
+        if self.snapshot is not None:
+            residual = h_full - self.snapshot
+        elif self.step_input is not None:
+            residual = h_full - self.step_input
+        else:
+            return
+        self.residual = residual.to("cpu") if self.cache_device == "cpu" else residual
+        self.step_input = None
+
+    def disable(self, exc):
+        """加速逻辑出错时永久退回官方原速，并只提示一次。"""
+        if self.disabled:
+            return
+        self.disabled = True
+        self.measuring = False
+        print(f"【凤希AI】块缓存加速已自动关闭，后续按官方原速运行（原因：{exc!r}）")
 
     def _warm_blocks(self, block_count):
         """无测量时的默认 warm 块数，与官方固定尾部缓存一致。"""
@@ -108,6 +182,9 @@ class _MiniMaxH3Cache:
         """按实测各块更新幅度选择缓存边界：从尾部累加，跳过的累计贡献不超过预算。"""
         block_count = self.block_count
         if self.block_deltas is None or self.measure_counts is None:
+            self.boundary = self._warm_blocks(block_count)
+            return
+        if len(self.block_deltas) != block_count:
             self.boundary = self._warm_blocks(block_count)
             return
         avg = [self.block_deltas[i] / max(1, self.measure_counts[i]) for i in range(block_count)]
@@ -133,38 +210,6 @@ class _MiniMaxH3Cache:
         d = (out[:, ::16] - h_in[:, ::16]).abs().mean().item()
         self.block_deltas[index] += d
         self.measure_counts[index] += 1
-
-    def _full_step(self, args, kwargs, block_count, count=True):
-        if count:
-            self.full_steps += 1
-            self.consecutive_skips = 0
-            self.total_blocks += block_count
-        self.measuring = True
-        self._adapt_boundary()
-        original_block = kwargs["original_block"]
-        h = original_block(args)["img"]
-        self.measuring = False
-        if self.snapshot is not None:
-            residual = h - self.snapshot
-        else:
-            residual = h - args["img"].clone()
-        self.residual = residual.to("cpu") if self.cache_device == "cpu" else residual
-        return h
-
-    def _cache_step(self, args, kwargs, block_count, count=True):
-        if count:
-            self.cache_hits += 1
-            self.consecutive_skips += 1
-            self.total_blocks += block_count
-            self.skipped_blocks += block_count - self.boundary
-        original_block = kwargs["original_block"]
-        h = args["img"]
-        k = self.boundary
-        if k > 0:
-            h = original_block({**args, "start": 0, "end": k})["img"]
-        if self.residual is not None:
-            h = h + self.residual.to(h.device)
-        return h
 
     @staticmethod
     def _current_sigma(args):
@@ -219,20 +264,34 @@ class _MiniMaxH3Cache:
 
 
 class _MiniMaxH3BlockHook:
-    """("double_block", i) 钩子：FULL 步测量各块更新幅度，并在缓存边界捕获快照。"""
+    """("double_block", i) 钩子：块 0 负责推进状态，其余块按本步模式执行。"""
 
     def __init__(self, cache, index):
         self.cache = cache
         self.index = index
 
     def __call__(self, args, kwargs):
-        h_in = args["img"]
-        out = kwargs["original_block"](args)
-        if self.cache.measuring:
-            self.cache.measure(self.index, h_in, out["img"])
-        if self.index == self.cache.boundary:
-            self.cache.snapshot = h_in.clone()
-        return out
+        cache = self.cache
+        if cache.disabled:
+            return {"img": kwargs["original_block"](args)["img"]}
+        try:
+            index = self.index
+            h_in = args["img"]
+            if index == 0:
+                cache.begin_step(args, cache.block_count)
+            mode = cache.mode
+            if mode == "full":
+                return {"img": cache.full_block(index, args, kwargs, h_in)}
+            if mode == "cache":
+                return {"img": cache.cache_block(index, args, kwargs, h_in)}
+            return {"img": kwargs["original_block"](args)["img"]}
+        except torch.cuda.OutOfMemoryError:
+            # 显存不足必须原样抛出，否则会被误判成加速逻辑的锅而静默变慢
+            raise
+        except Exception as exc:
+            # 出错块的输入是完好的（前面各块均已正常计算），直接走官方原块即可保证结果正确
+            cache.disable(exc)
+            return {"img": kwargs["original_block"](args)["img"]}
 
 
 # 档位基准参数：sigma阈值 / 窗口起点 / 窗口终点 / 最大连续缓存步数 / 缓存深度
@@ -287,7 +346,6 @@ class FxAiMiniMaxBlockCache:
         model = 模型.clone()
         if not cache.enabled:
             return (model, int(采样步数))
-        model.set_model_patch_replace(cache, "dit", "block_loop", 0)
         block_count = len(inner.blocks)
         cache.block_count = block_count
         cache.boundary = cache._warm_blocks(block_count)
