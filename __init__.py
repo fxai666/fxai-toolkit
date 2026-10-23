@@ -25,6 +25,7 @@ from . import fxai_node_update
 from . import fxai_minimax_core_patch
 from . import fxai_character_profile_manager
 from . import fxai_assets_ui
+from . import fxai_video_picker_api
 
 def install_package(package):
     try:
@@ -134,6 +135,7 @@ NODE_REGISTRY = [
     ("FxAiMiniMaxResampleCond","fxai_minimax_image_to_video_v2", "凤希AI - MiniMax二采正向条件"),
     ("FxAiMiniMaxVideoSave",   "fxai_minimax_video_save",        "凤希AI - MiniMax视频保存"),
     ("FxAiMiniMaxVideoSaveV2", "fxai_minimax_video_save_v2",     "凤希AI - MiniMax视频保存V2"),
+    ("FxAiMiniMaxVideoSaveV3", "fxai_minimax_video_save_v3",     "凤希AI - 视频保存V3"),
     ("FxAiMiniMaxBlockCache", "fxai_minimax_block_cache",       "凤希AI - MiniMax块缓存加速"),
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
     ("FxAiVideoGeneratorV2",      "fxai_video_generator_v2",    "凤希AI - 视频生成V2"),
@@ -185,6 +187,19 @@ NODE_REGISTRY = [
     ("FxAiScreenManager",         "fxai_screen_manager",       "凤希AI - 影视剧场流场景管理 - 学习交流Q群：775649071"),
     ("FxAiScreenLoad",             "fxai_screen_load",            "凤希AI - 影视剧场数据解析"),
     ("FxAiScreenLoadSimple",       "fxai_screen_load",            "凤希AI - 场景加载器(简化版)"),
+
+    # 人脸精修（H3 远景小脸：逐帧追踪裁剪 + 参考图重绘 + 贴回）
+    ("H3FaceSelect",              "fxai_face_refine",        "凤希AI - H3人脸精修 - 视频加载与选脸"),
+    ("H3FaceTrackCrop",           "fxai_face_refine",        "凤希AI - H3人脸精修 - 追踪裁剪"),
+    ("H3InjectVideoLatent",       "fxai_face_refine",        "凤希AI - H3人脸精修 - 注入视频潜变量"),
+    ("H3PerFrameDenoise",         "fxai_face_refine",        "凤希AI - H3人脸精修 - 逐帧去噪"),
+    ("H3FaceMaskSAM",             "fxai_face_refine",        "凤希AI - H3人脸精修 - 人脸蒙版(SAM)"),
+    ("H3FaceStitch",              "fxai_face_refine",        "凤希AI - H3人脸精修 - 贴回原片"),
+    ("H3FaceTransformInfo",       "fxai_face_refine",        "凤希AI - H3人脸精修 - 变换信息"),
+
+    # 人脸精修 · 轻量链 V2（自研：参考图多角色匹配 + inswapper 换脸 + VOSR2 超分 + 羽化贴回）
+    # V1 与「参考脸提取预览」已于 2026-10-24 下线，能力全部并入 V2。
+    ("FxAiFaceRestoreLiteV2",     "fxai_face_refine",        "凤希AI - 人脸精修 · 轻量链 V2（全脸）"),
 ]
 
 NODE_CLASS_MAPPINGS = {}
@@ -195,6 +210,8 @@ for class_name, module_name, display_name in NODE_REGISTRY:
         print(f"✅[凤希AI] 正在加载 {display_name} 节点 - 进Q群与更多的群友学习：775649071")
         module = importlib.import_module(module_name)
         node_class = getattr(module, class_name)
+        if node_class is None:
+            raise RuntimeError("节点类为空（子模块依赖可能缺失）")
         NODE_CLASS_MAPPINGS[class_name] = node_class
         NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
     except Exception as e:
@@ -205,6 +222,12 @@ WEB_DIRECTORY = "./js"
 
 # 导出
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
+
+# 人脸精修：Pick faces 选择器的后端路由（/h3_facerefine/scan|preview|preview_xy|videos）
+try:
+    importlib.import_module("fxai_face_refine").register()
+except Exception as _exc:
+    print(f"❌[凤希AI] 人脸选择器路由注册失败: {_exc}")
 
 # JS 预览路由已统一注册在 fxai_api_utils.py
 try:
