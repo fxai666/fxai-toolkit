@@ -225,6 +225,26 @@ class FxAiFaceRestoreLiteV2:
         notes = [dev_warn] if dev_warn else []
         dev = f"cuda:{device_id}"
 
+        # 前面节点（视频采样模型之类）可能还占着显存。启动参数带 --disable-smart-memory 时
+        # ComfyUI 不会自动卸载它们，本节点又要把 VOSR2（1.39B）+ inswapper + buffalo_l
+        # 一起装进来（约 6.5 GiB），撞上就 OOM —— 而且 OOM 时不会崩，是**静默降级**：
+        # 超分全部退回插值、换脸直接不初始化，成片糊一大截。
+        # 所以加载自己的模型之前先腾一次地方；只有真的不够才动手，免得显存充裕时白卸别人的模型。
+        try:
+            import comfy.model_management as _mm
+            _free, _total = torch.cuda.mem_get_info(device_id)
+            _need = 6800 * 1024 ** 2          # 本节点实测峰值约 6.2 GiB，留 0.6 GiB 余量
+            if _free < _need:
+                _freed = _mm.free_memory(_need - _free, torch.device(dev))
+                _mm.soft_empty_cache()
+                _free2, _ = torch.cuda.mem_get_info(device_id)
+                notes.append(
+                    f"显存紧张（空闲 {_free / 1024 ** 3:.1f} GiB < 需要 "
+                    f"{_need / 1024 ** 3:.1f} GiB），已卸载 {len(_freed)} 个其他模型，"
+                    f"现空闲 {_free2 / 1024 ** 3:.1f} GiB")
+        except Exception as exc:
+            notes.append(f"⚠️ 显存预清理跳过（不影响运行）：{exc}")
+
         t0 = time.time()
         h, w = int(images.shape[1]), int(images.shape[2])
         msg = (f"人脸精修V2(全脸) 开始执行：{n} 帧 {w}x{h}  "
@@ -508,7 +528,8 @@ class FxAiFaceRestoreLiteV2:
         if swap_fail:
             rep.append(f"⚠️ 有 {swap_fail} 张换脸失败，已退回纯超分结果")
         if sr_fail:
-            rep.append(f"⚠️ 有 {sr_fail} 张脸超分失败已降级")
+            rep.append(f"⚠️ 有 {sr_fail} 张脸超分失败，已退回插值 —— "
+                       f"这部分脸会比预期糊。显存不够时会出现，先腾显存再跑")
         rep.append(f"算力：检测 {det.device} / 超分 "
                    f"{f'GPU(bf16) {sr_engine.device}' if sr_engine else 'CPU'}")
         if swapper is not None:

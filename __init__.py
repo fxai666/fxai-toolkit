@@ -135,7 +135,7 @@ NODE_REGISTRY = [
     ("FxAiMiniMaxResampleCond","fxai_minimax_image_to_video_v2", "凤希AI - MiniMax二采正向条件"),
     ("FxAiMiniMaxVideoSave",   "fxai_minimax_video_save",        "凤希AI - MiniMax视频保存"),
     ("FxAiMiniMaxVideoSaveV2", "fxai_minimax_video_save_v2",     "凤希AI - MiniMax视频保存V2"),
-    ("FxAiMiniMaxVideoSaveV3", "fxai_minimax_video_save_v3",     "凤希AI - 视频保存V3"),
+    ("FxAiVideoSaveV1",         "fxai_video_save",              "凤希AI - 视频保存V1"),
     ("FxAiMiniMaxBlockCache", "fxai_minimax_block_cache",       "凤希AI - MiniMax块缓存加速"),
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
     ("FxAiVideoGeneratorV2",      "fxai_video_generator_v2",    "凤希AI - 视频生成V2"),
