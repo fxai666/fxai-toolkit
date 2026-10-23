@@ -268,8 +268,8 @@ def _paste(dst, patch, box, mask, strength=1.0):
 def _color_match(patch, ref, mask, strength):
     """把换脸后的肤色拉回原脸。
 
-    inswapper 在 128 空间重建整张脸，肤色跟着参考脸走，放到暗光镜头里
-    就是一张发白的面具。这里只对齐均值、保持方差不变，原脸的明暗层次得以保留。
+    inswapper 在 128 空间重建整张脸（hyperswap 是 256，同一类问题），肤色跟着参考脸走，
+    放到暗光镜头里就是一张发白的面具。这里只对齐均值、保持方差不变，原脸的明暗层次得以保留。
     """
     if strength <= 0:
         return patch
@@ -299,15 +299,15 @@ def _superres_batch(engine, crops_bgr, upscale, seed):
     return [cv2.resize(c, (w * upscale, h * upscale), interpolation=_INTERP) for c in crops_bgr]
 
 
-# ---- 换脸合成（inswapper_128）：由 _apply_swap 统一调用 ----
+# ---- 换脸合成（hyperswap / inswapper）：由 _apply_swap 统一调用 ----
 
 
 def _paste_scaled(fake_small, M, dst_bgr, s):
-    """按对齐矩阵贴回，但 fake 已被放大 s 倍（边长 = 128*s）。
+    """按对齐矩阵贴回，但 fake 已被放大 s 倍（边长 = size*s）。
 
-    M 把 dst 坐标映射到 128 空间；fake_small 在 s 倍空间里，
-    所以要先左乘一个 diag(s,s,1) 再求逆。s 取 fake_small 边长 / 128，
-    这样 crop_size 不是 128 时也不会错位。
+    M 把 dst 坐标映射到换脸模型的 size 空间；fake_small 在 s 倍空间里，
+    所以要先左乘一个 diag(s,s,1) 再求逆。s 取 fake_small 边长 / 模型 size，
+    这样换到 256 的模型时也不会错位。
     """
     h, w = dst_bgr.shape[:2]
     M3 = np.vstack([np.asarray(M, np.float32), [0.0, 0.0, 1.0]])
@@ -360,17 +360,17 @@ def _apply_swap(frame, orig, face, swapper, latent, mask_scale, feather,
     """把 inswapper 的结果合成到这张脸的区域，返回整帧。
 
     顺序有讲究：
-      1. 128 结果按对齐矩阵贴回（_paste_scaled 自带方形 cover）
+      1. 换脸结果按对齐矩阵贴回（_paste_scaled 自带方形 cover）
       2. 肤色回拉 —— 不拉的话暗光镜头里会是一张发白的面具
-      3. 纹理注入 —— 128 只有 128 空间的信息量，把超分救回来的高频叠回去，
+      3. 纹理注入 —— 换脸输出的信息量有上限（128/256 空间），把超分救回来的高频叠回去，
          否则换完比纯超分还糊
       4. 椭圆羽化收边 —— 方形 cover 边缘是硬的，这步把改动限制在脸区内
 
     frame 是已经超分的整帧，orig 是原帧：5 点对齐用原帧算，
     超分结果的几何与原帧有轻微偏移。
     """
-    fake128, M = swapper.algorithm(orig, face.kps, latent)
-    swapped, sel = _paste_scaled(fake128, M, frame, 1.0)
+    fake, M = swapper.algorithm(orig, face.kps, latent)
+    swapped, sel = _paste_scaled(fake, M, frame, 1.0)
     if not sel.any():
         return frame
     h, w = frame.shape[:2]

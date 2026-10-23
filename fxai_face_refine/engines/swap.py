@@ -5,25 +5,31 @@
 凤希AI 自研换脸引擎
 ===================
 
-只用 `inswapper_128.onnx` 这一个模型权重，前处理、对齐、推理、融合全部自己实现，
-不调用 `insightface.model_zoo.INSwapper` 的封装。
+两份权重，前处理、对齐、推理、融合全部自己实现，
+不调用 `insightface.model_zoo.INSwapper` 的封装：
+
+  hyperswap_1a_256.onnx   256×256，source 直接吃归一化的 arcface 向量   ← 有就用它
+  inswapper_128.onnx      128×128，source 要过一遍身份投影矩阵（emap）   ← 兜底
+
+实测（自己换自己，45 / 60 / 275px 三档）：256 那套身份略高、锐度高 40%、
+单张 13ms 对 24ms，所以模型在就用它，不在才退回 128。
 
 对外接口
 --------
-只做 `paste_back=False` 那部分：输出一张 128×128 的换脸结果 + 对齐矩阵，
+只做 `paste_back=False` 那部分：输出一张 size×size 的换脸结果 + 对齐矩阵，
 合成由调用方一次完成（下游用椭圆 mask 贴回，方形 mask 的合成产物会被丢弃）。
 
 身份投影矩阵（emap）从 ONNX 权重里读出后缓存成 .npy，后续加载直接复用，
-不重复解析整个 protobuf。
+不重复解析整个 protobuf。只有 inswapper 需要它。
 
 物理限制
 --------
-inswapper 是 128×128 的 GAN，输出只有 128 空间的信息量。贴回 512 的超分结果时，
-那块脸的纹理被限制在 128 空间 —— 超分救回来的细节会被换脸冲掉一部分。
+换脸模型输出的分辨率就是那张脸的信息量上限。贴回 512 的超分结果时，
+128 空间会把细节压掉一部分，256 空间好一些但仍不是无损。
 
 因此身份与纹理分开处理（`texture_keep` 参数）：
     final = 换脸结果 + (超分结果 - 低频(超分结果)) × texture_keep
-身份由 inswapper 决定，纹理由 VOSR2 决定，两者互不覆盖。texture_keep=0 为不注入。
+身份由换脸模型决定，纹理由 VOSR2 决定，两者互不覆盖。texture_keep=0 为不注入。
 """
 
 import os
@@ -106,13 +112,12 @@ def _umeyama_like(src, dst):
 
 
 class SwapEngine:
-    """inswapper_128 的轻封装：一次建 session，反复换脸。"""
+    """换脸模型的轻封装：一次建 session，反复换脸。"""
 
     def __init__(self, model_path, device_id=0, verbose=True):
         if not os.path.isfile(model_path):
             raise FileNotFoundError(f"找不到换脸模型：{model_path}")
         self.model_path = model_path
-        self.size = 128
 
         _ensure_cuda_dlls()
         import onnxruntime as ort
@@ -127,24 +132,39 @@ class SwapEngine:
         self.session = ort.InferenceSession(model_path, sess_options=so, providers=provs)
         self.in_names = [i.name for i in self.session.get_inputs()]
         self.out_names = [o.name for o in self.session.get_outputs()]
+
+        # 输入签名决定是哪一套：256 的直接吃 arcface 向量，128 的要先投影过 emap。
+        size = 128
+        for i in self.session.get_inputs():
+            if i.name == "target" and len(i.shape) == 4:
+                size = int(i.shape[2])
+        self.size = size
+        self.kind = "inswapper" if size == 128 else "hyperswap"
+        self.emap = _emap(model_path) if self.kind == "inswapper" else None
+
         self.providers = self.session.get_providers()
-        self.emap = _emap(model_path)
         self._src_latent = None
         self._src_emb = None
         if verbose:
             dev = "CUDA" if "CUDAExecutionProvider" in self.providers else "CPU"
-            print(f"[凤希AI·换脸] inswapper_128 就绪  {dev}  emap{self.emap.shape}")
+            print(f"[凤希AI·换脸] {os.path.basename(model_path)} 就绪  {dev}  {self.size}px")
 
     # ---- 身份 ----
     def encode_source(self, normed_embedding):
-        """把身份向量预计算成 512 维 latent（走 emap 映射 + 归一化）。
+        """把身份向量预计算成换脸模型要的 source。
+
+        inswapper 走 emap 投影；hyperswap 直接归一化就用。两者都要 L2 归一，
+        否则换出来的脸会随向量长度变化（亮度、对比度全飘）。
 
         多角色场景一次算好所有人的 latent 缓存着，每次换脸按需传入，
         就不用反复切换引擎的全局身份状态，也就不会串人。
         """
         emb = np.asarray(normed_embedding, dtype=np.float32).reshape(1, -1)
-        lat = np.dot(emb, self.emap)
-        lat /= np.linalg.norm(lat)
+        if self.kind == "inswapper":
+            lat = np.dot(emb, self.emap)
+            lat /= np.linalg.norm(lat)
+        else:
+            lat = emb / np.linalg.norm(emb)
         return lat.astype(np.float32)
 
     def set_source(self, normed_embedding):
@@ -158,9 +178,9 @@ class SwapEngine:
 
     # ---- 换脸 ----
     def algorithm(self, img_bgr, kps, src_latent=None):
-        """把脸对齐到 128 空间并推理，返回 (128×128 换脸结果 BGR, 2×3 对齐矩阵)。
+        """把脸对齐到 size 空间并推理，返回 (size×size 换脸结果 BGR, 2×3 对齐矩阵)。
 
-        对齐矩阵 M 把「原图坐标」映射到「128 空间坐标」，
+        对齐矩阵 M 把「原图坐标」映射到 size 空间坐标，
         调用方用 `cv2.invertAffineTransform(M)` 就能把结果贴回原图。
 
         src_latent: 指定这次用哪个身份（多人各换各的）。不给就用 set_source 设的那个。
@@ -171,32 +191,32 @@ class SwapEngine:
         import cv2
 
         dst = _TEMPLATE_128 * float(self.size)
-        # 关键点 -> 128 模板。方向必须一致：反了身份相似度从 0.89 掉到 0.06。
+        # 关键点 -> 模板。方向必须一致：反了身份相似度从 0.89 掉到 0.06。
         M = _umeyama_like(np.asarray(kps, dtype=np.float32).reshape(5, 2), dst)
         aligned = cv2.warpAffine(img_bgr, M, (self.size, self.size), borderValue=0.0)
 
         # HWC BGR uint8 -> NCHW RGB float32（等价 cv2.dnn.blobFromImage，但少一次中转）
         blob = np.ascontiguousarray(
             aligned[:, :, ::-1].transpose(2, 0, 1)[None], dtype=np.float32)
-        blob = (blob - 0.0) / 255.0
+        # inswapper 只除 255；hyperswap 是 mean/std 都是 0.5 的那套
+        blob = blob / 255.0 if self.kind == "inswapper" else (blob / 255.0 - 0.5) / 0.5
 
-        pred = self.session.run(self.out_names, {
-            self.in_names[0]: blob,
-            self.in_names[1]: latent,
-        })[0]
+        pred = self.session.run(self.out_names, {"target": blob, "source": latent})[0]
         fake = pred.transpose(0, 2, 3, 1)[0]
+        if self.kind == "hyperswap":
+            fake = fake * 0.5 + 0.5
         fake = np.clip(255.0 * fake, 0, 255).astype(np.uint8)[:, :, ::-1]
         return np.ascontiguousarray(fake), M
 
     def swap_face_only(self, img_bgr, kps):
-        """只要那张 128 的脸，不管贴回 —— 贴回由调用方用自己的 mask 做。"""
+        """只要那张换脸结果，不管贴回 —— 贴回由调用方用自己的 mask 做。"""
         return self.algorithm(img_bgr, kps)
 
 
 def get_swapper(model_path=None, device_id=0, verbose=True):
     if model_path is None:
         from . import paths
-        model_path = paths.inswapper_path()
+        model_path = paths.swapper_path()
 
     key = (model_path, int(device_id))
     with _LOCK:

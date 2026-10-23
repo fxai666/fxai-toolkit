@@ -12,9 +12,9 @@
 
 模型权重都是公开下载的，代码全部自己写。
 
-`swap.py`（换脸，inswapper_128）是可选引擎：模块级只 import os/threading/numpy，
-onnxruntime 在 `SwapEngine.__init__` 里才 lazy import，所以没装 onnxruntime
-或没放 inswapper_128.onnx 时也不影响超分链路启动。
+`swap.py`（换脸，hyperswap_1a_256 / inswapper_128）是可选引擎：模块级只 import
+os/threading/numpy，onnxruntime 在 `SwapEngine.__init__` 里才 lazy import，所以没装
+onnxruntime 或两个换脸权重都没有时也不影响超分链路启动。
 """
 
 from . import detect, paths, vosr2  # noqa: F401

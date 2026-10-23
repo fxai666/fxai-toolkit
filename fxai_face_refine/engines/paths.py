@@ -83,5 +83,24 @@ def inswapper_path():
     return os.path.join(insightface_root(), "models", "inswapper_128.onnx")
 
 
+def hyperswap_path():
+    return os.path.join(insightface_root(), "models", "hyperswap_1a_256.onnx")
+
+
+def swapper_path():
+    """换脸权重：环境变量指定 > hyperswap_1a_256 > inswapper_128。
+
+    两个都在时用 256 那套（实测身份略高、锐度高 40%、单张还快一半），
+    只有一个在就用那个，都没有就返回 inswapper 的路径让上层报错。
+    """
+    env = os.environ.get("FXAI_SWAP_MODEL")
+    if env and os.path.isfile(env):
+        return env
+    hyper = hyperswap_path()
+    if os.path.isfile(hyper):
+        return hyper
+    return inswapper_path()
+
+
 def buffalo_dir():
     return os.path.join(insightface_root(), "models", "buffalo_l")
