@@ -7,7 +7,7 @@
 
 给 `FxAiVideoLoad` 用的三个只读接口，前端弹窗（js/fxai_video_load_picker.js）靠它们渲染：
 
-    GET /fxai/video/browse?dir=<绝对目录>
+    GET /fxai/video/browse?dir=<绝对目录或相对 input 的路径>
         列目录：子目录 + 视频（带 index，和节点内部排序完全一致）
 
     GET /fxai/video/thumb?path=<绝对文件>&t=<时间戳>
@@ -80,6 +80,21 @@ def _safe_dir(raw):
         return d
     path = os.path.abspath(text)
     return path if _inside(path, base) else None
+
+
+def _resolve_dir(raw):
+    """选片窗口的起始目录。
+
+    分段器把「视频文件」存成 input 下的相对路径，整个值扔过来时 abspath 会按
+    进程工作目录解析成 I:\\ComfyUI\\xxx.mp4，弹窗就只剩一句「目录不存在」。
+    所以相对路径按 input 目录展开，指到具体文件就退一级。
+    """
+    text = str(raw or "").strip().strip('"')
+    if text and not os.path.isabs(text) and folder_paths is not None:
+        text = os.path.join(folder_paths.get_input_directory(), text)
+    if text and os.path.isfile(text):
+        text = os.path.dirname(text)
+    return _safe_dir(text)
 
 
 def _safe_file(raw):
@@ -201,7 +216,7 @@ def _make_thumb(video_path, out_path):
 # 路由
 # ----------------------------------------------------------------------------
 async def video_browse(request):
-    target = _safe_dir(request.query.get("dir", ""))
+    target = _resolve_dir(request.query.get("dir", ""))
     if target is None:
         return web.json_response({"error": "目录不在 ComfyUI 根目录内"}, status=403)
     if not os.path.isdir(target):

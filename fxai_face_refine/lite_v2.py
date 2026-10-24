@@ -26,6 +26,12 @@
 - 认谁：每张脸自动跟所有参考图比一次，最像谁就归谁，各换各的
 - 默认人物：`默认人物` 填 N，整帧一张脸又认不出时当成第 N 张写回（默认第 1 张，0 = 不写回）
 
+放大倍数（可选输入）
+--------------------
+两个脸宽门槛都是按**原图像素**标定的。上游「SeedVR2超分」超 N 倍后脸宽也变 N 倍，
+不换算的话 96 会把所有脸都判成「清晰跳过」，一张都不修。
+接上 `放大倍数` 后：`实际门槛 = 门槛 × 放大倍数`。不接 = 1.0，行为与以前完全一致。
+
 `lite.py` 是公共工具层（裁切 / 超分 / 贴回 / 换脸），节点类只在本文件。
 """
 
@@ -96,7 +102,9 @@ class FxAiFaceRestoreLiteV2:
                                "0 = 全片每张脸都处理。\n"
                                "V2 是「所有小于这个值的脸都修」，不是只修一张。\n"
                                "阈值附近有 15% 滞回：已经在修的胖到 ×1.15 才停，"
-                               "已经跳过的瘦到 ×0.85 才开修，防止脸在阈值上下抖时闪帧。"}),
+                               "已经跳过的瘦到 ×0.85 才开修，防止脸在阈值上下抖时闪帧。\n"
+                               "**接了「放大倍数」输入时，实际门槛 = 这一项 × 倍数**"
+                               "（96 × 2 = 192）。"}),
                 "裁切框边长": ("INT", {
                     "default": 0, "min": 0, "max": 512, "step": 16,
                     "tooltip": "裁切框边长（原图尺度）。**0 = 自动**：每张脸按自己的宽度算，"
@@ -144,7 +152,8 @@ class FxAiFaceRestoreLiteV2:
                                "121px 脸 纯超分 **+31.6%** / 换脸 −27.1%，换脸毁图。\n"
                                "脸 ≤85px 走 128 裁切框、放大 4 倍，超分信息不足；\n"
                                "脸 >85px 走 256 裁切框、放大 2 倍，超分自身够用。\n"
-                               "0 = 不判断，脸多大都换（不推荐）。"}),
+                               "0 = 不判断，脸多大都换（不推荐）。\n"
+                               "**接了「放大倍数」输入时，实际门槛 = 这一项 × 倍数**。"}),
                 "换脸强度": ("FLOAT", {
                     "default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05,
                     "tooltip": "换脸结果的合成强度。1.0 = 完全用换脸结果；"
@@ -177,6 +186,20 @@ class FxAiFaceRestoreLiteV2:
                                "它决定「这张脸算哪个角色」，也就是换成谁的脸。\n"
                                "不接也能正常跑：全部只超分，不换脸。",
                 }),
+                "放大倍数": ("FLOAT", {
+                    "default": 1.0, "min": 0.25, "max": 8.0, "step": 0.25,
+                    "forceInput": True,
+                    "tooltip": "**上游超分的实际倍数**，用来把脸宽门槛换算回原图尺度。\n"
+                               "不接 = 1.0，两个门槛按填的原值生效（老行为，完全不变）。\n"
+                               "接了「SeedVR2超分」节点的「放大倍数」输出后：\n"
+                               "  实际处理脸宽上限 = 处理脸宽上限 × 放大倍数\n"
+                               "  实际换脸脸宽上限 = 换脸脸宽上限 × 放大倍数\n"
+                               "**为什么需要**：这两个门槛是按**原图像素**标定的。"
+                               "超分 2 倍后脸宽也变 2 倍，不乘的话 96 的门槛会把所有脸都判成"
+                               "「清晰跳过」，一张都不修。\n"
+                               "| 倍数 | 门槛 |\n|---|---|\n"
+                               "| 1.5× | 144 |\n| 2× | 192 |\n| 3× | 288 |\n| 4× | 384 |",
+                }),
             },
         }
 
@@ -193,14 +216,15 @@ class FxAiFaceRestoreLiteV2:
         "【认谁】每张脸自动跟所有参考图比一次，最像谁就归谁，各换各的，没有主角。\n"
         "【默认人物】整帧一张脸、又认不出是谁时，当成第几张参考图那位写回（默认第 1 张，0 = 不写回）。\n"
         "【裁切】默认按每张脸自己的宽度自动定框，保证 裁切×倍数=512。\n"
-        "【防闪】阈值附近 15% 滞回，同一张脸不会一帧修一帧不修。"
+        "【防闪】阈值附近 15% 滞回，同一张脸不会一帧修一帧不修。\n"
+        "【放大倍数】接上游超分的实际倍数，两个脸宽门槛自动 ×N —— 不接就是 1，行为不变。"
     )
 
     def run(self, 输入帧=None, 处理脸宽上限=96, 裁切框边长=0, 超分倍数=4,
             超分引擎="自研超分 (VOSR2)", 遮罩比例=0.70, 羽化半径=0.045,
             身份相似度阈值=0.10, 默认人物=1,
             换脸脸宽上限=96, 换脸强度=1.0, 肤色回拉=0.60, 纹理保留=0.90,
-            随机种子=42, 批大小=4, 显卡编号=0, 参考图=None, **legacy):
+            随机种子=42, 批大小=4, 显卡编号=0, 参考图=None, 放大倍数=1.0, **legacy):
         # 兼容旧的英文参数名（老脚本直接调 run() 时不会因为改名而挂）
         if 输入帧 is None:
             输入帧 = legacy.get("images")
@@ -225,6 +249,26 @@ class FxAiFaceRestoreLiteV2:
         device_id, dev_warn = _resolve_device(显卡编号)
         notes = [dev_warn] if dev_warn else []
         dev = f"cuda:{device_id}"
+
+        # ---- 脸宽门槛换算到「当前画面」尺度 ----
+        # 两个门槛都是按**原图像素**标定的。上游超分 N 倍后脸宽也变 N 倍，
+        # 不乘这个系数的话 96 会把所有脸都判成「清晰跳过」，一张都不修。
+        # 不接「放大倍数」时 scale=1，行为跟以前一模一样。
+        try:
+            scale = float(放大倍数)
+        except (TypeError, ValueError):
+            scale = 1.0
+        if not (scale > 0):
+            scale = 1.0
+        scale = min(8.0, max(0.25, scale))
+        eff_lo = float(处理脸宽上限) * scale          # 0 乘完还是 0（= 全片都修）
+        eff_swap_max = float(换脸脸宽上限) * scale
+        if abs(scale - 1.0) > 1e-6:
+            notes.append(
+                f"放大倍数 {scale:g}：脸宽门槛换算 "
+                f"{int(处理脸宽上限)}→{eff_lo:.0f}px"
+                + (f" / {int(换脸脸宽上限)}→{eff_swap_max:.0f}px"
+                   if 换脸脸宽上限 > 0 else ""))
 
         # 前面节点（视频采样模型之类）可能还占着显存。启动参数带 --disable-smart-memory 时
         # ComfyUI 不会自动卸载它们，本节点又要把 VOSR2（1.39B）+ inswapper + buffalo_l
@@ -254,7 +298,7 @@ class FxAiFaceRestoreLiteV2:
         _bc(_EVT_START, {
             "message": msg, "阶段": "开始", "版本": "V2全脸",
             "帧数": n, "宽": w, "高": h, "参考图张数": len(ref_frames),
-            "引擎": engine, "处理脸宽上限": 处理脸宽上限,
+            "引擎": engine, "处理脸宽上限": eff_lo, "放大倍数": scale,
             "显卡编号": device_id, "批大小": 批大小,
         })
 
@@ -297,15 +341,15 @@ class FxAiFaceRestoreLiteV2:
         swap_strength = float(换脸强度)
         skin_pull = float(肤色回拉)
         texture_keep = float(纹理保留)
-        swap_max_face = int(换脸脸宽上限)
+        swap_max_face = int(round(eff_swap_max))
         if not refs:
             notes.append("没接参考图，认不出角色，本次只做超分")
         else:
-            if (swap_max_face > 0 and 处理脸宽上限 > 0
-                    and swap_max_face > 处理脸宽上限):
+            if (swap_max_face > 0 and eff_lo > 0
+                    and swap_max_face > eff_lo):
                 notes.append(f"⚠️ 换脸脸宽上限 {swap_max_face} > 处理脸宽上限 "
-                             f"{处理脸宽上限}，实际按 {处理脸宽上限} 生效")
-                swap_max_face = 处理脸宽上限
+                             f"{eff_lo:.0f}，实际按 {eff_lo:.0f} 生效")
+                swap_max_face = int(round(eff_lo))
             try:
                 from .engines import swap as fx_swap
                 swapper = fx_swap.get_swapper(device_id=device_id)
@@ -331,7 +375,7 @@ class FxAiFaceRestoreLiteV2:
                     swapper = None
 
         # ---- 2) 逐帧检测：所有脸都要，只看够不够小 ----
-        lo = float(处理脸宽上限) if 处理脸宽上限 > 0 else 0.0
+        lo = eff_lo
         pbar = ProgressBar(n)
         frames_bgr = []
         tasks = []          # [(帧号, Face, 角色下标)]   角色下标 -1 = 只超分不换脸
@@ -394,7 +438,7 @@ class FxAiFaceRestoreLiteV2:
                     else:
                         owner["其他/未归属"] += 1
                 # 修不修：主判据是脸宽，卡在阈值附近时带上滞回
-                if 处理脸宽上限 <= 0:
+                if lo <= 0:
                     do_it = True
                 else:
                     # 找上一帧位置最重叠的那张脸，看它当时修没修
@@ -424,10 +468,16 @@ class FxAiFaceRestoreLiteV2:
         if not tasks:
             rep = notes + [
                 f"帧数 {n}   没有需要修的脸",
-                (f"清晰跳过 {skip_clear} 张脸（脸 ≥ {处理脸宽上限}px）"
+                (f"清晰跳过 {skip_clear} 张脸（脸 ≥ {eff_lo:.0f}px）"
                  if skip_clear else "全片没检出可用的人脸"),
                 "已原样返回。想让清楚的脸也过一遍，把 处理脸宽上限 调大或设 0。",
             ]
+            if skip_clear and eff_lo > 0:
+                rep.append(
+                    f"提示：当前有效门槛 {eff_lo:.0f}px"
+                    + (f"（= {int(处理脸宽上限)} × 放大倍数 {scale:g}）"
+                       if abs(scale - 1.0) > 1e-6 else "")
+                    + "。如果这个数不对，检查「放大倍数」接的是不是上游的真实倍数。")
             res = (images, "\n".join(rep))
             _bc_done(res, t0)
             return res
@@ -506,9 +556,9 @@ class FxAiFaceRestoreLiteV2:
             f"共修 {len(tasks)} 张脸（{n} 帧，平均 {len(tasks) / n:.2f} 张/帧）",
         ]
         if skip_clear:
-            rep.append(f"清晰跳过 {skip_clear} 张脸（脸 ≥ {处理脸宽上限}px，整张不动，省算力）")
+            rep.append(f"清晰跳过 {skip_clear} 张脸（脸 ≥ {eff_lo:.0f}px，整张不动，省算力）")
         if hyst_hold:
-            rep.append(f"滞回保持 {hyst_hold} 张（脸宽在 {处理脸宽上限}px 附近抖动，"
+            rep.append(f"滞回保持 {hyst_hold} 张（脸宽在 {eff_lo:.0f}px 附近抖动，"
                        f"按上一帧状态走，不跟着闪）")
         if refs:
             rep.append("参考图归属：")

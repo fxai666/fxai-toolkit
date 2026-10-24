@@ -86,7 +86,7 @@
         {
           "localized_name": "帧率(FPS)",
           "name": "帧率(FPS)",
-          "type": "FLOAT",
+          "type": "INT",
           "links": [
             4
           ]
@@ -218,7 +218,7 @@
         {
           "localized_name": "帧率FPS",
           "name": "帧率FPS",
-          "type": "FLOAT",
+          "type": "INT",
           "widget": {
             "name": "帧率FPS"
           },
@@ -737,7 +737,7 @@
       4,
       5,
       3,
-      "FLOAT"
+      "INT"
     ]
   ],
   "groups": [

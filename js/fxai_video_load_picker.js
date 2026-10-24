@@ -394,6 +394,9 @@ import { api } from "../../scripts/api.js";
     }
 
     // ---------------------------------------------------------------- 节点 UI
+    // 视频分段器V1 的面板也要弹同一个选片窗口，挂到 window 上给它用
+    window.FxAiVideoPicker = openVideoPicker;
+
     function getWidget(node, name) {
         return (node.widgets || []).find(function (w) { return w.name === name; });
     }

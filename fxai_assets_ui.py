@@ -8,8 +8,9 @@
 
 - **上传 / 新建文件夹**：直接复用 fxai_api_utils 已有的接口，这里不重复实现
     POST /fxai/image/upload   (field: image,  subdir)
+    POST /fxai/image/v2/upload(field: image,  subdir, 可选 overwrite + filename)
     POST /fxai/audio/upload   (field: audio,  subdir)
-    POST /fxai/video/upload   (field: video,  subdir)
+    POST /fxai/video/upload   (field: video,  subdir, 可选 overwrite + filename)
     POST /fxai/folders/create (query: subdir, folder)
 - **列表 / 缩略图 / 预览 / 删除 / 改名 / 移动 / 回收站**：由本文件提供。
   注意：这里刻意**不做**「删除后自动重编号」——素材库是文件管理语义，

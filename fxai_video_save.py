@@ -32,14 +32,14 @@ class FxAiVideoSaveV1:
                 "图片序列": ("IMAGE",),
                 "视频序号": ("INT", {"default": -1, "min": -1}),
                 "保存目录": ("STRING", {"default": "sucai"}),
-                "帧率FPS": ("FLOAT", {"default": 24.0, "min": 1.0, "max": 240.0, "step": 1.0}),
+                "帧率FPS": ("INT", {"default": 24, "min": 1, "max": 240, "step": 1}),
             },
             "optional": {
                 "音频": ("AUDIO",),
             },
         }
 
-    def run(self, 图片序列, 视频序号=-1, 保存目录="sucai", 帧率FPS=24.0, 音频=None):
+    def run(self, 图片序列, 视频序号=-1, 保存目录="sucai", 帧率FPS=24, 音频=None):
         if 图片序列 is None:
             return (图片序列, "", "")
 

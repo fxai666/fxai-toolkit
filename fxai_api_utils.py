@@ -1229,6 +1229,11 @@ async def video_upload(request):
         videos = data.getall("video")
         subdir = data.get("subdir", "")
 
+        # 覆盖模式：传 overwrite=true(或 1/yes/覆盖) + filename=<指定文件名> → 直接覆盖该文件名（不递增）
+        _ov = str(data.get("overwrite", "false")).strip().lower()
+        overwrite = _ov in ("1", "true", "yes", "覆盖", "y")
+        filename_arg = (data.get("filename", "") or "").strip()
+
         if not videos:
             return web.json_response({"error": "未上传有效视频"}, status=400)
 
@@ -1245,7 +1250,17 @@ async def video_upload(request):
             file_list = _video_list_videos(target_dir)
             next_num = len(file_list)
 
-            new_filename = f"{next_num:03d}_{original_filename}"
+            if overwrite and filename_arg:
+                # 覆盖模式：用调用方指定的文件名（剥离非法字符，扩展名沿用上传文件），直接覆盖同名文件
+                _base = re.sub(r'[\\/*?:"<>|]', "", os.path.splitext(filename_arg)[0])
+                _ext = os.path.splitext(original_filename)[1].lower()
+                if _ext not in EXT_VIDEO:
+                    _ext = '.mp4'
+                if not _base:
+                    _base = f"{next_num:03d}"
+                new_filename = f"{_base}{_ext}"
+            else:
+                new_filename = f"{next_num:03d}_{original_filename}"
 
             save_path = _safe_path_join(target_dir, new_filename)
             with open(save_path, "wb") as f:
@@ -1945,6 +1960,55 @@ async def audio_segments_v2_waveform(request):
     except Exception as e:
         return web.json_response({"error": str(e)}, status=400)
 
+# ===================== 视频分段 API =====================
+from .fxai_video_utils import (
+    filmstrip_path,
+    make_filmstrip,
+    probe_video,
+    rel_video_path,
+    resolve_video_path,
+)
+
+async def video_segments_v2_info(request):
+    try:
+        path = resolve_video_path(request.query.get("path", ""))
+        info = probe_video(path)
+        info["name"] = os.path.basename(path)
+        info["rel"] = rel_video_path(path)
+        return web.json_response(info)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=400)
+
+async def video_segments_v2_file(request):
+    """面板播放用。不夹在 ComfyUI 根目录内——分段器本来就允许填任意盘的视频，
+    这里再卡根目录，外盘素材就没法在面板上预览了。"""
+    try:
+        path = resolve_video_path(request.query.get("path", ""))
+        return web.FileResponse(path, headers={"Cache-Control": "no-store"})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=400)
+
+async def video_segments_v2_strip(request):
+    try:
+        path = resolve_video_path(request.query.get("path", ""))
+        tiles = int(request.query.get("tiles", "40"))
+        info = probe_video(path)
+        out = filmstrip_path(path, tiles)
+        stale = True
+        if os.path.isfile(out):
+            try:
+                stale = os.path.getmtime(out) < os.path.getmtime(path)
+            except Exception:
+                stale = True
+        if stale:
+            loop = asyncio.get_event_loop()
+            ok = await loop.run_in_executor(None, make_filmstrip, path, out, info["duration"], tiles)
+            if not ok:
+                return web.json_response({"error": "抽帧失败，视频可能损坏"}, status=404)
+        return web.FileResponse(out, headers={"Cache-Control": "max-age=600"})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=400)
+
 # ===================== 角色管理 API =====================
 from .fxai_character_profile_manager import (
     list_characters as _char_list,
@@ -2104,6 +2168,11 @@ try:
     PromptServer.instance.routes.get("/fxai/audio-waveform")(audio_segments_waveform)
     PromptServer.instance.routes.get("/fxai/audio/segments/file")(audio_segments_v2_file)
     PromptServer.instance.routes.get("/fxai/audio/segments/waveform")(audio_segments_v2_waveform)
+
+    # 视频分段
+    PromptServer.instance.routes.get("/fxai/video/segments/info")(video_segments_v2_info)
+    PromptServer.instance.routes.get("/fxai/video/segments/strip")(video_segments_v2_strip)
+    PromptServer.instance.routes.get("/fxai/video/segments/file")(video_segments_v2_file)
 
     # 角色管理
     PromptServer.instance.routes.get("/fxai/characters/list")(character_list)
