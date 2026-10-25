@@ -1,12 +1,19 @@
-"""fxai 自研多卡并行（张量并行，零 NCCL，Windows 原生）。
+"""fxai 自研多卡并行（零 NCCL，Windows 原生）。
 
-模块分工：
-    exchange  跨卡传输层（pinned host 中转 + 双流 + Barrier）
-    block     并行 DiTBlock（切头 / 切 ffn，int8 逐位等价）
-    devices   探测、选卡、显存预算
-    planner   按模型体积决定放置策略（全 GPU / 卸 CPU / 流式）
-    offload   「每步只算一次」模块的 CPU 常驻执行器
-    runner    把上面这些装到已加载的 MiniMaxH3Model 上
+骨架与模型无关，换模型只需另写一个 runner：
+
+    通用层
+      exchange  跨卡传输层（pinned host 中转 + 双流 + Barrier）
+      block     ParallelDiTBlock / ShardLinear（切头、切 ffn，int8 逐位等价）
+      devices   探测、选卡、显存预算
+      planner   按权重体积决定放置（全 GPU / 卸 CPU / 流式）
+      offload   「每步只算一次」模块的 CPU 常驻执行器
+
+    MiniMax H3 绑定
+      planner.classify_h3   H3 的权重分类器
+      runner                H3ParallelRunner / install_parallel
+
+接新模型 = 写一个 classify_xxx + 一个 Runner，上面五层原样复用。
 """
 from .exchange import HostExchange, UnevenSplitError, split_sizes          # noqa: F401
 from .block import (ParallelDiTBlock, ShardLinear, check_split,            # noqa: F401
