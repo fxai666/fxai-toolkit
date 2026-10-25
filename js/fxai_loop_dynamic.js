@@ -7,6 +7,12 @@
  *
  * 只动前端显示，不动 API 契约：槽位名仍是 initial_value1 / value1，
  * 所以老工作流一个字节都不用改。
+ *
+ * 两个硬约束（都在真实浏览器里量过）：
+ *   1. total / condition 这类「控件连接点」会被 ComfyUI 追加在动态槽位**后面**，
+ *      所以动态槽位不一定在尾部，必须按真实索引删，不能假设「从尾部收」。
+ *   2. 直接 splice(node.inputs) 会把连线弄丢；只有 removeInput / addInput
+ *      会顺带修好 link 的 target_slot 索引。所以只能「按索引删 + 末尾追加」，不能重排。
  */
 import { app } from "../../scripts/app.js";
 
@@ -14,11 +20,28 @@ const ANY = "*";
 
 // offset: 第 0 个动态槽位的数字后缀（for 从 1 数，while 从 0 数）
 // fixedOut: 非动态输出（flow / index），它们不参与裁剪
+// inLabel / outLabel: 左进右出各自的中文名
 const CFG = {
-    FxAiForLoopStart: { offset: 1, max: 19, fixedOut: ["flow", "index"], widgetLabels: { total: "循环次数" } },
-    FxAiForLoopEnd: { offset: 1, max: 19, fixedOut: [], widgetLabels: {} },
-    FxAiWhileLoopStart: { offset: 0, max: 20, fixedOut: ["flow"], widgetLabels: { condition: "条件" } },
-    FxAiWhileLoopEnd: { offset: 0, max: 20, fixedOut: [], widgetLabels: { condition: "条件" } },
+    FxAiForLoopStart: {
+        offset: 1, max: 19, fixedOut: ["flow", "index"],
+        inLabel: "初始值", outLabel: "过程值",
+        widgetLabels: { total: "循环次数" },
+    },
+    FxAiForLoopEnd: {
+        offset: 1, max: 19, fixedOut: [],
+        inLabel: "过程值", outLabel: "输出值",
+        widgetLabels: {},
+    },
+    FxAiWhileLoopStart: {
+        offset: 0, max: 20, fixedOut: ["flow"],
+        inLabel: "初始值", outLabel: "过程值",
+        widgetLabels: { condition: "条件" },
+    },
+    FxAiWhileLoopEnd: {
+        offset: 0, max: 20, fixedOut: [],
+        inLabel: "过程值", outLabel: "输出值",
+        widgetLabels: { condition: "条件" },
+    },
 };
 
 const IN_LABEL = { flow: "循环体", condition: "条件" };
@@ -27,11 +50,40 @@ const OUT_LABEL = { flow: "循环体", index: "序号" };
 const isDynIn = (s) => s && typeof s.name === "string" && s.name.startsWith("initial_value");
 const isDynOut = (s) => s && typeof s.name === "string" && s.name.startsWith("value");
 
+// link / links 在新前端是废弃字段（控制台会告警），优先用官方判定
+function inConnected(node, i) {
+    if (typeof node.isInputConnected === "function") {
+        return node.isInputConnected(i);
+    }
+    const s = node.inputs[i];
+    return !!(s && (s.link != null || (s.linkIds && s.linkIds.length)));
+}
+
+function outConnected(node, i) {
+    if (typeof node.isOutputConnected === "function") {
+        return node.isOutputConnected(i);
+    }
+    const s = node.outputs[i];
+    return !!(s && s.links && s.links.length);
+}
+
+// 下一个该用的数字后缀。中间可能有被保留下来的空洞，按最大值往上接最稳
+function nextOrdinal(dyn, prefix, offset) {
+    let max = -1;
+    for (const s of dyn) {
+        const n = parseInt(s.name.slice(prefix.length), 10);
+        if (!isNaN(n) && n > max) {
+            max = n;
+        }
+    }
+    return max < 0 ? offset : max + 1;
+}
+
 function applyLabels(node, cfg) {
     let n = 0;
     for (const s of node.inputs || []) {
         if (isDynIn(s)) {
-            s.label = "值" + ++n;
+            s.label = cfg.inLabel + ++n;
         } else if (IN_LABEL[s.name]) {
             s.label = IN_LABEL[s.name];
         }
@@ -39,7 +91,7 @@ function applyLabels(node, cfg) {
     n = 0;
     for (const s of node.outputs || []) {
         if (isDynOut(s)) {
-            s.label = "值" + ++n;
+            s.label = cfg.outLabel + ++n;
         } else if (OUT_LABEL[s.name]) {
             s.label = OUT_LABEL[s.name];
         }
@@ -57,58 +109,62 @@ function sync(node, cfg) {
         return;
     }
 
-    // 动态输入始终是尾部连续的一段，用位置当「第几个」最稳
-    const dyn = node.inputs.filter(isDynIn);
+    // ---- 输入 ----
+    let dyn = node.inputs.filter(isDynIn);
     let lastUsed = -1;
-    for (let i = 0; i < dyn.length; i++) {
-        if (dyn[i].link != null) {
-            lastUsed = i;
+    for (let k = 0; k < dyn.length; k++) {
+        if (inConnected(node, node.inputs.indexOf(dyn[k]))) {
+            lastUsed = k;
         }
     }
-
     // 用了 n 个就显示 n+1 个（末尾留一个空槽给下一次接）
     const want = Math.min(Math.max(lastUsed + 2, 1), cfg.max);
 
-    // 1) 从尾部收掉多余的，只收没接线的
-    while (dyn.length > want) {
-        const idx = node.inputs.length - 1;
-        const slot = node.inputs[idx];
-        if (!isDynIn(slot) || slot.link != null) {
-            break;
+    // 多的收掉：从后往前，只收没接线的
+    for (let k = dyn.length - 1; k >= want; k--) {
+        const idx = node.inputs.indexOf(dyn[k]);
+        if (idx < 0 || inConnected(node, idx)) {
+            continue;
         }
         node.removeInput(idx);
-        dyn.pop();
     }
 
-    // 2) 不够就补，名字按 offset 递增
+    // 不够就补
+    dyn = node.inputs.filter(isDynIn);
     while (dyn.length < want) {
-        const slot = node.addInput("initial_value" + (cfg.offset + dyn.length), ANY);
+        const name = "initial_value" + nextOrdinal(dyn, "initial_value", cfg.offset);
+        const slot = node.addInput(name, ANY);
         if (!slot) {
             break;
         }
         dyn.push(slot);
     }
 
-    // 3) 输出跟着输入数量走
+    // ---- 输出（跟着输入数量走）----
     const wantOut = cfg.fixedOut.length + want;
-    while (node.outputs.length > wantOut) {
-        const idx = node.outputs.length - 1;
-        const slot = node.outputs[idx];
-        if (!isDynOut(slot) || (slot.links && slot.links.length)) {
-            break;
+
+    let dynOut = node.outputs.filter(isDynOut);
+    for (let k = dynOut.length - 1; k >= want; k--) {
+        const idx = node.outputs.indexOf(dynOut[k]);
+        if (idx < 0 || outConnected(node, idx)) {
+            continue;
         }
         node.removeOutput(idx);
     }
-    while (node.outputs.length < wantOut) {
-        const ordinal = node.outputs.length - cfg.fixedOut.length;
-        if (!node.addOutput("value" + (cfg.offset + ordinal), ANY)) {
+
+    dynOut = node.outputs.filter(isDynOut);
+    while (dynOut.length < wantOut - cfg.fixedOut.length) {
+        const name = "value" + nextOrdinal(dynOut, "value", cfg.offset);
+        const slot = node.addOutput(name, ANY);
+        if (!slot) {
             break;
         }
+        dynOut.push(slot);
     }
 
     applyLabels(node, cfg);
 
-    // 4) 槽位变了高度要跟上，宽度只增不减（别抢用户拉好的宽度）
+    // 槽位变了高度要跟上，宽度只增不减（别抢用户拉好的宽度）
     try {
         const size = node.computeSize();
         node.setSize([Math.max(node.size[0], size[0]), size[1]]);
