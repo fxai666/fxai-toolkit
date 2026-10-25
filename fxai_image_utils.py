@@ -4,6 +4,21 @@ import torch
 import numpy as np
 from PIL import Image
 
+
+# ===================== 张量 ↔ PIL（全包共用一份） =====================
+def tensor_to_pil(img):
+    """[H,W,C] 或 [1,H,W,C] 的 float 0~1 张量 -> PIL。"""
+    if img.dim() == 4:
+        img = img[0]
+    arr = (img.cpu().numpy() * 255.0).clip(0, 255).astype(np.uint8)
+    return Image.fromarray(arr)
+
+
+def pil_to_tensor(img):
+    """PIL -> [1,H,W,C] 的 float 0~1 张量。"""
+    return torch.from_numpy(np.array(img).astype(np.float32) / 255.0)[None]
+
+
 class ImageSizeController:
     """图片宽高控制类 - 统一管理图片尺寸、缩放、拼接逻辑"""
     # 默认画布尺寸（可通过初始化覆盖）
@@ -177,7 +192,7 @@ class ImageSizeController:
         """网格拼接图片列表（自动统一尺寸 + 补全网格空白）"""
         n = len(images_list)
         if n == 0:
-            raise ValueError("图片列表不能为空")
+            raise ValueError("图片列表为空，请先接入图片")
 
         processed = [self.crop_fill_to_canvas(img) for img in images_list]
 

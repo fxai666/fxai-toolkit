@@ -203,6 +203,22 @@ NODE_REGISTRY = [
     # 人脸精修 · 轻量链 V2（自研：参考图多角色匹配 + inswapper 换脸 + VOSR2 超分 + 羽化贴回）
     # V1 与「参考脸提取预览」已于 2026-10-24 下线，能力全部并入 V2。
     ("FxAiFaceRestoreLiteV2",     "fxai_face_refine",        "凤希AI - 人脸精修 · 轻量链 V2（全脸）"),
+
+    # 循环 / 逻辑 / 清理（自研）
+    ("FxAiForLoopStart",          "fxai_loop",               "凤希AI - 循环开始（计数）"),
+    ("FxAiForLoopEnd",            "fxai_loop",               "凤希AI - 循环结束（计数）"),
+    ("FxAiWhileLoopStart",        "fxai_loop",               "凤希AI - 循环开始（条件）"),
+    ("FxAiWhileLoopEnd",          "fxai_loop",               "凤希AI - 循环结束（条件）"),
+    ("FxAiMathInt",               "fxai_loop",               "凤希AI - 整数运算"),
+    ("FxAiCompare",               "fxai_loop",               "凤希AI - 比较"),
+    ("FxAiIfElse",                "fxai_loop",               "凤希AI - 条件选择"),
+    ("FxAiSimpleMath",            "fxai_loop",               "凤希AI - 公式计算"),
+    ("FxAiString",                "fxai_loop",               "凤希AI - 字符串"),
+    ("FxAiImageScaleDown",        "fxai_loop",               "凤希AI - 图片缩放到尺寸"),
+    ("FxAiImageConcat",           "fxai_loop",               "凤希AI - 图片拼接"),
+    ("FxAiLoraNames",             "fxai_loop",               "凤希AI - LoRA名称选择"),
+    ("FxAiCleanGpu",              "fxai_loop",               "凤希AI - 清理显存"),
+    ("FxAiClearCache",            "fxai_loop",               "凤希AI - 清理缓存"),
 ]
 
 NODE_CLASS_MAPPINGS = {}
@@ -219,6 +235,7 @@ for class_name, module_name, display_name in NODE_REGISTRY:
         NODE_DISPLAY_NAME_MAPPINGS[class_name] = display_name
     except Exception as e:
         print(f"❌[凤希AI] 节点加载失败: {display_name} → {str(e)}")
+
 
 # Web 扩展
 WEB_DIRECTORY = "./js"
