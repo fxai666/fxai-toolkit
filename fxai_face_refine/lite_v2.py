@@ -24,13 +24,15 @@
 --------
 - 换脸：参考图里匹配上的角色各换各的，`换脸脸宽上限` 之内才换
 - 认谁：每张脸自动跟所有参考图比一次，最像谁就归谁，各换各的
+- 性别：参考图的性别先判出来，男脸只在男角色里比、女脸只在女角色里比；
+  判不出性别或该性别没有参考图时退回全部角色（远景小脸常常判不出，退回去比空着好）
 - 默认人物：`默认人物` 填 N，整帧一张脸又认不出时当成第 N 张写回（默认第 1 张，0 = 不写回）
 
 放大倍数（可选输入）
 --------------------
 两个脸宽门槛都是按**原图像素**标定的。上游「SeedVR2超分」超 N 倍后脸宽也变 N 倍，
 不换算的话 96 会把所有脸都判成「清晰跳过」，一张都不修。
-接上 `放大倍数` 后：`实际门槛 = 门槛 × 放大倍数`。不接 = 1.0，行为与以前完全一致。
+接上 `放大倍数` 后：`实际门槛 = 门槛 × 放大倍数`。不接 = 1.0，两个门槛按填的原值生效。
 
 `lite.py` 是公共工具层（裁切 / 超分 / 贴回 / 换脸），节点类只在本文件。
 """
@@ -85,6 +87,23 @@ def _iou(a, b) -> float:
     inter = iw * ih
     ua = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
     return inter / ua if ua > 0 else 0.0
+
+
+def _sex_cand(refs, sex):
+    """按性别收窄角色候选：refs 是 [(名字, 向量, 性别)]，返回下标列表。
+
+    只在「这个性别在参考图里确实有人」时才收窄 —— 男脸只跟男角色比，
+    女脸只跟女角色比。收窄后远景小脸不至于被异性角色抢走名额，而这正是
+    身份相似度最不可靠（0.02~0.20）的场景。
+
+    两种情况退回全部角色，宁可比错也不比空：
+    - 性别判不出来（远景/侧脸，性别模型输出不可信）→ sex is None
+    - 这个性别一张参考图都没有（比如只接了男主，画面里出现女配）
+    """
+    if sex is None:
+        return list(range(len(refs)))
+    idx = [i for i, (_n, _e, s) in enumerate(refs) if s == sex]
+    return idx or list(range(len(refs)))
 
 
 class FxAiFaceRestoreLiteV2:
@@ -184,6 +203,8 @@ class FxAiFaceRestoreLiteV2:
                     "tooltip": "**认人用**：接一张 = 一个角色；接多张 = 多个角色，各换各的。\n"
                                "**不影响修不修** —— 所有 <处理脸宽上限 的脸都会超分；\n"
                                "它决定「这张脸算哪个角色」，也就是换成谁的脸。\n"
+                               "**按性别收窄**：参考图的性别会先判出来，男脸只跟男角色比、\n"
+                               "女脸只跟女角色比；判不出性别或这个性别没有参考图时退回全部角色。\n"
                                "不接也能正常跑：全部只超分，不换脸。",
                 }),
                 "放大倍数": ("FLOAT", {
@@ -214,6 +235,8 @@ class FxAiFaceRestoreLiteV2:
         "没匹配上的只超分，绝不会被换成别人的脸。\n"
         "【参考图】接上才换脸；不接也能跑（全部只超分）。\n"
         "【认谁】每张脸自动跟所有参考图比一次，最像谁就归谁，各换各的，没有主角。\n"
+        "【性别】参考图的性别先判出来，男脸只在男角色里比、女脸只在女角色里比；"
+        "判不出性别或该性别没有参考图时退回全部角色。\n"
         "【默认人物】整帧一张脸、又认不出是谁时，当成第几张参考图那位写回（默认第 1 张，0 = 不写回）。\n"
         "【裁切】默认按每张脸自己的宽度自动定框，保证 裁切×倍数=512。\n"
         "【防闪】阈值附近 15% 滞回，同一张脸不会一帧修一帧不修。\n"
@@ -253,7 +276,7 @@ class FxAiFaceRestoreLiteV2:
         # ---- 脸宽门槛换算到「当前画面」尺度 ----
         # 两个门槛都是按**原图像素**标定的。上游超分 N 倍后脸宽也变 N 倍，
         # 不乘这个系数的话 96 会把所有脸都判成「清晰跳过」，一张都不修。
-        # 不接「放大倍数」时 scale=1，行为跟以前一模一样。
+        # 不接「放大倍数」时 scale=1，两个门槛按填的原值生效。
         try:
             scale = float(放大倍数)
         except (TypeError, ValueError):
@@ -306,31 +329,34 @@ class FxAiFaceRestoreLiteV2:
         sr_engine = fx_vosr.get_engine(device=dev) if engine == "vosr2" else None
 
         # ---- 1) 参考图身份：既做归属统计，也做默认人物 ----
-        refs = []      # [(名字, 向量)]
+        refs = []      # [(名字, 向量, 性别)]
         for k, rf in enumerate(ref_frames):
             rb = _t2bgr(rf)
             f = det.detect(rb, order=0)
             if f is None or f.embedding is None:
                 notes.append(f"⚠️ 参考图 #{k} 没检测到人脸，已跳过")
                 continue
-            refs.append((f"参考#{k}", f.embedding))
+            refs.append((f"参考#{k}", f.embedding, f.sex))
 
-        # 角色表：refs 里每个 (名字, 向量) 就是一个角色。正常路径是每张脸跟所有
-        # 参考图比一次、最像谁就归谁，没有「主角」这个概念。
+        # 角色表：refs 里每个 (名字, 向量, 性别) 就是一个角色。正常路径是每张脸跟
+        # 所有参考图比一次、最像谁就归谁，没有「主角」这个概念。
+        # 性别在参考图里能判出来时先收窄候选（见 _sex_cand），再在里面比相似度。
         # 默认人物 只在整帧一张都没过判定线时用：拿指定的那张参考图写回。
         # 参数从 1 数起，取索引减 1，和用户数图的方式对齐；0 = 不写回。
         fb_k = -1
         want_fb = int(默认人物)
         if want_fb > 0 and refs:
-            fb_k = next((j for j, (nm, _e) in enumerate(refs)
+            fb_k = next((j for j, (nm, _e, _s) in enumerate(refs)
                          if nm == f"参考#{want_fb - 1}"), -1)
             if fb_k < 0:
                 notes.append(f"⚠️ 默认人物={want_fb} 不可用"
                              f"（没这张或这张没检出人脸），认不出时不写回")
         gate = float(身份相似度阈值)
         if refs:
+            sex_tag = "".join(
+                {"M": "男", "F": "女"}.get(s, "?") for _n, _e, s in refs)
             notes.append(
-                f"认人：{len(refs)} 个角色，判定线 {身份相似度阈值:.2f}"
+                f"认人：{len(refs)} 个角色（{sex_tag}），判定线 {身份相似度阈值:.2f}"
                 + (f"；认不出时按 参考#{want_fb - 1} 写回" if fb_k >= 0 else "；认不出不写回"))
 
         # ---- 换脸（默认开）：匹配上参考图的每张脸都换，匹配不上的只超分 ----
@@ -359,7 +385,7 @@ class FxAiFaceRestoreLiteV2:
             if swapper is not None:
                 # 每个角色换自己：把糊脸换成同一个人的清晰版本。
                 # 画面里是谁还是谁，绝不会被换成别人。
-                for k, (nm, _e) in enumerate(refs):
+                for k, (nm, _e, _s) in enumerate(refs):
                     ref_i = int(nm.split("#")[1])
                     tf = det.detect(_t2bgr(ref_frames[ref_i]), order=0)
                     if tf is None or tf.embedding is None:
@@ -386,7 +412,7 @@ class FxAiFaceRestoreLiteV2:
         solo_fallback = 0   # 认不出写回：整帧一张脸、没过线但按默认人物写回的帧数
         prev_boxes = []     # 上一帧的 [(bbox, 上一帧有没有修)]，给滞回做关联
         owner["其他/未归属"] = 0
-        for name, _e in refs:
+        for name, _e, _s in refs:
             owner[name] = 0
         for i in range(n):
             bgr = _t2bgr(images[i])
@@ -404,19 +430,21 @@ class FxAiFaceRestoreLiteV2:
                 # 不挡的话，同帧一张清晰大脸会把名额占掉，小脸反而拿不到角色。
                 if lo > 0 and f.w >= lo:
                     continue
-                sims = [float(np.dot(f.embedding, e)) for _n2, e in refs]
-                k = int(np.argmax(sims))
-                if sims[k] < gate:
+                cand = _sex_cand(refs, f.sex)
+                sims = [float(np.dot(f.embedding, refs[j][1])) for j in cand]
+                pos = int(np.argmax(sims))
+                k = cand[pos]
+                if sims[pos] < gate:
                     continue
-                if k not in assign or sims[k] > assign[k][0]:
-                    assign[k] = (sims[k], f)
+                if k not in assign or sims[pos] > assign[k][0]:
+                    assign[k] = (sims[pos], f)
 
             # 默认人物：整帧只有一张脸、又一张都没过判定线时，当成 默认人物 那位写回。
             # 多人帧不写回 —— 认不出谁是谁的时候贴上去就是贴错人。
             if (not assign and fb_k >= 0 and len(faces) == 1
                     and faces[0].embedding is not None
                     and (lo <= 0 or faces[0].w < lo)):
-                sims = [float(np.dot(faces[0].embedding, e)) for _n2, e in refs]
+                sims = [float(np.dot(faces[0].embedding, e)) for _n2, e, _s in refs]
                 assign[fb_k] = (sims[fb_k], faces[0])
                 solo_here.add(id(faces[0]))
                 solo_fallback += 1
@@ -427,13 +455,15 @@ class FxAiFaceRestoreLiteV2:
             for f in faces:
                 # 归属统计（不影响修不修）
                 if refs and f.embedding is not None:
-                    sims = [float(np.dot(f.embedding, e)) for _n2, e in refs]
-                    best = int(np.argmax(sims))
-                    if sims[best] >= 身份相似度阈值:
+                    cand = _sex_cand(refs, f.sex)
+                    sims = [float(np.dot(f.embedding, refs[j][1])) for j in cand]
+                    pos = int(np.argmax(sims))
+                    best = cand[pos]
+                    if sims[pos] >= 身份相似度阈值:
                         hero_hit += 1
                     if id(f) in solo_here:           # 按默认人物写回，算给默认人物那张
                         owner[refs[fb_k][0]] += 1
-                    elif sims[best] >= 身份相似度阈值:
+                    elif sims[pos] >= 身份相似度阈值:
                         owner[refs[best][0]] += 1
                     else:
                         owner["其他/未归属"] += 1
@@ -562,7 +592,7 @@ class FxAiFaceRestoreLiteV2:
                        f"按上一帧状态走，不跟着闪）")
         if refs:
             rep.append("参考图归属：")
-            for name, _e in refs:
+            for name, _e, _s in refs:
                 rep.append(f"  {name}：{owner[name]} 张")
             if owner["其他/未归属"]:
                 rep.append(f"  其他/未归属：{owner['其他/未归属']} 张")

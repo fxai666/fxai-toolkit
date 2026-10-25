@@ -71,8 +71,8 @@ def models_root():
     return cand
 
 
-def vosr2_dir(bundle="VOSR2"):
-    return os.path.join(models_root(), "vosr2", bundle)
+def vosr2_dir():
+    return os.path.join(models_root(), "vosr2")
 
 
 def insightface_root():
@@ -80,11 +80,11 @@ def insightface_root():
 
 
 def inswapper_path():
-    return os.path.join(insightface_root(), "models", "inswapper_128.onnx")
+    return os.path.join(insightface_root(), "inswapper_128.onnx")
 
 
 def hyperswap_path():
-    return os.path.join(insightface_root(), "models", "hyperswap_1a_256.onnx")
+    return os.path.join(insightface_root(), "hyperswap_1a_256.onnx")
 
 
 def swapper_path():
@@ -103,4 +103,4 @@ def swapper_path():
 
 
 def buffalo_dir():
-    return os.path.join(insightface_root(), "models", "buffalo_l")
+    return os.path.join(insightface_root(), "buffalo_l")

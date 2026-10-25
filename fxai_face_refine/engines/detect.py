@@ -5,8 +5,9 @@
 凤希AI 人脸检测 / 跟踪
 =====================
 
-检测器本身用 insightface 的 buffalo_l（det_10g + w600k_r50），这是第三方
-预训练模型，不属于 VOSR2 那套，没必要重造。这里重写的是**怎么用它**：
+检测器本身用 insightface 的 buffalo_l（det_10g 检测 + w600k_r50 识别 +
+genderage 性别年龄），这是第三方预训练模型，不属于 VOSR2 那套，没必要重造。
+这里重写的是**怎么用它**：
 
 问题
 ----
@@ -52,14 +53,15 @@ def _ensure_cuda_dlls():
 
 
 class Face:
-    """一帧里的一张脸：框、五点、身份向量。只留后面真正用得到的字段。"""
-    __slots__ = ("bbox", "kps", "score", "embedding")
+    """一帧里的一张脸：框、五点、身份向量、性别。只留后面真正用得到的字段。"""
+    __slots__ = ("bbox", "kps", "score", "embedding", "sex")
 
-    def __init__(self, bbox, kps, score, embedding):
+    def __init__(self, bbox, kps, score, embedding, sex=None):
         self.bbox = bbox            # np.float32[4] x1,y1,x2,y2
         self.kps = kps              # np.float32[5,2]
         self.score = float(score)
         self.embedding = embedding  # 已归一化，可直接点积算余弦
+        self.sex = sex              # 'M' / 'F'，没跑性别模型时为 None
 
     @property
     def w(self):
@@ -86,11 +88,10 @@ class Detector:
             raise RuntimeError(
                 "缺 insightface。在 ComfyUI 的 Python 环境里执行：\n"
                 "    pip install insightface onnxruntime-gpu\n"
-                "并把 buffalo_l 放到 models/insightface/models/buffalo_l/"
+                "并把 buffalo_l 放到 models/insightface/buffalo_l/"
             ) from exc
 
         from . import paths
-        root = paths.insightface_root()
         bdir = paths.buffalo_dir()
         if not os.path.isdir(bdir):
             raise RuntimeError(
@@ -109,8 +110,8 @@ class Detector:
         app = None
         if provs[0] != "CPUExecutionProvider":
             try:
-                cand = FaceAnalysis(name="buffalo_l", root=root,
-                                    allowed_modules=["detection", "recognition"],
+                cand = FaceAnalysis(name=bdir,
+                                    allowed_modules=["detection", "recognition", "genderage"],
                                     providers=provs)
                 cand.prepare(ctx_id=int(device_id), det_size=(det_size, det_size))
                 got = cand.det_model.session.get_providers() if cand.det_model else []
@@ -121,8 +122,8 @@ class Detector:
             except Exception as exc:
                 print(f"⚠️[凤希AI] 人脸检测 GPU 不可用，退回 CPU: {exc}")
         if app is None:
-            app = FaceAnalysis(name="buffalo_l", root=root,
-                               allowed_modules=["detection", "recognition"],
+            app = FaceAnalysis(name=bdir,
+                               allowed_modules=["detection", "recognition", "genderage"],
                                providers=["CPUExecutionProvider"])
             app.prepare(ctx_id=-1, det_size=(det_size, det_size))
 
@@ -159,7 +160,8 @@ class Detector:
         return Face(np.asarray(f.bbox, np.float32),
                     np.asarray(f.kps, np.float32),
                     float(getattr(f, "det_score", 0.0)),
-                    None if emb is None else np.asarray(emb, np.float32))
+                    None if emb is None else np.asarray(emb, np.float32),
+                    getattr(f, "sex", None))
 
     # ---- ROI 跟踪 ----
     def track(self, img, prev, margin=2.2, order=0):
@@ -202,7 +204,8 @@ class Detector:
         emb = getattr(best, "normed_embedding", None)
         return Face(box.astype(np.float32), kps.astype(np.float32),
                     float(getattr(best, "det_score", 0.0)),
-                    None if emb is None else np.asarray(emb, np.float32))
+                    None if emb is None else np.asarray(emb, np.float32),
+                    getattr(best, "sex", None))
 
     # ---- 按身份锁定 ----
     def track_by_identity(self, img, prev, target_emb, threshold=0.40,
@@ -249,7 +252,8 @@ class Detector:
                 kps[:, 0] += x1; kps[:, 1] += y1
                 e = np.asarray(emb, np.float32)
                 out.append((float(np.dot(e, target)),
-                            Face(box, kps, float(getattr(f, "det_score", 0.0)), e)))
+                            Face(box, kps, float(getattr(f, "det_score", 0.0)), e,
+                                 getattr(f, "sex", None))))
             return out
 
         h, w = img.shape[:2]

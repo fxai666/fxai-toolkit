@@ -121,8 +121,8 @@ def _load_state(module, path, device, dtype, tag=""):
     return module
 
 
-def _read_args(bundle_dir):
-    p = os.path.join(bundle_dir, "args.json")
+def _read_args(model_dir):
+    p = os.path.join(model_dir, "args.json")
     if not os.path.isfile(p):
         raise FileNotFoundError(f"VOSR2 缺 args.json：{p}")
     with open(p, "r", encoding="utf-8") as f:
@@ -165,15 +165,14 @@ def _wavelet_align(target, source):
 class Vosr2Engine:
     """VOSR2 三件套（DiT / VAE / DINOv2）常驻显存，正方形裁切块批量超分。"""
 
-    def __init__(self, bundle_dir, device="cuda", dtype=torch.bfloat16, verbose=True):
-        self.bundle_dir = bundle_dir
+    def __init__(self, model_dir, device="cuda", dtype=torch.bfloat16, verbose=True):
         self.device = torch.device(device)
         self.dtype = dtype
-        self.args = _read_args(bundle_dir)
+        self.args = _read_args(model_dir)
 
-        dit_path = self._find_dit(bundle_dir)
-        vae_dir = os.path.join(bundle_dir, "Qwen-Image-vae-2d")
-        vis_path = os.path.join(bundle_dir, "dinov2_vitl14.safetensors")
+        dit_path = self._find_dit(model_dir)
+        vae_dir = os.path.join(model_dir, "Qwen-Image-vae-2d")
+        vis_path = os.path.join(model_dir, "dinov2_vitl14.safetensors")
         for p, what in ((dit_path, "DiT 权重"), (vis_path, "DINOv2 权重"),
                         (os.path.join(vae_dir, "config.json"), "VAE 配置")):
             if not os.path.isfile(p):
@@ -245,14 +244,14 @@ class Vosr2Engine:
 
     # ---- 内部 ----
     @staticmethod
-    def _find_dit(bundle_dir):
+    def _find_dit(model_dir):
         for rel in ("checkpoints/ema_model.safetensors",
                     "clean_weights/ema_model.safetensors",
                     "ema_model.safetensors"):
-            p = os.path.join(bundle_dir, *rel.split("/"))
+            p = os.path.join(model_dir, *rel.split("/"))
             if os.path.isfile(p):
                 return p
-        raise FileNotFoundError(f"VOSR2 找不到 DiT 权重（{bundle_dir}/checkpoints/）")
+        raise FileNotFoundError(f"VOSR2 找不到 DiT 权重（{model_dir}/checkpoints/）")
 
     def _encode(self, x):
         """x: [B,3,H,W] in [-1,1] -> 归一化 latent"""
@@ -402,26 +401,26 @@ class Vosr2Engine:
 # ---------------------------------------------------------------------------
 # 单例
 # ---------------------------------------------------------------------------
-def get_engine(bundle="VOSR2", device="cuda", dtype=None, verbose=True):
+def get_engine(device="cuda", dtype=None, verbose=True):
     """引擎单例。跨多次执行复用，第二次起零加载开销。"""
-    key = (bundle, str(device), str(dtype))
+    key = (str(device), str(dtype))
     with _LOCK:
         eng = _CACHE.get(key)
         if eng is not None:
             return eng
         from . import paths
-        bdir = paths.vosr2_dir(bundle)
-        if not os.path.isdir(bdir):
+        mdir = paths.vosr2_dir()
+        if not os.path.isdir(mdir):
             raise RuntimeError(
-                f"找不到 VOSR2 模型：{bdir}\n"
-                f"需要把 bundle 放到 models/vosr2/{bundle}/（含 args.json、checkpoints/、"
+                f"找不到 VOSR2 模型：{mdir}\n"
+                f"需要把模型放到 models/vosr2/（含 args.json、checkpoints/、"
                 f"Qwen-Image-vae-2d/、dinov2_vitl14.safetensors）"
             )
         if dtype is None:
             # Blackwell 上 bf16 比 fp16 更合适：动态范围同 fp32，
             # RMSNorm 里的规约不需要来回转 float。
             dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-        eng = Vosr2Engine(bdir, device=device, dtype=dtype, verbose=verbose)
+        eng = Vosr2Engine(mdir, device=device, dtype=dtype, verbose=verbose)
         _CACHE[key] = eng
         return eng
 

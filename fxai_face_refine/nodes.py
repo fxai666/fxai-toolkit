@@ -65,20 +65,19 @@ def _load_detector(name: str):
 _REC_CACHE: dict = {}
 
 
-def _face_recogniser(pack: str = "buffalo_l"):
+def _face_recogniser():
     """InsightFace recognition model, for identity matching. Cached."""
-    if pack in _REC_CACHE:
-        return _REC_CACHE[pack]
+    app = _REC_CACHE.get("buffalo_l")
+    if app is not None:
+        return app
     import insightface
+    from .engines import paths
 
-    # ComfyUI's models/insightface. InsightFace wants the directory CONTAINING a
-    # "models" folder, and downloads the pack there on first use if it is absent.
-    root = os.path.join(getattr(folder_paths, "models_dir", "models"), "insightface")
     app = insightface.app.FaceAnalysis(
-        name=pack, root=root, allowed_modules=["detection", "recognition"],
+        name=paths.buffalo_dir(), allowed_modules=["detection", "recognition"],
         providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
     app.prepare(ctx_id=0, det_size=(640, 640))
-    _REC_CACHE[pack] = app
+    _REC_CACHE["buffalo_l"] = app
     return app
 
 
