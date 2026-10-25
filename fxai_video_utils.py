@@ -6,7 +6,6 @@
 # 「视频分段器V1」和「视频分段加载」共用这一份，段边界只在这里算一次，
 # 两边不会各自取整跑偏。
 
-import hashlib
 import json
 import math
 import os
@@ -306,38 +305,3 @@ def format_fps(fps):
     """
     value = float(fps)
     return f"{value:.0f}" if abs(value - round(value)) < 1e-6 else f"{value:.3f}"
-
-
-def filmstrip_path(video_path, tiles):
-    """胶片带缓存位置。同一视频 + 同一分格数共用一个文件，mtime 变了就重抽。"""
-    cache_dir = os.path.join(folder_paths.base_path, "fxai", "video", ".thumbs")
-    os.makedirs(cache_dir, exist_ok=True)
-    key = hashlib.md5(os.path.normcase(video_path).encode("utf-8")).hexdigest()[:16]
-    return os.path.join(cache_dir, f"strip_{key}_{int(tiles)}.jpg")
-
-
-def make_filmstrip(video_path, out_path, duration, tiles=40, tile_width=160, tile_height=90):
-    """整条视频等间隔抽 tiles 帧，横向拼成一张图，给面板当时间轴底图。
-
-    统一按 160x90 缩放再补边，竖屏也不会把画布撑高。
-    """
-    tiles = max(4, min(int(tiles), 80))
-    interval = max(0.02, float(duration) / tiles)
-    filters = (
-        f"fps=1/{interval:.6f},"
-        f"scale={tile_width}:{tile_height}:force_original_aspect_ratio=decrease,"
-        f"pad={tile_width}:{tile_height}:(ow-iw)/2:(oh-ih)/2,"
-        f"tile={tiles}x1"
-    )
-    cmd = [
-        'ffmpeg', '-y', '-i', video_path,
-        '-vf', filters,
-        '-frames:v', '1', '-q:v', '4',
-        '-hide_banner', '-loglevel', 'error',
-        out_path,
-    ]
-    try:
-        subprocess.run(cmd, timeout=180, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
-        return False
-    return os.path.isfile(out_path) and os.path.getsize(out_path) > 0

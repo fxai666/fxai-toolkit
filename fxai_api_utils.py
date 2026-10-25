@@ -1962,8 +1962,6 @@ async def audio_segments_v2_waveform(request):
 
 # ===================== 视频分段 API =====================
 from .fxai_video_utils import (
-    filmstrip_path,
-    make_filmstrip,
     probe_video,
     rel_video_path,
     resolve_video_path,
@@ -1985,27 +1983,6 @@ async def video_segments_v2_file(request):
     try:
         path = resolve_video_path(request.query.get("path", ""))
         return web.FileResponse(path, headers={"Cache-Control": "no-store"})
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=400)
-
-async def video_segments_v2_strip(request):
-    try:
-        path = resolve_video_path(request.query.get("path", ""))
-        tiles = int(request.query.get("tiles", "40"))
-        info = probe_video(path)
-        out = filmstrip_path(path, tiles)
-        stale = True
-        if os.path.isfile(out):
-            try:
-                stale = os.path.getmtime(out) < os.path.getmtime(path)
-            except Exception:
-                stale = True
-        if stale:
-            loop = asyncio.get_event_loop()
-            ok = await loop.run_in_executor(None, make_filmstrip, path, out, info["duration"], tiles)
-            if not ok:
-                return web.json_response({"error": "抽帧失败，视频可能损坏"}, status=404)
-        return web.FileResponse(out, headers={"Cache-Control": "max-age=600"})
     except Exception as e:
         return web.json_response({"error": str(e)}, status=400)
 
@@ -2171,7 +2148,6 @@ try:
 
     # 视频分段
     PromptServer.instance.routes.get("/fxai/video/segments/info")(video_segments_v2_info)
-    PromptServer.instance.routes.get("/fxai/video/segments/strip")(video_segments_v2_strip)
     PromptServer.instance.routes.get("/fxai/video/segments/file")(video_segments_v2_file)
 
     # 角色管理

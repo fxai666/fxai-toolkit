@@ -88,9 +88,14 @@ def _resolve_dir(raw):
     分段器把「视频文件」存成 input 下的相对路径，整个值扔过来时 abspath 会按
     进程工作目录解析成 I:\\ComfyUI\\xxx.mp4，弹窗就只剩一句「目录不存在」。
     所以相对路径按 input 目录展开，指到具体文件就退一级。
+
+    / 开头的是「相对 ComfyUI 根」的写法（选片窗口的「用相对路径」给的就是这个），
+    要按 base 展开；Windows 上 os.path.isabs("/x") 是 True，这个分支必须放前面。
     """
     text = str(raw or "").strip().strip('"')
-    if text and not os.path.isabs(text) and folder_paths is not None:
+    if text.startswith(("/", "\\")):
+        text = os.path.join(_base_dir(), text.lstrip("/\\"))
+    elif text and not os.path.isabs(text) and folder_paths is not None:
         text = os.path.join(folder_paths.get_input_directory(), text)
     if text and os.path.isfile(text):
         text = os.path.dirname(text)
@@ -130,6 +135,19 @@ def _roots():
 # ----------------------------------------------------------------------------
 # 列目录
 # ----------------------------------------------------------------------------
+def _rel_path(full, base):
+    """相对 ComfyUI 根的写法，前导 /，如 /fxai/video/ad/a.mp4。
+
+    分段器的 resolve_video_path 认这个形式（/ 开头按 base_path 展开），
+    存进工作流后换机器、换盘符都不用改。
+    """
+    try:
+        rel = os.path.relpath(full, base).replace("\\", "/")
+    except ValueError:
+        return ""
+    return "" if rel.startswith("..") else "/" + rel
+
+
 def _list_videos(target):
     """排序规则必须和 FxAiVideoLoad.load_video 里的 sorted(...) 完全一致。"""
     if not os.path.isdir(target):
@@ -139,6 +157,7 @@ def _list_videos(target):
     except Exception:
         return []
 
+    base = _base_dir()
     videos = []
     for idx, name in enumerate(names):
         full = os.path.join(target, name)
@@ -150,6 +169,7 @@ def _list_videos(target):
         videos.append({
             "name": name,
             "path": full,
+            "rel": _rel_path(full, base),
             "index": idx,          # 直接对应节点的「视频索引」
             "size": size,
             "mtime": mtime,

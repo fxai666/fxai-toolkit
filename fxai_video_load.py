@@ -4,8 +4,27 @@ import subprocess
 import numpy as np
 import json
 
+import folder_paths
+
 VIDEO_EXTENSIONS = ('.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.mpeg', '.mpg', '.webm')
 AUDIO_SAMPLE_RATE = 44100
+
+
+def expand_path(target):
+    """相对写法展开成绝对路径，绝对路径原样返回。
+
+    / 开头 → 相对 ComfyUI 根（/fxai/video/a.mp4 = <base>/fxai/video/a.mp4）。
+    Windows 上 os.path.isabs("/x") 是 True，所以这个分支必须放在 isabs 前面。
+    其余相对写法 → 先按 input 目录找，找不到保持原样，交给下面的报错。
+    """
+    if target.startswith(("/", "\\")):
+        return os.path.join(folder_paths.base_path, target.lstrip("/\\"))
+    if not os.path.isabs(target):
+        candidate = os.path.join(folder_paths.get_input_directory(), target)
+        if os.path.exists(candidate):
+            return candidate
+    return target
+
 
 def frame_to_comfy_image(frame):
     frame = frame.astype(np.float32) / 255.0
@@ -179,6 +198,8 @@ class FxAiVideoLoad:
             raise RuntimeError(
                 "「视频文件夹路径」没填。可以填一个目录，"
                 "也可以直接填一个视频文件的完整路径（如 I:/ComfyUI/input/a.mp4）")
+
+        target = expand_path(target)
 
         try:
             idx = int(索引)

@@ -113,7 +113,7 @@ import { api } from "../../scripts/api.js";
                 display: flex; align-items: center; justify-content: center;
             }
             .fxai-vp-modal {
-                width: 980px; max-width: 95vw; height: 760px; max-height: 92vh;
+                width: 1000px; max-width: 95vw; height: 760px; max-height: 92vh;
                 background: #222; border-radius: 10px; padding: 12px;
                 box-sizing: border-box; display: flex; flex-direction: column;
                 gap: 10px; color: #ddd;
@@ -133,8 +133,11 @@ import { api } from "../../scripts/api.js";
             .fxai-vp-chip.on { background: #4a8fff; color: #fff; }
             .fxai-vp-grid {
                 flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap;
-                gap: 8px; align-content: flex-start; padding: 2px;
+                gap: 8px; align-content: flex-start;
                 background: #1b1b1b; border-radius: 6px; padding: 8px;
+                /* 始终预留滚动条槽位：素材多到出滚动条时，可用宽度不会突然
+                   少 17px 把 5 列挤成 4 列 */
+                scrollbar-gutter: stable;
             }
             .fxai-vp-card {
                 width: 180px; border-radius: 6px; overflow: hidden; cursor: pointer;
@@ -240,7 +243,13 @@ import { api } from "../../scripts/api.js";
             btnOk.textContent = "✅ 用完整路径";
             btnOk.title = "直接把视频文件的完整路径填进去，最稳";
             btnOk.disabled = true;
-            footRight.append(btnCancel, btnIdx, btnOk);
+            const btnRel = document.createElement("button");
+            btnRel.className = "fxai-vp-cancel";
+            btnRel.textContent = "用相对路径";
+            btnRel.title = "去掉 ComfyUI 根目录那一段，写成 /fxai/video/xxx.mp4 这种。\n"
+                + "换机器、换盘符、走 API 都不用改路径";
+            btnRel.disabled = true;
+            footRight.append(btnCancel, btnIdx, btnRel, btnOk);
             foot.append(footLeft, footRight);
             modal.appendChild(foot);
 
@@ -252,6 +261,9 @@ import { api } from "../../scripts/api.js";
             btnCancel.onclick = function () { close(); };
             btnOk.onclick = function () {
                 if (picked) close(Object.assign({ mode: "path" }, picked));
+            };
+            btnRel.onclick = function () {
+                if (picked) close(Object.assign({ mode: "rel" }, picked));
             };
             btnIdx.onclick = function () {
                 if (picked) close(Object.assign({ mode: "index" }, picked));
@@ -344,17 +356,18 @@ import { api } from "../../scripts/api.js";
                     card.appendChild(cap);
 
                     card.onclick = function () {
-                        picked = { dir: data.dir, index: v.index, name: v.name, path: v.path };
+                        picked = { dir: data.dir, index: v.index, name: v.name, path: v.path, rel: v.rel };
                         grid.querySelectorAll(".fxai-vp-card").forEach(function (el) {
                             el.classList.remove("on");
                         });
                         card.classList.add("on");
                         btnOk.disabled = false;
                         btnIdx.disabled = false;
+                        btnRel.disabled = !v.rel;
                         footLeft.textContent = "已选：" + v.name + "（索引 " + v.index + "）";
                     };
                     card.ondblclick = function () {
-                        picked = { dir: data.dir, index: v.index, name: v.name, path: v.path };
+                        picked = { dir: data.dir, index: v.index, name: v.name, path: v.path, rel: v.rel };
                         close(Object.assign({ mode: "path" }, picked));
                     };
                     grid.appendChild(card);
@@ -410,6 +423,10 @@ import { api } from "../../scripts/api.js";
             // 目录模式：目录 + 序号
             wDir.value = sel.dir;
             wIdx.value = sel.index;
+        } else if (sel.mode === "rel") {
+            // 相对路径：/fxai/video/xxx.mp4，索引同样不参与
+            wDir.value = sel.rel;
+            wIdx.value = -1;
         } else {
             // 路径模式：直接写视频文件完整路径，视频索引 = -1（表示"按路径取"）
             wDir.value = sel.path;

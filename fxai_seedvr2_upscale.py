@@ -477,41 +477,6 @@ def _vae_args(tile_x, tile_y):
                 tile_t=64, overlap_t=8)
 
 
-def _tmp_tune_vae(vae):
-    """临时实验钩子：从文件读 VAE 调参，改完不用重启 ComfyUI。测完删掉。"""
-    path = r"I:\ComfyUI\.workbuddy-ai\tmp\seedvr2\vae_tune.txt"
-    if not os.path.exists(path):
-        return
-    try:
-        with open(path, encoding="utf-8") as f:
-            txt = f.read().strip()
-    except OSError:
-        return
-    if not txt:
-        return
-    from comfy.ldm.seedvr.vae import Decoder3D, Encoder3D
-
-    base = getattr(vae, "first_stage_model", None)
-    for part in txt.replace(";", ",").split(","):
-        part = part.strip()
-        if "=" not in part:
-            continue
-        k, v = [x.strip() for x in part.split("=", 1)]
-        try:
-            if k == "slicing" and base is not None:
-                base.slicing_latent_min_size = int(v)
-                base.slicing_sample_min_size = int(v) * 4
-            elif k == "tail":
-                Decoder3D.tail_frames = None if v in ("0", "none", "None") else int(v)
-            elif k == "head":
-                Encoder3D.head_frames = None if v in ("0", "none", "None") else int(v)
-            elif k == "dtile" and base is not None:
-                base._tmp_dtile = int(v)
-        except ValueError:
-            pass
-    print(f"[凤希AI][SeedVR2] 临时调参：{txt}", flush=True)
-
-
 def _run_block(model, vae, seg, tw, th, color, seed, vae_args):
     """跑一块：缩放 → 补 4n+1 → 编码 → 一步采样 → 解码 → 校色。
 
@@ -795,7 +760,6 @@ class FxAiSeedVR2Upscale:
             model_label = os.path.basename(模型)
 
         seed = int(随机种子) & 0xFFFFFFFF
-        _tmp_tune_vae(vae)          # 临时实验钩子，测完删
         out = torch.empty(
             (total, th, tw, 3 if alpha is None else 4), dtype=torch.float32
         )
