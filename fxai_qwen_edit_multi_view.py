@@ -6,7 +6,6 @@ import node_helpers
 import comfy.model_management
 import sys
 import os
-from fxai_controlnet import easyControlnet
 import cv2  # 新增：用于图像背景分割
 import numpy as np
 

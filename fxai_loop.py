@@ -6,8 +6,7 @@
 凤希AI 循环 / 逻辑节点
 ======================
 
-循环能力由本包自己实现，原先依赖的 `comfyui-easy-use` 已经移除，老工作流的
-class_type 也已批量改成本文件里的节点名，所以不需要任何别名兼容层。
+循环能力由本包自己实现，`class_type` 一律用本文件里的节点名，没有别名兼容层。
 
 ComfyUI 的循环不是「跳回上一行」，而是节点在执行时返回
 `{"result": ..., "expand": 子图}` —— ComfyUI 把这份子图挂到当前执行流上继续跑。
@@ -15,12 +14,12 @@ ComfyUI 的循环不是「跳回上一行」，而是节点在执行时返回
 把 index+1 传进去，直到 index 追上 total。展开的层数 = 循环次数，靠 ComfyUI
 自己的执行队列递归，不占 Python 栈。
 
-关键约定（参数布局照抄 easy-use，工作流是按位置填 `widgets_values` 的）：
+关键约定（工作流按**位置**填 `widgets_values`，控件顺序与个数都不能随意调）：
 
 - `flow` 用 `rawLink`，拿到的是**未解析的链接** `[node_id, slot]`，不是执行结果。
   结束节点靠 `flow[0]` 找到自己的开始节点，再从 dynprompt 里读它的 total。
 - `initial_value0` 是内部状态位（当前 index），放在 `hidden` 里，前端看不到；
-  `initial_value1..19` 才是用户能接的循环变量，20 个槽位与 easy-use 对齐。
+  `initial_value1..19` 才是用户能接的循环变量，共 20 个槽位。
 - 循环次数为 0 时，开始节点把每个 value 输出换成 `ExecutionBlocker`，
   循环体（含里面的保存节点）整个不执行，结束节点把初值原样透传出去。
 
@@ -53,7 +52,6 @@ ANY = "*"
 # 否则每层都会把上一层结束节点当成循环体的一部分再展开一遍。
 _LOOP_END_TYPES = {
     "FxAiForLoopEnd", "FxAiWhileLoopEnd",
-    "easy forLoopEnd", "easy whileLoopEnd",
 }
 
 
@@ -141,7 +139,7 @@ class FxAiForLoopEnd:
         start_node = dynprompt.get_node(start_id)
         start_inputs = start_node["inputs"]
 
-        if start_node["class_type"] not in ("FxAiForLoopStart", "easy forLoopStart"):
+        if start_node["class_type"] != "FxAiForLoopStart":
             raise RuntimeError(
                 f"[凤希AI·循环] flow 接的不是循环开始节点（{start_node['class_type']}），"
                 f"检查是不是把 flow 连错了"

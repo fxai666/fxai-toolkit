@@ -7,8 +7,6 @@ import comfy.model_management
 import sys
 import os
 
-from fxai_controlnet import easyControlnet
-
 
 class FxAiQwenEditThreeView:
     @classmethod

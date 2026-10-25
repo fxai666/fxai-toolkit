@@ -1085,8 +1085,6 @@
       ],
       "title": "下一次索引",
       "properties": {
-        "cnr_id": "comfyui-easy-use",
-        "ver": "1.3.6",
         "Node name for S&R": "FxAiMathInt",
         "ue_properties": {
           "widget_ue_connectable": {},
@@ -1176,8 +1174,6 @@
         }
       ],
       "properties": {
-        "cnr_id": "comfyui-easy-use",
-        "ver": "1.3.5",
         "Node name for S&R": "FxAiCleanGpu",
         "ue_properties": {
           "version": "7.6.2",
@@ -1352,8 +1348,6 @@
         }
       ],
       "properties": {
-        "cnr_id": "comfyui-easy-use",
-        "ver": "1.3.6",
         "Node name for S&R": "FxAiForLoopEnd"
       },
       "color": "#223",
@@ -1435,8 +1429,6 @@
         }
       ],
       "properties": {
-        "cnr_id": "comfyui-easy-use",
-        "ver": "1.3.6",
         "Node name for S&R": "FxAiForLoopStart",
         "ue_properties": {
           "widget_ue_connectable": {},
