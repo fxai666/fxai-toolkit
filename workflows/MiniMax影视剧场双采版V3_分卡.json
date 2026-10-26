@@ -1,8 +1,8 @@
 {
   "id": "d9e39294-c579-42ca-82fd-85709afde2e3",
   "revision": 0,
-  "last_node_id": 1179,
-  "last_link_id": 2564,
+  "last_node_id": 1180,
+  "last_link_id": 2565,
   "nodes": [
     {
       "id": 749,
@@ -2771,8 +2771,8 @@
       "id": 1174,
       "type": "VAELoader",
       "pos": [
-        1215.0505126580797,
-        662.6217696729813
+        1215.0,
+        690.0
       ],
       "size": [
         287.5438934215267,
@@ -3912,8 +3912,8 @@
       "id": 1177,
       "type": "FxAiMiniMaxBlockCache",
       "pos": [
-        1209.4009516696715,
-        502.7333862988906
+        1184.29,
+        566.0
       ],
       "size": [
         221.4830078125,
@@ -3927,7 +3927,7 @@
           "localized_name": "模型",
           "name": "模型",
           "type": "MODEL",
-          "link": 2557
+          "link": 2565
         },
         {
           "localized_name": "速度档位",
@@ -4442,6 +4442,48 @@
       },
       "widgets_values": [
         "gpu:1"
+      ]
+    },
+    {
+      "id": 1180,
+      "type": "SelectModelDevice",
+      "pos": [
+        1184.29,
+        464.0
+      ],
+      "size": [
+        310.53,
+        82.0
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 2557
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2565
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.32.0",
+        "Node name for S&R": "SelectModelDevice"
+      },
+      "widgets_values": [
+        "gpu:0"
       ]
     }
   ],
@@ -5018,7 +5060,7 @@
       2557,
       1129,
       0,
-      1177,
+      1180,
       0,
       "MODEL"
     ],
@@ -5053,6 +5095,14 @@
       1079,
       0,
       "CLIP"
+    ],
+    [
+      2565,
+      1180,
+      0,
+      1177,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [

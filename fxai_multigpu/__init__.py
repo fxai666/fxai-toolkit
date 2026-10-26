@@ -18,18 +18,19 @@
 from .exchange import HostExchange, UnevenSplitError, split_sizes          # noqa: F401
 from .block import (ParallelDiTBlock, ShardLinear, check_split,            # noqa: F401
                     slice_weight, split_even)
-from .devices import (MultiGPUPlanError, decide, parse_device_ids,         # noqa: F401
-                      plan_devices, probe_devices)
+from .devices import (MultiGPUPlanError, decide, decide_from_model,        # noqa: F401
+                      parse_device_ids, plan_devices, probe_devices)
 from .planner import (BudgetError, Placement, WeightGroup, classify_h3,    # noqa: F401
-                      plan_placement, read_groups)
+                      groups_from_model, plan_placement, read_groups)
 from .offload import CpuModule, move_once_modules_to_cpu                   # noqa: F401
 from .runner import H3ParallelRunner, install_parallel                     # noqa: F401
 
 __all__ = [
     "HostExchange", "UnevenSplitError", "split_sizes",
     "ParallelDiTBlock", "ShardLinear", "check_split", "slice_weight", "split_even",
-    "MultiGPUPlanError", "decide", "parse_device_ids", "plan_devices", "probe_devices",
-    "BudgetError", "Placement", "WeightGroup", "classify_h3", "plan_placement",
-    "read_groups", "CpuModule", "move_once_modules_to_cpu",
+    "MultiGPUPlanError", "decide", "decide_from_model", "parse_device_ids",
+    "plan_devices", "probe_devices",
+    "BudgetError", "Placement", "WeightGroup", "classify_h3", "groups_from_model",
+    "plan_placement", "read_groups", "CpuModule", "move_once_modules_to_cpu",
     "H3ParallelRunner", "install_parallel",
 ]

@@ -137,6 +137,7 @@ NODE_REGISTRY = [
     ("FxAiMiniMaxVideoSaveV2", "fxai_minimax_video_save_v2",     "凤希AI - MiniMax视频保存V2"),
     ("FxAiVideoSaveV1",         "fxai_video_save",              "凤希AI - 视频保存V1"),
     ("FxAiMiniMaxBlockCache", "fxai_minimax_block_cache",       "凤希AI - MiniMax块缓存加速"),
+    ("FxAiH3MultiGPU",        "fxai_multigpu.node",             "凤希AI - H3 多卡并行"),
     ("FxAiVideoGenerator",        "fxai_video_generator",       "凤希AI - 视频生成"),
     ("FxAiVideoGeneratorV2",      "fxai_video_generator_v2",    "凤希AI - 视频生成V2"),
     ("FxAiVideoGeneratorV3",      "fxai_video_generator_v3",    "凤希AI - 视频生成V3"),

@@ -29,6 +29,8 @@ __all__ = [
     "parse_device_ids",
     "check_divisibility",
     "plan_devices",
+    "decide",
+    "decide_from_model",
     "MultiGPUPlanError",
 ]
 
@@ -274,17 +276,36 @@ def decide(model_path, mode="自动", spec="", activation_gib=4.0, classify=None
            prefix="model.diffusion_model.", measure_link=True, context_gib=0.3):
     """读 checkpoint 头 → 选卡 → 定拆分档位。全程不需要加载权重。
 
-    返回 (ids, placement, notes, groups, devs)。
+    返回 (ids, placement, notes, groups, devs)。加载前预演用这个。
+    """
+    from .planner import classify_h3, read_groups
+
+    groups = read_groups(model_path, classify or classify_h3, prefix=prefix)
+    return _pick(groups, mode, spec, activation_gib, measure_link, context_gib,
+                 how="读头不加载")
+
+
+def decide_from_model(inner, mode="自动", spec="", activation_gib=4.0,
+                      measure_link=True, context_gib=0.3):
+    """模型已经在手上了：直接按实际权重算，不用再读文件（节点走这条）。"""
+    from .planner import groups_from_model
+
+    groups = groups_from_model(inner)
+    return _pick(groups, mode, spec, activation_gib, measure_link, context_gib,
+                 how="已加载")
+
+
+def _pick(groups, mode, spec, activation_gib, measure_link, context_gib, how):
+    """给定权重清单，选卡 + 定档位。
 
     选档顺序（都是实测支撑的）：
-      1) 全 GPU 常驻，卡数**从少到多**。SP 只在序列够长时才划算 —— 实测 S=256 时
-         两卡只有 0.13×、S=4096 才 1.02×，所以小模型不该为了并行而占两张卡。
+      1) 全 GPU 常驻，卡数**从少到多**。并行只在序列够长时才划算 —— 实测 S=256
+         时两卡只有 0.13×、S=4096 才 1.02×，所以小模型不该为了并行而占两张卡。
       2) 全 GPU 怎么都装不下 → 允许把「每步一次」的模块卸到 CPU，仍从少卡开始试。
       3) 还不行 → 报错，并给出流式搬运的代价估算。
     """
-    from .planner import BudgetError, classify_h3, plan_placement, read_groups
+    from .planner import BudgetError, plan_placement
 
-    groups = read_groups(model_path, classify or classify_h3, prefix=prefix)
     total = sum(g.gib for g in groups)
     devs = probe_devices(measure_link=measure_link)
     if not devs:
@@ -293,9 +314,15 @@ def decide(model_path, mode="自动", spec="", activation_gib=4.0, classify=None
     avail = sorted(by_id)
     ram = ram_free_gib()
 
-    notes = [f"模型权重 {total:.2f}G（含 {len(groups)} 组，读头不加载）"]
+    notes = [f"模型权重 {total:.2f}G（含 {len(groups)} 组，{how}）"]
 
-    if mode == "手动指定":
+    # 自动模式**完全忽略** `spec` —— 卡号是「手动指定」的专属参数。前端把控件默认
+    # 填成 0 只是为了有个值，不该影响决策；这里显式清空，不靠「后面没读到」来保证。
+    manual = (mode == "手动指定")
+    if not manual:
+        spec = ""
+
+    if manual:
         ids = parse_device_ids(spec, avail)
         orders = [ids]                       # 严格按用户填的顺序，不排序
     else:
@@ -333,4 +360,9 @@ def decide(model_path, mode="自动", spec="", activation_gib=4.0, classify=None
                      f"{', '.join(pl.offloaded)} 放 CPU 常驻（{ram or 0:.0f}G 可用内存）")
         return cand, pl, notes, groups, devs
 
-    raise MultiGPUPlanError(str(last_err) if last_err else "无法给出显存方案")
+    msg = str(last_err) if last_err else "无法给出显存方案"
+    if manual and len(ids) == 1 and len(avail) > 1:
+        # 手动只填了一张卡、而这张装不下 —— 十有八九是忘了写第二张
+        msg += (f"\n手动指定只填了 1 张卡（cuda:{ids[0]}）。这个模型单卡装不下，"
+                f"要切分请写成 {ids[0]},{next(i for i in avail if i != ids[0])}")
+    raise MultiGPUPlanError(msg)

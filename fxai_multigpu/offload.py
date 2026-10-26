@@ -20,6 +20,26 @@ import torch
 __all__ = ["CpuModule", "move_once_modules_to_cpu"]
 
 
+def _dequant_to(module, dtype):
+    """把量化权重**真正**反量化成 dtype，返回 (module, 反量化了几份)。
+
+    **不能靠 `module.to(dtype)`** —— `QuantizedTensor._handle_to` 只改
+    `orig_dtype` 元数据、存储仍是 int8：`.to(bf16)` 之后跑的还是 int8 kernel
+    （实测慢 10 倍，110 ms/层 vs 10.7 ms/层），而 `element_size()` 又按逻辑
+    dtype 报，体积还多算一倍。必须走 `.dequantize()`。
+    """
+    n = [0]
+
+    def cast(t):
+        if hasattr(t, "dequantize"):
+            t = t.dequantize()
+            n[0] += 1
+        return t.to(dtype) if t.dtype != dtype else t
+
+    module._apply(cast)
+    return module, n[0]
+
+
 class CpuModule:
     """把一个 nn.Module 常驻 CPU，调用时自动把结果送回 device。"""
 
@@ -28,8 +48,9 @@ class CpuModule:
         self.dtype = dtype
         self.name = name or type(module).__name__
         self.module = module.to("cpu")
+        self.n_dequant = 0
         if dtype is not None:
-            self.module = self.module.to(dtype)
+            self.module, self.n_dequant = _dequant_to(self.module, dtype)
         for p in self.module.parameters():
             p.requires_grad_(False)
         self.module.eval()

@@ -38,6 +38,7 @@ import torch
 import torch.nn.functional as F
 
 import comfy.model_management
+import comfy.ops
 import comfy.quant_ops
 from comfy.ldm.minimax.model import _mod_gate, _mod_scale_shift
 from comfy.ldm.modules.attention import (
@@ -56,6 +57,16 @@ __all__ = [
     "slice_weight", "ShardLinear", "ParallelDiTBlock",
     "split_even", "check_split",
 ]
+
+# attention 归约的分块数。**默认 1（关闭）** —— 分块唯一的价值是吃 PCIe 全双工
+# （第 i 块下发与第 i-1 块回传并发），而本机实测**没有**全双工：
+#   probe_duplex.py  200 MiB/方向，cuda:0 单向 28.6 GB/s、双向合计仍 26 GB/s；
+#                    cuda:1 单向 7.15 GB/s、双向合计仍 7.15 GB/s —— 双向不叠加。
+# 没有全双工时每块只多付一次 barrier（实测 2.3 ms），所以：
+#   test_attn_chunks.py  S=39000   chunks 1 → 1163 ms/层，8 → 1200 ms/层（-3.1%）
+# 换到真有全双工的机器上，把它调成 8 才有意义（exchange.py 的分块路径是通的，
+# test_exchange_chunked.py 已验逐位一致）。
+ATTN_REDUCE_CHUNKS = 1
 
 
 # --------------------------------------------------------------------- 权重切片
@@ -248,17 +259,39 @@ class ParallelDiTBlock:
         return out.squeeze(0)
 
     def _mlp(self, h):
-        """按 token 分块跑 fc1→swiglu→fc2，返回 [S, hidden] 的**部分和**。
+        """按 token 分块跑 fc1→swiglu→fc2，块间做通信-计算重叠。
+
+        MLP 是 token-local 的，所以可以按行切块：块 i 的部分和一下发到 pinned
+        缓冲，就立刻去算块 i+1，等块 i+1 算完再回头收块 i 的对端部分。这样
+        D2H（每步约 1.8 s，占双卡总时间 20%）被下一块的 fc1/fc2 盖住。
 
         不分块时中间量 [S, 2*ffn/world] 在 S=39000、两卡时是 1.07 GiB；
         分块之后峰值只跟块大小有关（8192 块 ≈ 224 MiB）。
+
+        **必须走 `linear_input_act_` 而不是手写 `silu(g)*u`**：fc2 是 int8 量化权重时，
+        融合路径会把 swiglu 的结果直接量化成 fc2 的 int8 输入，省掉一次 bf16 中转和
+        一次独立的量化 kernel（原版 `MLP.forward` 就是
+        `comfy.ops.linear_input_act(self.fc2, self.fc1(x), "swiglu")`）。
         """
         s = h.shape[0]
         y = torch.empty((s, self.hidden), dtype=h.dtype, device=h.device)
-        for i in range(0, s, self.mlp_chunk):
-            yc = self.fc1(h[i:i + self.mlp_chunk])
-            g, u = yc.chunk(2, dim=-1)
-            y[i:i + self.mlp_chunk] = self.fc2(F.silu(g) * u)
+        fc2_w = self.fc2.weight
+        n = self.mlp_chunk
+        key = self.k_mlp
+
+        pending = None          # (部分和, 槽位, 起始行, 结束行)
+        slot = 0
+        for i in range(0, s, n):
+            part = comfy.ops.linear_input_act_(self.fc1(h[i:i + n]), fc2_w, None, "swiglu")
+            self.ex.all_reduce_begin(part, slot, key=key)
+            if pending is not None:
+                p, pslot, a, b = pending
+                self.ex.all_reduce_end(p, pslot, key=key, out=y[a:b])
+            pending = (part, slot, i, min(i + n, s))
+            slot ^= 1
+
+        p, pslot, a, b = pending
+        self.ex.all_reduce_end(p, pslot, key=key, out=y[a:b])
         return y
 
     # ---------------------------------------------------------------- 前向
@@ -279,13 +312,13 @@ class ParallelDiTBlock:
         # --- attention 段：qkv 切头 → 本头组 attention → out_proj 切列 → 归约
         h = _mod_scale_shift(self.norm1(x), shift_msa, scale_msa, mod_segments)
         a = self.out_proj(self._attention(h, rope_freqs, transformer_options))
-        a = self.ex.all_reduce_sum(a, key=self.k_attn, inplace=True)
+        a = self.ex.all_reduce_sum(a, key=self.k_attn, inplace=True,
+                                   chunks=ATTN_REDUCE_CHUNKS)
         x = _mod_gate(x, gate_msa, a, mod_segments)
 
-        # --- mlp 段：fc1 切 ffn → fc2 切列 → 归约
+        # --- mlp 段：fc1 切 ffn → fc2 切列 → 归约（分块流水，见 _mlp）
         h = _mod_scale_shift(self.norm2(x), shift_mlp, scale_mlp, mod_segments)
-        y = self.ex.all_reduce_sum(self._mlp(h), key=self.k_mlp, inplace=True)
-        return _mod_gate(x, gate_mlp, y, mod_segments)
+        return _mod_gate(x, gate_mlp, self._mlp(h), mod_segments)
 
     __call__ = forward
 

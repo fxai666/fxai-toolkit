@@ -225,12 +225,21 @@ def probe_video(video_path):
 def _start_seconds(start_frame, fps):
     """帧号 → ffmpeg 定位秒数。
 
-    -ss 的判据是「这个时间点落在哪一帧的时间区间里」（左闭右开），
-    所以时间点要略大于帧起点：正好等于帧起点时，浮点误差往下一偏就
-    退回上一帧，两段就会共用同一张尾帧/首帧。
-    加 0.1ms 足够压住误差，又远小于一帧（24fps 是 41.7ms），不会跨帧。
+    定位点取「目标帧与前一帧的正中间」，即 (start - 0.5) / fps：
+
+    - -ss 用输入侧定位时，ffmpeg 会丢弃时间戳早于定位点的帧（ts < seek）。
+      取半帧偏置后，目标帧（ts = start/fps）一定大于定位点，不会被丢；
+      前一帧（ts = (start-1)/fps）一定小于定位点，也不会被多带进来。
+    - 不能用 start/fps + 0.0001 这种「往帧起点后面挪一点」的写法：
+      目标帧的时间戳等于帧起点，会被判成「早于定位点」整帧丢掉，
+      再靠 -frames:v 往后多取一帧硬凑段长——内容整体前移一帧，
+      末段没有多余帧可凑，于是整条片少一帧（每段都少首帧）。
+    - start = 0 时直接返回 0：半帧偏置在 0 之前没有帧可丢，且 -ss 负值不合法。
     """
-    return max(0.0, int(start_frame) / fps + 0.0001)
+    start = int(start_frame)
+    if start <= 0:
+        return 0.0
+    return max(0.0, (start - 0.5) / fps)
 
 
 def decode_frame_range(video_path, start_frame, frame_count, fps, width, height):

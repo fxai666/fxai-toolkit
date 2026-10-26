@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 
 __all__ = [
     "BudgetError", "WeightGroup", "Placement",
-    "read_groups", "classify_h3", "plan_placement",
+    "read_groups", "groups_from_model", "classify_h3", "plan_placement",
 ]
 
 GIB = float(1 << 30)
@@ -99,6 +99,51 @@ def read_groups(path, classify, prefix=""):
     out = []
     for (cat, shardable, once), (total, cnt) in sorted(acc.items()):
         if cat.startswith("block.") or cat in ("adaln",):
+            out.append(WeightGroup(cat, total // nblocks, nblocks, shardable, once))
+        else:
+            out.append(WeightGroup(cat, total, 1, shardable, once))
+    return out
+
+
+def _stored_bytes(p):
+    """真实占用的字节数。
+
+    int8 / fp8 权重在 ComfyUI 里是 `QuantizedTensor` 包装，`element_size()` 报的是
+    **逻辑** dtype（bf16 = 2 字节），直接 `numel * element_size` 会把体积算大一倍 ——
+    19.5G 的 pruned 模型会被算成 43.9G，然后误判成「装不下」。
+    """
+    q = getattr(p, "_qdata", None)
+    if q is not None:
+        return q.numel() * q.element_size()
+    return p.numel() * p.element_size()
+
+
+def groups_from_model(inner, classify=None):
+    """从**已加载**的模型算权重清单 —— 与 `read_groups` 同口径，但不碰文件。
+
+    模型已经加载到手上时再去读一遍 checkpoint 头没有意义，而且拿不到路径
+    （`ModelPatcher` 不保留它）。体积按真实存储字节算，见 `_stored_bytes`。
+    """
+    classify = classify or classify_h3
+    acc = {}          # (category, shardable, once) -> [总字节, 计数]
+    blocks = set()
+    for name, p in inner.named_parameters():
+        r = classify(name, p.dtype, tuple(p.shape))
+        if r is None:
+            continue
+        cat, shardable, once = r
+        k = (cat, bool(shardable), bool(once))
+        if k not in acc:
+            acc[k] = [0, 0]
+        acc[k][0] += _stored_bytes(p)
+        acc[k][1] += 1
+        if name.startswith("blocks."):
+            blocks.add(name.split(".")[1])
+
+    nblocks = len(blocks) or 1
+    out = []
+    for (cat, shardable, once), (total, _cnt) in sorted(acc.items()):
+        if cat.startswith("block.") or cat == "adaln":
             out.append(WeightGroup(cat, total // nblocks, nblocks, shardable, once))
         else:
             out.append(WeightGroup(cat, total, 1, shardable, once))

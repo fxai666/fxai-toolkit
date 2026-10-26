@@ -87,12 +87,13 @@ class HostExchange:
             self._streams_by_rank[r] = s
         return s
 
-    def _event(self):
+    def _event(self, key="_in"):
         r = self._local.rank
-        ev = self._events_by_rank.get(r)
+        k = (r, key)
+        ev = self._events_by_rank.get(k)
         if ev is None:
             ev = torch.cuda.Event()
-            self._events_by_rank[r] = ev
+            self._events_by_rank[k] = ev
         return ev
 
     def run(self, body):
@@ -232,16 +233,25 @@ class HostExchange:
         self._barrier.wait()
         return out
 
-    def all_reduce_sum(self, local, key="ar", inplace=False):
+    def all_reduce_sum(self, local, key="ar", inplace=False, chunks=0):
         """对位相加。2 卡时就是「换一份、加一下」，不绕 ring。
 
         `inplace=True` 时直接加进 `local` 并返回它 —— 调用方拿到部分和之后就不再
         需要它了（TP 的 out_proj / fc2 输出都是这样），能省掉一份 [n,k] 的克隆。
-        S=39000 时那一份是 400 MiB，占单层峰值的 15%。
+
+        **分块流水（`chunks > 1`）**：PCIe 是全双工的，但「全部下发 → 全部上传」
+        的串行路径在同一时刻只用一个方向，白扔一半带宽。这里把交换切成若干块，
+        让第 i 块的下发和第 i-1 块的回传在两条 stream 上并发 —— 一个方向在写 host、
+        另一个方向在读 host，互不争抢。每块之间只多一次 barrier。
         """
         r = self.rank
         n_local, k = local.shape
         dtype = local.dtype
+
+        n = max(1, int(chunks))
+        if n > 1 and n_local >= n * 256:
+            return self._all_reduce_chunked(local, key, inplace, n)
+
         hb = self._hb(key, (self.world, n_local, k), dtype)
         s_d2h, s_h2d = self._streams()
 
@@ -256,6 +266,96 @@ class HostExchange:
         # 838 MiB），改成单槽后每次 copy→add 立刻回收，峰值砍掉一半。
         staging = self._db(key, (n_local, k), dtype)
         out = local if inplace else local.clone()
+        for s in range(self.world):
+            if s == r:
+                continue
+            with torch.cuda.stream(s_h2d):
+                staging.copy_(hb[s], non_blocking=True)
+            s_h2d.synchronize()
+            out.add_(staging)
+        self._barrier.wait()
+        return out
+
+    def _all_reduce_chunked(self, local, key, inplace, n):
+        """分块版：第 i 块下发与第 i-1 块回传并发。"""
+        r = self.rank
+        n_local, k = local.shape
+        dtype = local.dtype
+        hb = self._hb(f"{key}#chunk", (self.world, n_local, k), dtype)
+        staging = self._db(f"{key}#chunk", (n_local // n + 1, k), dtype)
+        s_d2h, s_h2d = self._streams()
+        out = local if inplace else local.clone()
+
+        bounds = [(i * n_local // n, (i + 1) * n_local // n) for i in range(n)]
+        self._sync_in()
+
+        prev = None
+        for i, (a, b) in enumerate(bounds):
+            with torch.cuda.stream(s_d2h):
+                hb[r, a:b].copy_(local[a:b], non_blocking=True)
+            ev = self._event(f"{key}#d2h{i & 1}")
+            ev.record(s_d2h)
+
+            if prev is not None:
+                pa, pb = prev
+                st = staging[:pb - pa]
+                with torch.cuda.stream(s_h2d):
+                    for s in range(self.world):
+                        if s == r:
+                            continue
+                        st.copy_(hb[s, pa:pb], non_blocking=True)
+                        out[pa:pb].add_(st)
+
+            ev.synchronize()
+            self._barrier.wait()
+            prev = (a, b)
+
+        pa, pb = prev
+        st = staging[:pb - pa]
+        with torch.cuda.stream(s_h2d):
+            for s in range(self.world):
+                if s == r:
+                    continue
+                st.copy_(hb[s, pa:pb], non_blocking=True)
+                out[pa:pb].add_(st)
+        torch.cuda.current_stream().wait_stream(s_h2d)
+        self._barrier.wait()
+        return out
+
+    # ---------------------------------------------------------------- 异步归约
+    def all_reduce_begin(self, local, slot, key="ar"):
+        """把本 rank 的部分和异步下发到 pinned 缓冲，**不等传输完成**。
+
+        和 `all_reduce_end` 配对使用，中间可以插别的计算，让 D2H 和计算重叠。
+        2 卡时 pinned 缓冲按 `slot` 双缓冲，调用方用 `i % 2` 轮换。
+
+        **所有 rank 必须以完全相同的顺序调用 begin/end**，否则 barrier 会错位。
+        """
+        r = self.rank
+        shape = (self.world, *local.shape)
+        hb = self._hb(f"{key}#{slot}", shape, local.dtype)
+        s_d2h, _ = self._streams()
+
+        self._sync_in()
+        with torch.cuda.stream(s_d2h):
+            hb[r].copy_(local, non_blocking=True)
+        self._event(f"{key}#{slot}").record(s_d2h)
+
+    def all_reduce_end(self, local, slot, key="ar", out=None):
+        """等本 rank 的 D2H 落地、收对端那份并相加。"""
+        r = self.rank
+        shape = (self.world, *local.shape)
+        hb = self._hb(f"{key}#{slot}", shape, local.dtype)
+        _, s_h2d = self._streams()
+        staging = self._db(f"{key}#{slot}", local.shape, local.dtype)
+
+        self._event(f"{key}#{slot}").synchronize()
+        self._barrier.wait()
+
+        if out is None:
+            out = local
+        else:
+            out.copy_(local)
         for s in range(self.world):
             if s == r:
                 continue

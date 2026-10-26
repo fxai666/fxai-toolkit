@@ -22,9 +22,10 @@
 - **norm / q_norm / adaln 必须每卡 deepcopy**。`ParallelDiTBlock` 直接引用原
   block 的子模块，两个 rank 拿到的是同一个对象；`rank1` 一 `.to("cuda:1")` 就把
   rank0 的模块搬走了。
-- **adaln 卸到 CPU 时必须每步只算一次**。50 个 block 各调一次就是 100 次 CPU
-  前向（两卡），实测 10.7 ms/层 → 1.07 s/步，白扔。按 `t_emb` 的对象身份缓存，
-  一个 step 内所有 block 共用一份 modulation。
+- **adaln 是每个 block 各自一份的**（`DiTBlock.__init__` 里各自 new），不是共享模块。
+  所以：① 卸 CPU 必须在**建并行 block 之前**，否则建 block 时会被一起 `.to(dev)`，
+  全宽 adaln 那 12.11G 一上去单卡直接 OOM；② 不能把 block0 的 adaln 共用给 50 个 block，
+  权重全不同，共用等于 49 层 modulation 全错。按 block 下标缓存，`t_emb` 一换整批清。
 - **`token_refiner` 卸 CPU 后必须缓存输出**。它的输入只依赖文本条件、跨步不变；
   实测 S_text=512 时 CPU 单次 4.0 s，20 步就是 80 s，缓存之后只花 4 s（一次）。
 """
@@ -46,7 +47,8 @@ NON_BLOCK = ("video_patch_proj", "audio_patch_proj", "condition_proj",
              "token_refiner", "time_embedder", "final_layer")
 
 # 这些名字对应 planner 里的卸载组
-ONCE_MODULES = {"token_refiner": "refiner", "time_embedder": "cond"}
+ONCE_MODULES = {"token_refiner": "refiner", "time_embedder": "cond",
+                "condition_proj": "cond"}
 
 
 class _Memo:
@@ -83,15 +85,26 @@ class _Memo:
 
 
 class RankModuleProxy:
-    """按当前线程的 rank 分发到一个普通 nn.Module。"""
+    """按当前线程的 rank 分发到一个普通 nn.Module。
+
+    分 rank 线程之前（采样准备阶段由主线程算文本条件，如 `preprocess_text_embeds`）
+    拿不到 rank。这类模块是每卡各一份的**全量拷贝**，各份内容相同、输出一致，
+    所以主线程取 0 号副本即可。
+    """
 
     def __init__(self, per_rank, exchange, name=""):
         self.per_rank = per_rank
         self.ex = exchange
         self.name = name
 
+    def _rank(self):
+        try:
+            return self.ex.rank
+        except AttributeError:
+            return 0
+
     def __call__(self, *a, **kw):
-        return self.per_rank[self.ex.rank](*a, **kw)
+        return self.per_rank[self._rank()](*a, **kw)
 
     def __repr__(self):
         return f"<RankModuleProxy {self.name} world={len(self.per_rank)}>"
@@ -133,7 +146,12 @@ class CpuOnceProxy:
                     with torch.inference_mode():
                         out = self.cpu_mod.module(x.detach().to("cpu"), *a, **kw)
                     self._memo.put(key, x, out)
-        dev = self.devices[self.ex.rank]
+        # 主线程在分 rank 之前也会调到这里，那时取 0 号卡
+        try:
+            rank = self.ex.rank
+        except AttributeError:
+            rank = 0
+        dev = self.devices[rank]
         if isinstance(out, (tuple, list)):
             return type(out)(o.to(dev, non_blocking=True) if torch.is_tensor(o) else o
                              for o in out)
@@ -180,8 +198,10 @@ class H3ParallelRunner:
         self.offload = tuple(offload)
         self.blocks = []          # blocks[rank][idx]
         self.mods = []            # mods[rank][name]
-        self.cpu_once = {}        # "adaln" / "refiner" -> CpuModule
-        self._mod_cache = _Memo()
+        self.cpu_once = {}        # "adaln" -> [CpuModule]（每 block 一份）/ "refiner" -> CpuModule
+        self._mod_cache = {}      # block 下标 -> CPU modulation（一个 step 一批）
+        self._mod_key = None
+        self._mod_keep = None
         self._mod_flight = threading.Lock()
         self._installed = False
         self._orig_blocks = None
@@ -233,18 +253,26 @@ class H3ParallelRunner:
                 self.mods[r][name] = per[r]
             _set_plain(model, name, proxy)
 
-    def _offload_adaln(self):
-        """adaln 是每个 block 自己的子模块，得等并行 block 建好之后才能换。"""
+    def _prepare_adaln_offload(self):
+        """adaln 是**每个 block 各自一份**的（`DiTBlock.__init__` 里各自 new 一个
+        `AdalnProj`，50 份权重全不同），所以：
+
+        1. **必须在建并行 block 之前搬走** —— 建 block 时会把 `pb.adaln_proj`
+           一起 `.to(dev)`，全宽 adaln 那 12.11G 一上去单卡直接撑爆（实测 OOM）。
+        2. **不能共用一份** —— 每块权重都不一样，共用等于把 49 个 block 的
+           modulation 全算错。
+        """
         if "adaln" not in self.offload:
-            return
-        shared = CpuModule(self._orig_blocks[0].adaln_proj, self.devices[0],
-                           name="adaln")
-        self.cpu_once["adaln"] = shared
-        for row in self.blocks:
-            for pb in row:
-                pb.adaln_proj = shared
-        self.notes.append(f"adaln → CPU 常驻 {shared.ram_gib * 1024:.0f} MiB"
-                          f"（每步算一次，两卡共用）")
+            return None
+        mods = [CpuModule(b.adaln_proj, self.devices[0], name=f"adaln{i}")
+                for i, b in enumerate(self._orig_blocks)]
+        self.cpu_once["adaln"] = mods
+        total = sum(m.ram_gib for m in mods)
+        n_dq = sum(m.n_dequant for m in mods)
+        extra = f"，{n_dq} 份 int8 已反量化成 bf16" if n_dq else ""
+        self.notes.append(f"adaln × {len(mods)} → CPU 常驻 {total * 1024:.0f} MiB{extra}"
+                          f"（每 block 一份，每步约 {len(mods) * 0.0107:.2f}s）")
+        return mods
 
     def build(self):
         """切分权重、装代理。**这一步之后原 block 的权重就该被释放。**"""
@@ -252,30 +280,36 @@ class H3ParallelRunner:
         model = self.model
         self._orig_blocks = model.blocks
         self._replicate_modules()
+        adaln_cpu = self._prepare_adaln_offload()
 
         self.blocks = []
         for r in range(self.world):
             dev = self.devices[r]
             row = []
-            for src in self._orig_blocks:
+            for idx, src in enumerate(self._orig_blocks):
                 pb = ParallelDiTBlock(src, r, self.world, self.ex, device=dev,
                                       mlp_chunk=self.mlp_chunk)
+                # norm / q_norm 很小，但两个 rank 拿的是**同一个对象** ——
+                # rank1 一 `.to(dev)` 就把 rank0 的搬走了，必须各自一份
                 if r > 0:
-                    # 共享的 norm / q_norm / adaln 必须各自一份，否则会把 rank0 的搬走
                     pb.norm1 = copy.deepcopy(pb.norm1).to(dev)
                     pb.norm2 = copy.deepcopy(pb.norm2).to(dev)
                     pb.q_norm = copy.deepcopy(pb.q_norm).to(dev)
                     pb.k_norm = copy.deepcopy(pb.k_norm).to(dev)
-                    pb.adaln_proj = copy.deepcopy(pb.adaln_proj).to(dev)
                 else:
                     pb.norm1 = pb.norm1.to(dev)
                     pb.norm2 = pb.norm2.to(dev)
                     pb.q_norm = pb.q_norm.to(dev)
                     pb.k_norm = pb.k_norm.to(dev)
+
+                if adaln_cpu is not None:
+                    pb.adaln_proj = adaln_cpu[idx]       # 已在 CPU，挂引用即可
+                elif r > 0:
+                    pb.adaln_proj = copy.deepcopy(pb.adaln_proj).to(dev)
+                else:
                     pb.adaln_proj = pb.adaln_proj.to(dev)
                 row.append(pb)
             self.blocks.append(row)
-        self._offload_adaln()
 
         # 用代理顶替 blocks（不能直接给 nn.ModuleList 赋 list，会被 __setattr__ 拒绝）
         _set_plain(model, "blocks", [RankBlockProxy(self, i)
@@ -287,11 +321,17 @@ class H3ParallelRunner:
         return self
 
     def free_originals(self):
-        """释放原 block 的完整权重（切分完就没用了）。"""
+        """释放原 block 的大矩阵（切分完就没用了）。
+
+        **不能整个 block `.to("meta")`** —— rank0 的 norm1/norm2/q_norm/k_norm/adaln
+        直接引用了原模块（`nn.Module.to` 是就地搬迁），把整个 block 搬去 meta
+        等于把 rank0 自己的权重也毁了。只放大矩阵，它们切完片就没人引用了。
+        """
         if self._orig_blocks is None:
             return
         for b in self._orig_blocks:
-            b.to("meta")
+            for lin in (b.attn.qkv_proj, b.attn.out_proj, b.mlp.fc1, b.mlp.fc2):
+                lin.to("meta")
         self._orig_blocks = None
         import gc
         gc.collect()
@@ -300,24 +340,31 @@ class H3ParallelRunner:
                 torch.cuda.empty_cache()
 
     # ------------------------------------------------------------ 前向
-    def _mod_for_step(self, t_emb, rank):
-        """adaln 卸 CPU 时：一个 step 只算一次，两个 rank 共用。"""
-        shared = self.cpu_once.get("adaln")
-        if shared is None:
+    def _mod_for_block(self, idx, t_emb, rank):
+        """adaln 卸 CPU 时：**每块各自的** modulation，一个 step 内只算一次。
+
+        50 个 block 的 adaln 权重全不同，不能共用结果；但两个 rank 处理的是同一个
+        block、同一个 `t_emb`，所以按 (block 下标) 缓存，`t_emb` 一换就整批清掉。
+        """
+        mods = self.cpu_once.get("adaln")
+        if mods is None:
             return None                     # adaln 还在 GPU 上，block 自己算
-        key = _Memo.key_of(t_emb)
-        got = self._mod_cache.get(key)
-        if got is None:
-            with self._mod_flight:
-                got = self._mod_cache.get(key)
-                if got is None:
-                    got = self._mod_cache.put(key, t_emb, shared.compute_cpu(t_emb))
+        tk = _Memo.key_of(t_emb)
+        with self._mod_flight:
+            if self._mod_key != tk:
+                self._mod_cache.clear()
+                self._mod_key, self._mod_keep = tk, t_emb
+            got = self._mod_cache.get(idx)
+            if got is None:
+                m = mods[idx] if isinstance(mods, (list, tuple)) else mods
+                got = m.compute_cpu(t_emb)
+                self._mod_cache[idx] = got
         return tuple(t.to(self.devices[rank], non_blocking=True) for t in got)
 
     def block_forward(self, idx, x, t_emb, mod_segments, rope_freqs,
                       transformer_options, attention):
         rank = self.ex.rank
-        mod = self._mod_for_step(t_emb, rank)
+        mod = self._mod_for_block(idx, t_emb, rank)
         return self.blocks[rank][idx](x, t_emb, mod_segments, rope_freqs,
                                       transformer_options, attention=attention,
                                       mod=mod)
