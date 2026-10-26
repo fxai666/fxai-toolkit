@@ -8,11 +8,13 @@
  * 只动前端显示，不动 API 契约：槽位名仍是 initial_value1 / value1，
  * 所以老工作流一个字节都不用改。
  *
- * 两个硬约束（都在真实浏览器里量过）：
+ * 三个硬约束（都在真实浏览器里量过）：
  *   1. total / condition 这类「控件连接点」会被 ComfyUI 追加在动态槽位**后面**，
  *      所以动态槽位不一定在尾部，必须按真实索引删，不能假设「从尾部收」。
  *   2. 直接 splice(node.inputs) 会把连线弄丢；只有 removeInput / addInput
  *      会顺带修好 link 的 target_slot 索引。所以只能「按索引删 + 末尾追加」，不能重排。
+ *   3. 打开工作流时节点级的 onAfterGraphConfigured **不会**被调用（只有粘贴、建子图才调），
+ *      所以加载收尾必须挂扩展的 loadedGraphNode，另外用轮询兜底。
  */
 import { app } from "../../scripts/app.js";
 
@@ -176,25 +178,22 @@ function sync(node, cfg) {
 }
 
 // 工作流正在 configure 时链接还没恢复完，这时候裁槽位会把链接连根拔掉。
-// 等到 configure 结束再算，最多等 120 帧。
+// 等到 configure 结束再算：加载这条路由 loadedGraphNode 收尾，这里再留一条轮询兜底。
 function schedule(node, cfg) {
     if (node.__fxaiTimer) {
-        clearTimeout(node.__fxaiTimer);
+        return;
     }
-    node.__fxaiTimer = setTimeout(() => {
+    const tick = () => {
         node.__fxaiTimer = null;
         if (node.__fxaiSync) {
             return;
         }
         if (app.configuringGraph) {
-            // 加载途中只贴中文标签（不动槽位），槽位等 configure 收尾再算
+            // 加载途中只贴中文标签（不动槽位）
             applyLabels(node, cfg);
-            const wait = (node.__fxaiWait || 0) + 1;
-            if (wait > 120) {
-                return;
+            if ((node.__fxaiWait = (node.__fxaiWait || 0) + 1) < 900) {
+                node.__fxaiTimer = setTimeout(tick, 16);
             }
-            node.__fxaiWait = wait;
-            schedule(node, cfg);
             return;
         }
         node.__fxaiWait = 0;
@@ -204,7 +203,8 @@ function schedule(node, cfg) {
         } finally {
             node.__fxaiSync = false;
         }
-    }, 0);
+    };
+    node.__fxaiTimer = setTimeout(tick, 0);
 }
 
 app.registerExtension({
@@ -224,8 +224,7 @@ app.registerExtension({
             return ret;
         };
 
-        // onAfterGraphConfigured 是 ComfyUI 自己在 configure 收尾时回调的钩子
-        // （RerouteNode 也用它），此刻链接已经恢复完毕
+        // 粘贴、建子图时 ComfyUI 会显式调它；打开工作流那条路不会
         const origAfter = node.onAfterGraphConfigured;
         node.onAfterGraphConfigured = function () {
             const ret = origAfter ? origAfter.apply(this, arguments) : undefined;
@@ -234,5 +233,13 @@ app.registerExtension({
         };
 
         schedule(node, cfg);
+    },
+
+    // 打开工作流：graph.configure 跑完后按节点回调一次，此刻链接已经恢复完毕
+    loadedGraphNode(node) {
+        const cfg = CFG[node.comfyClass];
+        if (cfg) {
+            schedule(node, cfg);
+        }
     },
 });
