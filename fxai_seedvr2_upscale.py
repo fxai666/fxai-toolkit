@@ -50,8 +50,8 @@ CHUNK_CHOICES = ["自动", 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 61,
 #
 # 关键发现：**编码和解码吃的东西不一样。**
 #
-#   编码 ∝ 帧次 × 分块像素    ← 受 VAE 分块影响，重叠区要重算
-#   解码 ∝ 帧次 × 输出像素    ← 跟分块完全无关
+#   编码 ∝ 帧次 × 编码像素    ← 受编码分块影响，重叠区要重算
+#   解码 ∝ 帧次 × 解码像素    ← 解码不切块时就是输出像素
 #
 # 六组实测反推（帧次 = 块数 × chunk，见 plan_units）：
 #
@@ -64,14 +64,17 @@ CHUNK_CHOICES = ["自动", 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 61,
 #   F 7B 块1024           0.396            0.965
 #
 # 解码那一列稳得可怕 —— 换模型、换分块、换分辨率全在 0.93~0.98。
-# 所以**调分块只能动编码那 30~40%，解码那 60% 一动不动**。
+# 原因**不是**「解码不吃分块」，而是那六组的解码压根没切过块：当时 tile 按像素
+# 传给了 decode_tiled（它要的是 latent），传进去的值比整帧还大，于是永远是单块。
+# 单位修好之后 ≤4.19 Mpx 仍然整帧（成本不变），超过才切、成本按切完的像素算。
+# 结论照旧：**调分块只能动编码那 30~40%，解码那 60% 一动不动** ——
 # 这就是「二维分块算下来省 10%，实跑只快 4.5%」的原因。
 #
 # 编码系数随「每帧块数」略涨：块越多，每块的固定开销（建 mask、搬运、
 # 边界羽化）摊得越散。512 要切 15 块，所以是 0.52~0.55；768 只切 6 块，0.42。
-ENC_PER_MPX = 0.395         # 每帧次每百万分块像素的基础秒数
+ENC_PER_MPX = 0.395         # 每帧次每百万编码像素的基础秒数
 ENC_PER_TILE = 0.0085       # 每多一个块，再加这么多
-DEC_PER_MPX = 0.95          # 每帧次每百万**输出**像素的秒数
+DEC_PER_MPX = 0.95          # 每帧次每百万解码像素的秒数（整帧解码时 = 输出像素）
 EXTRA_RATIO = 1.09          # 缩放 + 采样 + 校色 ≈ 编解码的 9%
 
 # safetensors 8G 出头，每次重跑都从盘上读一遍太慢，缓存一份
@@ -121,10 +124,10 @@ def plan_units(total, chunk, overlap):
     return blocks * int(chunk) if blocks else 0
 
 
-def estimate_seconds(total, th, tw, chunk, overlap, tile_xy=None):
+def estimate_seconds(total, th, tw, chunk, overlap, tile_xy=None, dec_tile_xy=None):
     """预估耗时。
 
-    帧次 × (编码单价 × 分块像素 + 解码单价 × 输出像素) × 附加开销。
+    帧次 × (编码单价 × 分块像素 + 解码单价 × 解码像素) × 附加开销。
 
     三块都得算对，缺一块就会偏 20% 以上：
 
@@ -132,21 +135,24 @@ def estimate_seconds(total, th, tw, chunk, overlap, tile_xy=None):
       不能用 `总帧数 × 浪费比` —— 那假设块无限多，2 块时多算 9%
     * **分块像素**：所有块加起来、末块按边界裁过（见 tile_plan），
       重叠区重复算，块越小重复越多
-    * **输出像素**：解码只认这个，跟分块无关（见上面那张六组实测表）
+    * **解码像素**：解码不切块时就是输出像素；4K 那种要切块的按切完的算
 
-    `tile_xy` 传 None 时按「不切块」算（只在前面的流程还没定块大小时用）。
+    两个 `tile_xy` 传 None 时按「不切块」算（只在前面的流程还没定块大小时用）。
     """
     if chunk <= 0:
         return 0.0
     units = plan_units(total, chunk, overlap)
-    out_mpx = (th * tw) / 1e6
     if tile_xy:
         n_tile, calc_px = tile_plan(tw, th, tile_xy[0], tile_xy[1])
         tiled_mpx = calc_px / 1e6
     else:
-        n_tile, tiled_mpx = 1, out_mpx
+        n_tile, tiled_mpx = 1, (th * tw) / 1e6
+    if dec_tile_xy:
+        dec_mpx = tile_plan(tw, th, dec_tile_xy[0], dec_tile_xy[1])[1] / 1e6
+    else:
+        dec_mpx = (th * tw) / 1e6
     k_enc = ENC_PER_MPX + ENC_PER_TILE * n_tile
-    return units * (k_enc * tiled_mpx + DEC_PER_MPX * out_mpx) * EXTRA_RATIO
+    return units * (k_enc * tiled_mpx + DEC_PER_MPX * dec_mpx) * EXTRA_RATIO
 
 
 def align_4n1(n):
@@ -382,20 +388,29 @@ TILE_OVERLAP = 128          # 相邻块的重叠边长（两个方向都用这�
 # 单块面积上限 —— 这才是显存的真约束（tile 面积按平方吃显存）。
 # 1024×1024 ≈ 1.05 Mpx，3B / 7B 都实测过。
 TILE_AREA_CAP = 1024 * 1024
+# SeedVR2 的空间下采样固定 8 倍（BYTEDANCE_VAE_SPATIAL_DOWNSAMPLE，模型名里的 s8）。
+# 编码的 tile 按像素给，解码的按 latent 给，差的就是这个数。
+VAE_SPATIAL = 8
+# 解码一次能吞多少输出像素。整帧解码的显存 ∝ 输出面积，实测 2560×1536
+# （3.93 Mpx）时节点峰值 10.35 GiB（含 7B 的 8.33 GiB 权重），再往上就危险了 ——
+# 4K 的 8.29 Mpx 必须切，否则 OOM。
+DECODE_FRAME_PIXELS = 4 * 1024 * 1024
 
 
 def tile_span(total, tile):
     """沿一个方向切，返回 (块数, 实际计算长度合计)。
 
-    **照抄 comfy.utils.tiled_scale_multidim 的循环**：
+    **跟 `comfy/ldm/seedvr/vae.py` 的 `tiled_vae` 逐行对齐**：
 
-        positions = range(0, size - overlap, tile - overlap)
-        l = min(tile, size - pos)
+        for y_idx in range(0, h, stride_h):
+            y_end = min(y_idx + ti_h, h)
+            if y_idx > 0 and (y_end - y_idx) <= ov_h:
+                continue
 
     两个要点：
-    1. 位置从 0 起、步长 `tile - overlap`，且**只在 `pos < size - overlap` 时切** ——
-       不是 `pos < size`。1280 宽用 768 的块，只有 1 块，不是 2 块。
-    2. 末块边长是 `size - pos`，会被裁到图像边界内，所以总长度
+    1. 步长是 `tile - overlap`，而且**尾巴不超过 overlap 的那块直接丢掉** ——
+       1280 宽用 768 的块只有 1 块，不是 2 块。
+    2. 末块边长是 `h - pos`，会被裁到图像边界内，所以总长度
        **不是 `块数 × tile`**，比那个小。1920 宽用 768 的块：768+768+640=2176，
        不是 3×768=2304。
 
@@ -472,12 +487,36 @@ def auto_tile(w, h, area_cap=TILE_AREA_CAP):
     return best[1], best[2]
 
 
-def _vae_args(tile_x, tile_y):
-    return dict(tile_x=tile_x, tile_y=tile_y, overlap=TILE_OVERLAP,
-                tile_t=64, overlap_t=8)
+def decode_tile(tw, th):
+    """解码的块边长（**像素**）。整帧吞得下就整帧。
+
+    解码成本 ∝ 实际算的像素，块切得越小重叠重复得越多 —— 所以能整帧就整帧，
+    只有超过 `DECODE_FRAME_PIXELS` 才切（4K 属于必须切的那种）。
+    """
+    if tw * th <= DECODE_FRAME_PIXELS:
+        return tw, th
+    return auto_tile(tw, th, DECODE_FRAME_PIXELS)
 
 
-def _run_block(model, vae, seg, tw, th, color, seed, vae_args):
+def vae_args(tile_x, tile_y, dec_x, dec_y):
+    """造编解码参数 —— 返回 (编码参数, 解码参数)。
+
+    **两套单位差 8 倍，必须分开造**，这是这个函数存在的唯一理由：
+
+    * `encode_tiled` 的 tile 是**像素**
+    * `decode_tiled` 的 tile 是**latent**，内部 `tile_y * sf` 才换算成像素
+
+    原来两个都按像素传，736 被解码当成 736 个 latent = 5888 像素，比整帧还大，
+    解码于是永远退化成单块。2K 以内看不出来，4K 会直接 OOM。
+    """
+    return (
+        dict(tile_x=tile_x, tile_y=tile_y, overlap=TILE_OVERLAP),
+        dict(tile_x=-(-dec_x // VAE_SPATIAL), tile_y=-(-dec_y // VAE_SPATIAL),
+             overlap=max(1, TILE_OVERLAP // VAE_SPATIAL)),
+    )
+
+
+def _run_block(model, vae, seg, tw, th, color, seed, enc_args, dec_args):
     """跑一块：缩放 → 补 4n+1 → 编码 → 一步采样 → 解码 → 校色。
 
     独立成函数是为了 OOM 时局部变量随栈帧一起释放，不会挂在调用方作用域里。
@@ -503,7 +542,7 @@ def _run_block(model, vae, seg, tw, th, color, seed, vae_args):
     with torch.no_grad():
         # 3) VAE 编码 → 4) 一步采样 → 5) VAE 解码（全在 GPU 上，按空间 tile 搬进搬出）
         _t = time.time()
-        latent = vae.encode_tiled(ref, **vae_args)
+        latent = vae.encode_tiled(ref, **enc_args)
         stage["编码"] = time.time() - _t
 
         _t = time.time()
@@ -517,7 +556,7 @@ def _run_block(model, vae, seg, tw, th, color, seed, vae_args):
         stage["采样"] = time.time() - _t
 
         _t = time.time()
-        dec = vae.decode_tiled(sampled, **vae_args)
+        dec = vae.decode_tiled(sampled, **dec_args)
         stage["解码"] = time.time() - _t
 
     dec = _as_frame_sequence(dec)
@@ -708,17 +747,20 @@ class FxAiSeedVR2Upscale:
         # ---- 开工前先算账：内存和耗时都是可以提前算准的 ----
         # 块大小要在这里先定下来 —— 耗时预估必须知道「实际算多少像素」
         tile_x, tile_y = auto_tile(tw, th)
-        vae_args = _vae_args(tile_x, tile_y)
+        dec_x, dec_y = decode_tile(tw, th)
+        enc_args, dec_args = vae_args(tile_x, tile_y, dec_x, dec_y)
         n_tile, calc_px = tile_plan(tw, th, tile_x, tile_y)
         calc_mpx = calc_px / 1e6
+        n_dec, dec_px = tile_plan(tw, th, dec_x, dec_y)
 
         # 内存 = 帧数 × 像素数 × 通道 × 4 字节，跟分块无关（分块只管显存峰值）
         out_bytes = total * th * tw * (3 if alpha is None else 4) * 4
         in_bytes = total * in_h * in_w * in_c * 4
         # 整条链还要多一份：下游人脸精修会把整段再复制一遍
         chain_bytes = in_bytes + out_bytes * 2
-        # 耗时 = 帧次 × 实际计算像素 × 单帧系数
-        est_sec = estimate_seconds(total, th, tw, chunk, overlap, (tile_x, tile_y))
+        # 耗时 = 帧次 × (编码单价 × 编码像素 + 解码单价 × 解码像素)
+        est_sec = estimate_seconds(
+            total, th, tw, chunk, overlap, (tile_x, tile_y), (dec_x, dec_y))
         avail = _available_ram()
         preflight = (
             f"{total} 帧 · {in_w}×{in_h} → {tw}×{th}\n"
@@ -727,10 +769,13 @@ class FxAiSeedVR2Upscale:
         )
         if avail:
             preflight += f" · 当前可用 {avail / 1024 ** 3:.0f} GiB"
+        dec_desc = ("整帧" if (dec_x, dec_y) == (tw, th)
+                    else f"{dec_x}×{dec_y}（{n_dec} 块/帧，算 {dec_px / 1e6:.2f} Mpx/帧）")
         preflight += (
             f"\n预计 {est_sec / 60:.0f} 分钟（{chunk} 帧/块 · 重叠 {overlap} 帧）"
-            f"\nVAE 分块 {tile_x}×{tile_y}：{n_tile} 块/帧，实际要算 {calc_mpx:.2f} Mpx/帧"
+            f"\nVAE 编码分块 {tile_x}×{tile_y}：{n_tile} 块/帧，实际要算 {calc_mpx:.2f} Mpx/帧"
             f"（输出只有 {tw * th / 1e6:.2f} Mpx，重叠浪费 {calc_mpx / (tw * th / 1e6):.2f}×）"
+            f"\nVAE 解码分块：{dec_desc}"
         )
         print(f"[凤希AI][SeedVR2] 预估：{preflight}")
 
@@ -783,7 +828,8 @@ class FxAiSeedVR2Upscale:
             seg = rgb[pos:pos + n]
 
             try:
-                dec, stage = _run_block(model, vae, seg, tw, th, 色彩校正, seed, vae_args)
+                dec, stage = _run_block(
+                    model, vae, seg, tw, th, 色彩校正, seed, enc_args, dec_args)
             except _OOM_ERRORS:
                 del seg
                 mm.soft_empty_cache()
@@ -845,7 +891,8 @@ class FxAiSeedVR2Upscale:
             f"尺寸：{in_w}×{in_h} → {tw}×{th}（{tw / float(in_w):.2f}×）\n"
             f"帧数：{total} 帧（块内补到 4n+1，输出裁回原帧数，不多不少）\n"
             f"分块：{chunk} 帧/块，重叠 {overlap} 帧，实际 {blocks} 块"
-            f" · VAE 分块 {tile_x}×{tile_y}（{n_tile} 块/帧，算 {calc_mpx:.2f} Mpx/帧）"
+            f" · VAE 编码 {tile_x}×{tile_y}（{n_tile} 块/帧，算 {calc_mpx:.2f} Mpx/帧）"
+            f" · 解码 {dec_desc}"
         )
         if cur_chunk != chunk:
             report += f"（中途降到 {cur_chunk} 帧/块）"

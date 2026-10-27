@@ -149,6 +149,18 @@ ComfyUI - 凤希全能节点包是**ComfyUI生态专属、主打低配设备友�
 3. 免费迭代更新：持续优化节点功能、适配最新ComfyUI版本与AI视频模型
 
 
+## 八、服务控制脚本（ctl.py / ctl.cmd）
+放在节点包目录下，供启动器网页会话底部的「重启服务」按钮调用，跟节点包一起同步更新，不用在 ComfyUI 根目录另放一份。
+
+```
+ctl.cmd kill    按根目录 fxai.json 里的 port 结束服务进程（只停不重拉）
+ctl.cmd start   按 fxai.json 的 api / app 前台启动（日志留在当前终端）
+ctl.cmd where   打印识别到的 ComfyUI 根目录、配置文件、脚本路径和端口
+```
+
+脚本会自己向上找带 `fxai.json` 的目录当根目录（放在 `custom_nodes/fxai-toolkit/` 时向上两级即 `ComfyUI/`），
+启动前把工作目录切到根目录，因此 `main.py` 里的相对路径不受影响。
+
 # 授权说明 License
 ## 开源协议
 本项目基于 **MIT License** 开源。
