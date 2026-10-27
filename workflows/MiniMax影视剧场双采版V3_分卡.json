@@ -4249,11 +4249,11 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "minimax_h3_hybrid_fl2va_ref2va_b25-49_unpruned_int8.safetensors",
+        "minimax_h3_singularity_ref2va_int8.safetensors",
         "default"
       ],
       "widgets_values_named": {
-        "unet_name": "minimax_h3_hybrid_fl2va_ref2va_b25-49_unpruned_int8.safetensors",
+        "unet_name": "minimax_h3_singularity_ref2va_int8.safetensors",
         "weight_dtype": "default"
       }
     },
