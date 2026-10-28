@@ -27,12 +27,30 @@ def _get_conn():
     return _local.conn
 
 def _get_current_prompt_id():
-    """自动获取当前运行中的 prompt_id"""
+    """取「正在执行这个节点的」那条 prompt 的 prompt_id。
+
+    ① 首选 ComfyUI 官方的执行上下文：execution.py 在调用节点 FUNCTION 时用
+       CurrentNodeContext(prompt_id, ...) 设了 contextvar，这里读到的就是本节点的
+       真实归属，**多条任务并发执行也不会串号**。
+    ② 老版本没有 comfy_execution.utils 时退回扫队列；注意这版 ComfyUI 的
+       currently_running 是字典（可以同时跑多条），只有「确实只有一条在跑」时
+       才认它，多条时宁可不广播也不张冠李戴（把 A 任务的图记到 B 任务名下）。
+    """
+    try:
+        from comfy_execution.utils import get_executing_context
+        ctx = get_executing_context()
+        if ctx is not None and getattr(ctx, "prompt_id", None):
+            return ctx.prompt_id
+    except Exception:
+        pass
     try:
         running, _ = PromptServer.instance.prompt_queue.get_current_queue()
-        if running:
+        running = [r for r in (running or []) if isinstance(r, (list, tuple)) and len(r) > 1]
+        if len(running) == 1:
             return running[0][1]
-    except:
+        if len(running) > 1:
+            print(f"[凤希AI] 广播跳过：同时有 {len(running)} 条任务在执行，无法确定产物归属")
+    except Exception:
         pass
     return ""
 
@@ -47,7 +65,17 @@ def save_result(category, subdir, files, prompt_id=None):
     """
     if not prompt_id:
         prompt_id = _get_current_prompt_id()
-    if not prompt_id or not files:
+    # 兜底：只认真实产物文件名。PreviewImage 之类写进 temp 的预览名（ComfyUI_temp_*）
+    # 不是成品，进了广播会让下游按它拼下载令牌，必 404。
+    files = [f for f in (files or [])
+             if f and not os.path.basename(str(f)).lower().startswith("comfyui_temp")]
+    if not files:
+        return
+    if not prompt_id:
+        # 以前这里静默 return：结果既不广播也不写库，事后用 /fxai/tasks/result
+        # 拿 prompt_id 去查只会是空的——外面看起来像「图生成了但没结果」。
+        print("[凤希AI] 广播跳过：未取到 prompt_id，本次产物（%s）未写库，稍后按 id 查也为空"
+              % ", ".join(map(str, files)))
         return
     dir_path = category + ("/" + subdir.replace("\\", "/") if subdir else "")
     url = dir_path + "|" + ",".join(files)
