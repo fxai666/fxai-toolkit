@@ -99,6 +99,7 @@ NODE_REGISTRY = [
     ("FxAiImageGetSingle",        "fxai_image_get_single",      "凤希AI - 图像管理器 - 获取批量单图"),
     ("FxAiImageDownscale",        "fxai_resize_image_downscale","凤希AI - 图片缩小 - 按倍数"),
     ("FxAiImageBatchConcat",      "fxai_image_batch_concat",    "凤希AI - 图片列表合并"),
+    ("FxAiColorMatchSeamlessJoin","fxai_color_match_join",      "凤希AI - 色彩匹配无缝拼接"),
     ("FxAiImageLoopTile",         "fxai_image_loop_tile",       "凤希AI - 图片循环序列"),
     ("FxAiImageUniformSize",      "fxai_image_uniform_size",    "凤希AI - 图片大小统一"),
     ("FxAiImageLoadBase64",       "fxai_image_load_base64",     "凤希AI - 加载Base64图片"),
@@ -181,6 +182,8 @@ NODE_REGISTRY = [
     ("FxAiLatentClearReplace",    "fxai_latent_clear_replace",  "凤希AI - 潜空间清除与替换"),
     ("FxAiLatentGetFrames",       "fxai_latent_get_frames",     "凤希AI - 潜空间获取"),
     ("FxAiLatentGetFrameCount",   "fxai_latent_get_frame_count","凤希AI - 潜空间总数"),
+    ("FxAiH3LatentStitcher",      "fxai_h3_latent_stitch",      "凤希AI - H3潜空间拼接"),
+    ("FxAiH3RegionMask",          "fxai_h3_region_mask",        "凤希AI - H3区域蒙版"),
     ("FxAiLTX23Sampler",          "fxai_ltx23_sampler",         "凤希AI - LTX2.3采集器"),
     ("FxAiMiniMaxUpscaler",       "fxai_minimax_upscaler",      "凤希AI - MiniMax放大器"),
 	

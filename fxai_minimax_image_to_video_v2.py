@@ -88,6 +88,24 @@ def _prepare_image(image, width, height, crop):
     return img
 
 
+def adapt_canvas(width, height):
+    """参考视频的画布适配：768 短边 + 768*1344 面积上限，每轴取整到 32。
+
+    与官方 ref2va 同款。参考视频不放大（调用方另做判断），只做等比适配，
+    避免小素材被拉大后多出无意义的参考 token。
+    """
+    ratio = width / height
+    if ratio >= 1.0:
+        nom_w, nom_h = BASE_SHORT_EDGE * ratio, BASE_SHORT_EDGE
+    else:
+        nom_w, nom_h = BASE_SHORT_EDGE, BASE_SHORT_EDGE / ratio
+    if nom_w * nom_h > MAX_PIXELS:
+        s = math.sqrt(MAX_PIXELS / (nom_w * nom_h))
+        nom_w, nom_h = nom_w * s, nom_h * s
+    return (max(CANVAS_MULTIPLE, round(nom_w / CANVAS_MULTIPLE) * CANVAS_MULTIPLE),
+            max(CANVAS_MULTIPLE, round(nom_h / CANVAS_MULTIPLE) * CANVAS_MULTIPLE))
+
+
 def _empty_av_latent(width, height, length, batch_size=1):
     frame_count, latent_t, audio_t = temporal_shape(length)
     video = torch.zeros([batch_size, 24, latent_t, height // 16, width // 16],
@@ -149,11 +167,17 @@ def _lock_source_audio(latent, audio_vae, audio):
 
 
 class FxAiMiniMaxImageToVideoV2:
-    """MiniMax H3 图生视频 V2：提示词 + 首尾帧关键帧 + 外置音频参考。
+    """MiniMax H3 图生视频 V2：提示词 + 首尾帧关键帧 + 参考图/参考视频/外置音频。
 
     输出正向条件与 AV 联合潜变量（视频[1,24,T,h,w] + 音频[1,32,2,T]）。
     接入外置音频时按 ref_audio 条件注入，提示词里写 <Audio 1> 引用；
     最终音频以源音频为准（外置音频走音频VAE 或用源文件 mux）。
+
+    参考素材顺序与官方 ref2va 一致：图片 -> 视频（音轨的 <Audio j> 排在 <Video k> 之前）
+    -> 独立音频。提示词里用 <Picture i> / <Video k> / <Audio j> 引用。
+
+    参考视频（参考视频 / 参考视频音频）是角色替换的关键：它只提供动作、镜头、
+    背景和表演，不硬锁原主体，所以模型会在同一机位下把主体换成参考图里的角色。
     """
 
     @classmethod
@@ -178,6 +202,12 @@ class FxAiMiniMaxImageToVideoV2:
                     "options": ["音色参考", "原音频", "系统生成"],
                     "default": "音色参考",
                     "tooltip": "音色参考=外置音频仅作音色参考，模型生成内容；原音频=外置音频锁进音频通道，输出音频即源音频（唱歌/数字人口播）；系统生成=外置音频不参与，模型自由生成"}),
+                # ↓ 新增项一律追加在最后，绝不打乱老工作流已保存的输入槽位顺序
+                "参考视频": ("IMAGE", {
+                    "tooltip": "参考视频帧序列（一整段视频的帧批）。送进 <Video 1>，只参考动作/镜头/背景，"
+                               "不硬锁原主体 —— 角色替换就靠它。会自动裁到生成帧数并对齐 17k+5 网格"}),
+                "参考视频音频": ("AUDIO", {
+                    "tooltip": "参考视频的原音轨，配对成 <Audio 1>（标签排在 <Video 1> 之前）"}),
             }
         }
 
@@ -187,7 +217,8 @@ class FxAiMiniMaxImageToVideoV2:
     CATEGORY = "凤希AI/MiniMax"
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
-            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考音频列表=None, 外置音频=None, 音频模式="音色参考"):
+            音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考音频列表=None,
+            外置音频=None, 音频模式="音色参考", 参考视频=None, 参考视频音频=None):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
 
         if 音频模式 == "原音频":
@@ -227,6 +258,49 @@ class FxAiMiniMaxImageToVideoV2:
             z = 视频VAE.encode(resized)
             ref_items.append({"type": "image", "data": resized})
             ref_blocks.append({"kind": "image", "latent_h": th // 16, "latent_w": tw // 16, "latent": z})
+
+        # 参考视频：顺序必须夹在图片之后、独立音频之前（官方 ref2va 的展示顺序）。
+        # 它是角色替换的命门 —— 进 ref_videos 只参考动作/镜头/背景，不硬锁原主体；
+        # 改用 AddGuide 把整段锚死的话，模型会直接照抄源视频、身份一点不换。
+        if 参考视频 is not None:
+            vh, vw = 参考视频.shape[1], 参考视频.shape[2]
+            cw, ch = adapt_canvas(vw, vh)
+            if vw * vh < cw * ch:
+                # 小素材不放大，按原始尺寸取整到 32
+                cw = max(CANVAS_MULTIPLE, round(vw / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+                ch = max(CANVAS_MULTIPLE, round(vh / CANVAS_MULTIPLE) * CANVAS_MULTIPLE)
+            frames = _resize(参考视频, cw, ch, "disabled")
+            # 参考视频不能比要生成的片子还长
+            if frames.shape[0] > frame_count:
+                frames = frames[:frame_count]
+            n = frames.shape[0]
+            if n < 5:
+                raise ValueError("参考视频至少需要 5 帧（24fps 下约 0.2 秒）")
+            while n % 17 != 5:
+                n -= 1
+            frames = frames[:n]
+
+            has_sound = 参考视频音频 is not None and 音频VAE is not None
+            if has_sound:
+                # 视频音轨单独占一个 <Audio j>，标签排在 <Video k> 之前
+                ref_items.append({"type": "audio"})
+            # 文本编码器按 2fps 看视频，带时间戳
+            sample_idx = list(range(0, frames.shape[0], FPS // 2))
+            ref_items.append({
+                "type": "video",
+                "data": frames[sample_idx],
+                "timestamps": [i / 2.0 for i in range(len(sample_idx))],
+            })
+
+            z = 视频VAE.encode(frames)
+            audio_latent, ref_audio_t = (None, 0)
+            if has_sound:
+                audio_latent, ref_audio_t = _encode_ref_audio(音频VAE, 参考视频音频)
+            ref_blocks.append({
+                "kind": "video_audio" if ref_audio_t else "video",
+                "latent_t": z.shape[2], "latent_h": ch // 16, "latent_w": cw // 16,
+                "ref_audio_t": ref_audio_t, "latent": z, "audio_latent": audio_latent,
+            })
 
         # 参考音频：合并处理（外置音频放最前，再追加参考音频列表），逐个编码成独立 <Audio j> 参考，最多 3 段
         # 系统生成 模式下外置音频不参与；音色参考/原音频 才作为参考条件
