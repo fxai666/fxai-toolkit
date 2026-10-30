@@ -7,8 +7,11 @@
 # 外置音频按官方 ref2va 的 ref_audio 条件注入（永远干净的参考音频行），
 # 提示词里用 <Audio 1> 引用它，模型据此驱动口型并生成配套音频流。
 
+import hashlib
 import math
+import os
 import re
+import time
 
 import torch
 import torchaudio
@@ -46,7 +49,7 @@ def temporal_shape(length):
     return frame_count, video_latent_t(frame_count), round(duration * AUDIO_LATENT_FPS)
 
 
-def _validate_media_tags(prompt, ref_items):
+def _validate_media_tags(prompt, ref_items, ignore_video=False):
     """校验提示词里的 <Picture/Video/Audio N> 标签与已组装素材数量匹配。
 
     官方 tokenizer 按 ref_items 顺序独立计数（image->Picture、audio->Audio、video->Video）。
@@ -67,10 +70,47 @@ def _validate_media_tags(prompt, ref_items):
     names = {"image": "图片(Picture)", "audio": "音频(Audio)", "video": "视频(Video)"}
     missing = []
     for kind, want in needed.items():
+        if kind == "video" and ignore_video:
+            # 实验开关：参考视频不进文本编码时，提示词里的 <Video 1> 只是纯文本标记
+            continue
         if want > counts[kind]:
             missing.append(f"{names[kind]}需要 {want} 个，实际只有 {counts[kind]} 个")
     if missing:
         raise ValueError("提示词引用的素材不足：" + "；".join(missing))
+
+
+# ---------------------------------------------------------------- 文本编码缓存
+# 为什么要按「素材指纹」而不是只按提示词：
+# 参考视频的抽帧是以**视觉 token** 形式进文本编码器的（comfy/text_encoders/minimax.py
+# 第 169 行起，每 2 帧一个 vision block，带 <x.x seconds> 时间戳），提示词排在最后
+# 去 attend 这些媒体 token。所以同一句提示词，不同段的参考视频会编出**不同的条件**。
+# 只按提示词 MD5 做键 = 把第一段的视频条件冻给后面所有段，动作引导全错。
+# 键里带上素材指纹后，命中范围是「提示词 + 参考图 + 抽帧像素 + 时间戳」完全一致：
+# 重跑同一段（崩溃续跑、只改种子/LoRA 强度/步数/采样器）能直接复用。
+_TEXT_CACHE = {}
+_TEXT_CACHE_MAX = 4          # 每条几十 MB，留最近 4 条够用
+
+# 实验开关（A/B 用，不进工作流）：参考视频的抽帧不进文本编码器的视觉 token，
+# 只保留 minimax_refs 的 VAE latent 通道。开了以后文本条件每段恒定 → 缓存能命中。
+_NO_TEXT_VIDEO = os.environ.get("FXAI_H3_NO_TEXT_VIDEO", "") not in ("", "0")
+
+
+def _ref_items_digest(ref_items):
+    """把参与文本编码的素材压成 MD5 指纹（图片像素、视频抽帧、时间戳、顺序）。"""
+    h = hashlib.md5()
+    for item in ref_items:
+        h.update(str(item.get("type", "?")).encode())
+        data = item.get("data")
+        if data is not None:
+            t = data if torch.is_tensor(data) else torch.as_tensor(data)
+            h.update(repr(tuple(t.shape)).encode())
+            # 量化成 uint8 再哈希：内容一致就一致，比 fp32 省 4 倍时间
+            u8 = (t.detach().to("cpu", torch.float32).clamp(0, 1) * 255).round().to(torch.uint8)
+            h.update(u8.contiguous().numpy().tobytes())
+        ts = item.get("timestamps")
+        if ts:
+            h.update(repr([round(float(x), 3) for x in ts]).encode())
+    return h.hexdigest()
 
 
 def _resize(image, width, height, crop):
@@ -208,6 +248,11 @@ class FxAiMiniMaxImageToVideoV2:
                                "不硬锁原主体 —— 角色替换就靠它。会自动裁到生成帧数并对齐 17k+5 网格"}),
                 "参考视频音频": ("AUDIO", {
                     "tooltip": "参考视频的原音轨，配对成 <Audio 1>（标签排在 <Video 1> 之前）"}),
+                "接缝首帧": ("IMAGE", {
+                    "tooltip": "上一段生成结果的末帧：只作第 0 帧的几何锚点（AddGuide），\n"
+                               "让分段接缝两侧画面连续（色调/姿态不跳）。\n"
+                               "**不占 <Picture N> 序号** —— 提示词里的 <Picture 1> 永远还是角色参考图，\n"
+                               "所以段数再多身份也不会逐段漂。不接就是老行为。"}),
             }
         }
 
@@ -218,8 +263,14 @@ class FxAiMiniMaxImageToVideoV2:
 
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
             音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考音频列表=None,
-            外置音频=None, 音频模式="音色参考", 参考视频=None, 参考视频音频=None):
+            外置音频=None, 音频模式="音色参考", 参考视频=None, 参考视频音频=None,
+            接缝首帧=None):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
+        _t0 = time.perf_counter()
+        _marks = []
+
+        def _mark(name):
+            _marks.append((name, time.perf_counter()))
 
         if 音频模式 == "原音频":
             if 音频VAE is None:
@@ -244,6 +295,15 @@ class FxAiMiniMaxImageToVideoV2:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img, "image_src": src, "crop": "center"})
             ref_images.append(img)
+        if 接缝首帧 is not None and not any(kf["resolved_frame_index"] == 0 for kf in keyframes):
+            # 分段接缝：把上一段的末帧锚在第 0 帧，两段交界处的色调/姿态就接得住。
+            # 刻意**不**放进 ref_images —— 它一旦进去就成了 <Picture 1>，
+            # 角色参考图会被挤到 <Picture 2>，提示词里的 <Picture 1> 就指错人，
+            # 段数越多身份越漂。这里只走 minimax_keyframes 的几何锚定通道。
+            src = 接缝首帧[:1, ..., :3]
+            img = _prepare_image(接缝首帧, 宽度, 高度, "disabled")
+            keyframes.append({"resolved_frame_index": 0, "image": img,
+                              "image_src": src, "crop": "disabled"})
         if 参考图片列表 is not None:
             ref_images += normalize_images(参考图片列表)
 
@@ -286,11 +346,14 @@ class FxAiMiniMaxImageToVideoV2:
                 ref_items.append({"type": "audio"})
             # 文本编码器按 2fps 看视频，带时间戳
             sample_idx = list(range(0, frames.shape[0], FPS // 2))
-            ref_items.append({
-                "type": "video",
-                "data": frames[sample_idx],
-                "timestamps": [i / 2.0 for i in range(len(sample_idx))],
-            })
+            if _NO_TEXT_VIDEO:
+                print("[凤希AI·换人] 实验开关：参考视频不进文本编码（只走 VAE latent 通道）")
+            else:
+                ref_items.append({
+                    "type": "video",
+                    "data": frames[sample_idx],
+                    "timestamps": [i / 2.0 for i in range(len(sample_idx))],
+                })
 
             z = 视频VAE.encode(frames)
             audio_latent, ref_audio_t = (None, 0)
@@ -301,6 +364,7 @@ class FxAiMiniMaxImageToVideoV2:
                 "latent_t": z.shape[2], "latent_h": ch // 16, "latent_w": cw // 16,
                 "ref_audio_t": ref_audio_t, "latent": z, "audio_latent": audio_latent,
             })
+            _mark("参考视频VAE编码(%d帧)" % frames.shape[0])
 
         # 参考音频：合并处理（外置音频放最前，再追加参考音频列表），逐个编码成独立 <Audio j> 参考，最多 3 段
         # 系统生成 模式下外置音频不参与；音色参考/原音频 才作为参考条件
@@ -329,17 +393,37 @@ class FxAiMiniMaxImageToVideoV2:
                 ref_items.append({"type": "audio"})
                 ref_blocks.append({"kind": "audio", "ref_audio_t": ref_audio_t, "audio_latent": audio_latent})
 
-        _validate_media_tags(提示词, ref_items)
-        tokens = CLIP模型.tokenize(提示词, minimax_ref_items=ref_items)
-        cond = CLIP模型.encode_from_tokens_scheduled(tokens)
+        _validate_media_tags(提示词, ref_items, ignore_video=_NO_TEXT_VIDEO)
+        cache_key = (提示词, _ref_items_digest(ref_items))
+        cached = _TEXT_CACHE.get(cache_key)
+        if cached is not None and cached[0] is CLIP模型:
+            cond = cached[1]
+            _mark("文本编码(命中缓存)")
+        else:
+            tokens = CLIP模型.tokenize(提示词, minimax_ref_items=ref_items)
+            cond = CLIP模型.encode_from_tokens_scheduled(tokens)
+            if len(_TEXT_CACHE) >= _TEXT_CACHE_MAX:
+                _TEXT_CACHE.pop(next(iter(_TEXT_CACHE)))
+            _TEXT_CACHE[cache_key] = (CLIP模型, cond)
+            _mark("文本编码")
 
         if keyframes:
             for kf in keyframes:
                 if "image" in kf:
                     kf["latent"] = 视频VAE.encode(kf["image"])
             cond = node_helpers.conditioning_set_values(cond, {"minimax_keyframes": keyframes, "minimax_frame_count": frame_count})
+            _mark("关键帧VAE编码(%d张)" % len(keyframes))
         if ref_blocks:
             cond = node_helpers.conditioning_set_values(cond, {"minimax_refs": ref_blocks})
+            _mark("组装条件")
+
+        if _marks:
+            parts, prev = [], _t0
+            for name, t in _marks:
+                parts.append("%s %.1fs" % (name, t - prev))
+                prev = t
+            print("[凤希AI·换人] %d 帧 条件构建耗时：%s | 合计 %.1fs"
+                  % (frame_count, " + ".join(parts), time.perf_counter() - _t0))
 
         return (cond, latent)
 

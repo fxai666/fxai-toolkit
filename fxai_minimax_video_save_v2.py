@@ -183,7 +183,14 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
                 '-i', audio,
                 '-c:v', 'copy',
                 '-c:a', 'aac', '-b:a', '192k',
-                '-shortest',
+                # 长度以画面为准：画面 D = 帧数/帧率 是精确的（-r fps + -frames:v）。
+                # ① 音轨先补静音到 D —— 音轨比画面短一点时，直接 -shortest 会把
+                #    **视频尾部帧砍掉**（AAC 帧粒度、素材音轨提前结束都会触发）。
+                # ② 再用 -t D 硬收 —— 音轨比画面长时也会被裁到 D。
+                # 不要写成裸 `-af apad -shortest`：apad 不带 whole_dur 是**无限长**，
+                # 配合 -c:v copy 时 -shortest 收不住，ffmpeg 会满核空转写不完（实测挂死）。
+                '-af', 'apad=whole_dur=%.6f' % (total_frames / float(fps)),
+                '-t', '%.6f' % (total_frames / float(fps)),
                 '-movflags', '+faststart',
                 save_path
             ]

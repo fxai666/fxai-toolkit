@@ -146,7 +146,11 @@ def save_video(images, save_dir, fps=24, custom_num=0, audio="", transition_fram
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
                 '-b:a', '192k',
-                '-shortest',
+                # 长度以画面为准（帧数/帧率是精确的）：音轨补静音到 D 再硬收到 D。
+                # 裸 -shortest 在音轨短一点时会把视频尾部帧砍掉；
+                # 而裸 apad 是无限长，配 -shortest 收不住会挂死，必须带 whole_dur。
+                '-af', 'apad=whole_dur=%.6f' % (len(img_np) / float(fps)),
+                '-t', '%.6f' % (len(img_np) / float(fps)),
                 '-movflags', '+faststart',
                 save_path
             ]

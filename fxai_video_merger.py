@@ -14,6 +14,23 @@ def safe_path_join(base_dir, path):
     full_path = os.path.abspath(os.path.join(base_dir, path))
     return full_path if full_path.startswith(base_dir) else None
 
+
+def probe_duration(path):
+    """取媒体时长（秒）。探测失败返回 0.0。
+
+    用于把音轨补/裁到**画面长度**，这样收尾不依赖 -shortest
+    （-shortest 在音轨比画面短一点时会把视频尾部帧砍掉）。
+    """
+    try:
+        r = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=nw=1:nk=1', path],
+            capture_output=True, text=True, timeout=60)
+        return float(r.stdout.strip())
+    except Exception:
+        return 0.0
+
+
 def get_merge_output_dir():
     comfy_root = folder_paths.base_path
     target_dir = os.path.join(comfy_root, "fxai", "video", "merged")
@@ -92,13 +109,19 @@ def replace_video_audio(video_path, audio_path):
         os.remove(temp_video)
         
     try:
+        # 画面长度为准：音轨补静音到画面时长再硬收到同一时长。
+        # 原来这里是裸 -shortest，音轨短一点点就会把视频尾部帧砍掉。
+        dur = probe_duration(video_path)
+        tail = (['-af', 'apad=whole_dur=%.6f' % dur, '-t', '%.6f' % dur]
+                if dur > 0 else [])
         cmd = [
             'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
             '-i', video_path, '-i', audio_path,
             '-c:v', 'libx264', '-preset', 'slow', '-crf', '17',
             '-pix_fmt', 'yuv420p',
             '-c:a', 'aac', '-b:a', '192k', '-ac', '2',
-            '-map', '0:v:0', '-map', '1:a:0', '-shortest',
+            '-map', '0:v:0', '-map', '1:a:0',
+        ] + tail + [
             '-movflags', '+faststart',
             temp_video
         ]
@@ -175,6 +198,14 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
             if not audio_wav or not os.path.exists(audio_wav):
                 return None
 
+            # 画面长度为准：temp_concat 是 copy 过来的定长，先探出它的时长 D，
+            # 音轨补静音到 D 再硬收到 D。
+            # 不要写成裸 `-af apad -shortest`：apad 不带 whole_dur 是无限长，
+            # 配合 -c:v copy 时 -shortest 收不住，ffmpeg 会满核空转写不完（实测挂死）。
+            dur = probe_duration(temp_concat)
+            tail = (['-af', 'apad=whole_dur=%.6f' % dur, '-t', '%.6f' % dur]
+                    if dur > 0 else [])
+
             cmd_final = [
                 'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
                 '-i', temp_concat,
@@ -182,7 +213,7 @@ def merge_videos(source_dir, output_name, max_count=0, audio=None):
                 '-c:v', 'copy',
                 '-c:a', 'aac', '-b:a', '192k', '-ac', '2',
                 '-map', '0:v:0', '-map', '1:a:0',
-                '-shortest',
+            ] + tail + [
                 '-movflags', '+faststart',
                 output_path
             ]

@@ -151,6 +151,8 @@ NODE_REGISTRY = [
     ("FxAiVideoSplitFFmpeg",      "fxai_video_split_ffmpeg",    "凤希AI - 视频分割"),
     ("FxAiVideoSegmenterV1",      "fxai_video_segments_v1",     "凤希AI - 视频分段器V1"),
     ("FxAiVideoSegmentLoad",      "fxai_video_segment_load",    "凤希AI - 视频分段加载"),
+    ("FxAiSeamColorMatch",        "fxai_seam_color_match",      "凤希AI - 接缝色彩对齐"),
+    ("FxAiToneMatch",             "fxai_tone_match",            "凤希AI - 影调对齐（背景亮度）"),
     ("FxAiSeedVR2Upscale",        "fxai_seedvr2_upscale",       "凤希AI - SeedVR2超分"),
     ("FxAiVideoUpscale",          "fxai_video_upscale_node",    "凤希AI - 视频超分放大"),
 
