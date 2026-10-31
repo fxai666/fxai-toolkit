@@ -71,6 +71,28 @@ def _inside(path, base):
         return False
 
 
+def _to_abs(text):
+    """把前端传来的写法统一成绝对路径。
+
+    认三种写法：绝对路径、相对 input 的路径、以 / 开头的「相对 ComfyUI 根」写法。
+
+    ⚠️ / 开头有两种可能，**必须先按绝对路径判存在性**：
+    - Linux 上 `/root/ComfyUI/fxai/video` 是真绝对路径，先拼 base 会变成
+      `/root/ComfyUI/root/ComfyUI/fxai/video`（弹窗里看到的就是这个鬼路径）；
+    - Windows 上 `/fxai/video` 的语义是「相对根」，按绝对解释必然不存在，
+      这时才回落到拼 base（`os.path.isabs("/x")` 在 Windows 上也是 True，不能靠它判断）。
+    """
+    base = _base_dir()
+    cand = os.path.abspath(text)
+    if os.path.exists(cand):
+        return cand
+    if text.startswith(("/", "\\")) and base:
+        return os.path.join(base, text.lstrip("/\\"))
+    if base and folder_paths is not None and not os.path.isabs(text):
+        return os.path.join(folder_paths.get_input_directory(), text)
+    return cand
+
+
 def _safe_dir(raw):
     """把前端传来的目录夹到 ComfyUI 根目录之内；空值给默认视频库。"""
     base = _base_dir()
@@ -84,25 +106,19 @@ def _safe_dir(raw):
         except Exception:
             pass
         return d
-    path = os.path.abspath(text)
+    path = _to_abs(text)
     return path if _inside(path, base) else None
 
 
 def _resolve_dir(raw):
     """选片窗口的起始目录。
 
-    分段器把「视频文件」存成 input 下的相对路径，整个值扔过来时 abspath 会按
-    进程工作目录解析成一个不存在的路径，弹窗就只剩一句「目录不存在」。
-    所以相对路径按 input 目录展开，指到具体文件就退一级。
-
-    / 开头的是「相对 ComfyUI 根」的写法（选片窗口的「用相对路径」给的就是这个），
-    要按 base 展开；Windows 上 os.path.isabs("/x") 是 True，这个分支必须放前面。
+    分段器把「视频文件」存成 input 下的相对路径、或 / 开头的相对根写法、或绝对路径，
+    三种都可能扔过来。展开规则统一交给 _to_abs，指到具体文件就退一级。
     """
     text = str(raw or "").strip().strip('"')
-    if text.startswith(("/", "\\")):
-        text = os.path.join(_base_dir(), text.lstrip("/\\"))
-    elif text and not os.path.isabs(text) and folder_paths is not None:
-        text = os.path.join(folder_paths.get_input_directory(), text)
+    if text:
+        text = _to_abs(text)
     if text and os.path.isfile(text):
         text = os.path.dirname(text)
     return _safe_dir(text)
