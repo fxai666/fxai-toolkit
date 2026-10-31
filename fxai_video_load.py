@@ -176,8 +176,9 @@ class FxAiVideoLoad:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "IMAGE", "STRING", "INT", "INT", "STRING", "AUDIO")
-    RETURN_NAMES = ("视频帧序列(视频格式)", "所有帧图片序列(图片格式)", "当前视频路径", "总帧数", "帧率(FPS)", "分辨率", "音频")
+    RETURN_TYPES = ("IMAGE", "IMAGE", "STRING", "INT", "INT", "STRING", "AUDIO", "INT", "INT")
+    RETURN_NAMES = ("视频帧序列(视频格式)", "所有帧图片序列(图片格式)", "当前视频路径", "总帧数", "帧率(FPS)", "分辨率", "音频",
+                    "视频宽度", "视频高度")
     FUNCTION = "load_video"
     CATEGORY = "凤希AI/视频"
 
@@ -252,4 +253,6 @@ class FxAiVideoLoad:
             int(round(float(fps))) if fps > 0 else 30,
             f"{w}x{h}",
             audio,
+            int(w),
+            int(h),
         )

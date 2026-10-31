@@ -1,15 +1,15 @@
 {
   "id": "c45dd716-b7fa-4244-a461-181962245f96",
   "revision": 0,
-  "last_node_id": 21,
-  "last_link_id": 25,
+  "last_node_id": 41,
+  "last_link_id": 38,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        40,
-        80
+        -616.6369524767356,
+        -213.17027544282448
       ],
       "size": [
         380,
@@ -18,9 +18,29 @@
       "flags": {},
       "order": 0,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "localized_name": "UNet名称",
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "数据类型",
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
       "outputs": [
         {
+          "localized_name": "模型",
           "name": "MODEL",
           "type": "MODEL",
           "links": [
@@ -28,6 +48,7 @@
           ]
         }
       ],
+      "title": "底座（与 V3 同款）",
       "properties": {
         "Node name for S&R": "UNETLoader"
       },
@@ -38,116 +59,203 @@
       "widgets_values_named": {
         "unet_name": "minimax_h3_singularity_ref2va_int8.safetensors",
         "weight_dtype": "default"
-      },
-      "title": "底座（与 V3 同款）"
+      }
     },
     {
       "id": 2,
       "type": "FxAiLoraLoader",
       "pos": [
-        40,
-        210
+        -676.7906689726493,
+        -53.75993745417901
       ],
       "size": [
-        380,
-        82
+        937.595451108871,
+        293.6891361359627
       ],
       "flags": {},
-      "order": 2,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "model",
           "name": "model",
           "type": "MODEL",
           "link": 26
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "localized_name": "提示词",
+          "name": "提示词",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "localized_name": "lora_data",
+          "name": "lora_data",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_data"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
+          "localized_name": "模型",
           "name": "MODEL",
           "type": "MODEL",
           "links": [
             30
           ]
+        },
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "localized_name": "提示词",
+          "name": "提示词",
+          "type": "STRING",
+          "links": null
         }
       ],
+      "title": "LoRA 链（4 条 · 与循环版一致）",
       "properties": {
         "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
-        "[{\"lora_name\": \"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\", \"model_strength\": 1.0, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"h3_character_swap_v1.5.safetensors\", \"model_strength\": 1.0, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"h3-人脸去油.safetensors\", \"model_strength\": 0.7, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"Motion_Repair.safetensors\", \"model_strength\": 0.45, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}]",
+        "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"h3_character_swap.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.4,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]",
         "",
         {
           "name": "lora_data",
-          "value": "[{\"lora_name\": \"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\", \"model_strength\": 1.0, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"h3_character_swap_v1.5.safetensors\", \"model_strength\": 1.0, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"h3-人脸去油.safetensors\", \"model_strength\": 0.7, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"Motion_Repair.safetensors\", \"model_strength\": 0.45, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}]"
+          "value": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"h3_character_swap.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.4,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]"
         }
       ],
-      "title": "LoRA 链（4 条 · 与循环版一致）",
       "widgets_values_named": {
-        "lora_data": "[{\"lora_name\": \"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\", \"model_strength\": 1.0, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"h3_character_swap_v1.5.safetensors\", \"model_strength\": 1.0, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"h3-人脸去油.safetensors\", \"model_strength\": 0.7, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}, {\"lora_name\": \"Motion_Repair.safetensors\", \"model_strength\": 0.45, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1.0, \"fade_end\": 1.0}]"
+        "lora_data": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"h3_character_swap.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.4,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]",
+        "lora_wrap": ""
       }
     },
     {
       "id": 4,
       "type": "MiniMaxH3SigmaShift",
       "pos": [
-        40,
-        450
+        354.0495770138379,
+        -241.7549619417892
       ],
       "size": [
         380,
         82
       ],
       "flags": {},
-      "order": 3,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "model",
           "name": "model",
           "type": "MODEL",
           "link": 30
+        },
+        {
+          "localized_name": "视频偏移",
+          "name": "shift_video",
+          "type": "FLOAT",
+          "widget": {
+            "name": "shift_video"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "音频偏移",
+          "name": "shift_audio",
+          "type": "FLOAT",
+          "widget": {
+            "name": "shift_audio"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
+          "localized_name": "模型",
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            4,
-            5
+            4
           ]
         }
       ],
+      "title": "SigmaShift 12 / 3",
       "properties": {
         "Node name for S&R": "MiniMaxH3SigmaShift"
       },
       "widgets_values": [
-        12.0,
-        3.0
+        12,
+        3
       ],
-      "title": "SigmaShift 12 / 3",
       "widgets_values_named": {
-        "shift_video": 12.0,
-        "shift_audio": 3.0
+        "shift_video": 12,
+        "shift_audio": 3
       }
     },
     {
       "id": 5,
       "type": "CLIPLoader",
       "pos": [
-        40,
-        570
+        374.8681806596366,
+        83.40248923529236
       ],
       "size": [
         380,
         106
       ],
       "flags": {},
-      "order": 4,
+      "order": 1,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "localized_name": "CLIP名称",
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "类型",
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "设备",
+          "name": "device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
       "outputs": [
         {
+          "localized_name": "CLIP",
           "name": "CLIP",
           "type": "CLIP",
           "links": [
@@ -173,19 +281,30 @@
       "id": 6,
       "type": "VAELoader",
       "pos": [
-        40,
-        710
+        381.42405449692575,
+        250.94673467934606
       ],
       "size": [
         380,
         58
       ],
       "flags": {},
-      "order": 5,
+      "order": 2,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "localized_name": "vae名称",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
       "outputs": [
         {
+          "localized_name": "VAE",
           "name": "VAE",
           "type": "VAE",
           "links": [
@@ -194,13 +313,13 @@
           ]
         }
       ],
+      "title": "视频 VAE",
       "properties": {
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
         "minimax_h3_video_vae_fp16.safetensors"
       ],
-      "title": "视频 VAE",
       "widgets_values_named": {
         "vae_name": "minimax_h3_video_vae_fp16.safetensors"
       }
@@ -209,19 +328,30 @@
       "id": 7,
       "type": "VAELoader",
       "pos": [
-        40,
-        800
+        389.3127801010877,
+        358.78423427906256
       ],
       "size": [
         380,
         58
       ],
       "flags": {},
-      "order": 6,
+      "order": 3,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "localized_name": "vae名称",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
       "outputs": [
         {
+          "localized_name": "VAE",
           "name": "VAE",
           "type": "VAE",
           "links": [
@@ -230,13 +360,13 @@
           ]
         }
       ],
+      "title": "音频 VAE",
       "properties": {
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
         "minimax_h3_audio_vae_fp32.safetensors"
       ],
-      "title": "音频 VAE",
       "widgets_values_named": {
         "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
       }
@@ -245,115 +375,197 @@
       "id": 8,
       "type": "FxAiVideoLoad",
       "pos": [
-        470,
-        80
+        809.3033993018528,
+        493.2231608354958
       ],
       "size": [
         420,
-        130
+        378.00000000000006
       ],
       "flags": {},
-      "order": 7,
+      "order": 4,
       "mode": 0,
-      "inputs": [],
-      "outputs": [
+      "inputs": [
         {
-          "name": "视频帧序列(视频格式)",
-          "type": "IMAGE",
-          "links": [
-            10
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "所有帧图片序列(图片格式)",
-          "type": "IMAGE",
-          "links": [
-            31
-          ],
-          "slot_index": 1
-        },
-        {
-          "name": "当前视频路径",
+          "localized_name": "视频文件夹路径",
+          "name": "视频文件夹路径",
           "type": "STRING",
-          "links": [],
-          "slot_index": 2
+          "widget": {
+            "name": "视频文件夹路径"
+          },
+          "link": null
         },
         {
-          "name": "总帧数",
+          "localized_name": "视频索引",
+          "name": "视频索引",
           "type": "INT",
-          "links": [],
-          "slot_index": 3
+          "widget": {
+            "name": "视频索引"
+          },
+          "link": null
         },
         {
-          "name": "帧率(FPS)",
-          "type": "INT",
-          "links": [],
-          "slot_index": 4
+          "localized_name": "起始时间",
+          "name": "起始时间",
+          "type": "FLOAT",
+          "widget": {
+            "name": "起始时间"
+          },
+          "link": null
         },
         {
-          "name": "分辨率",
-          "type": "STRING",
-          "links": [],
-          "slot_index": 5
-        },
-        {
-          "name": "音频",
-          "type": "AUDIO",
-          "links": [
-            11
-          ],
-          "slot_index": 6
+          "localized_name": "结束时间",
+          "name": "结束时间",
+          "type": "FLOAT",
+          "widget": {
+            "name": "结束时间"
+          },
+          "link": null
         }
       ],
+      "outputs": [
+        {
+          "localized_name": "视频帧序列(视频格式)",
+          "name": "视频帧序列(视频格式)",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            10
+          ]
+        },
+        {
+          "localized_name": "所有帧图片序列(图片格式)",
+          "name": "所有帧图片序列(图片格式)",
+          "type": "IMAGE",
+          "slot_index": 1,
+          "links": [
+            31
+          ]
+        },
+        {
+          "localized_name": "当前视频路径",
+          "name": "当前视频路径",
+          "type": "STRING",
+          "slot_index": 2,
+          "links": []
+        },
+        {
+          "localized_name": "总帧数",
+          "name": "总帧数",
+          "type": "INT",
+          "slot_index": 3,
+          "links": []
+        },
+        {
+          "localized_name": "帧率(FPS)",
+          "name": "帧率(FPS)",
+          "type": "INT",
+          "slot_index": 4,
+          "links": []
+        },
+        {
+          "localized_name": "分辨率",
+          "name": "分辨率",
+          "type": "STRING",
+          "slot_index": 5,
+          "links": []
+        },
+        {
+          "localized_name": "音频",
+          "name": "音频",
+          "type": "AUDIO",
+          "slot_index": 6,
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "视频宽度",
+          "type": "INT",
+          "links": [
+            35
+          ],
+          "slot_index": 7
+        },
+        {
+          "name": "视频高度",
+          "type": "INT",
+          "links": [
+            36
+          ],
+          "slot_index": 8
+        }
+      ],
+      "title": "源视频（0~5 秒）",
       "properties": {
         "Node name for S&R": "FxAiVideoLoad"
       },
       "widgets_values": [
         "K:/phone/view.mp4",
         -1,
-        0.0,
-        5.0
+        0,
+        5
       ],
-      "title": "源视频（0~5 秒）",
       "widgets_values_named": {
         "视频文件夹路径": "K:/phone/view.mp4",
         "视频索引": -1,
-        "起始时间": 0.0,
-        "结束时间": 5.0
+        "起始时间": 0,
+        "结束时间": 5
       }
     },
     {
       "id": 9,
       "type": "LoadImage",
       "pos": [
-        470,
-        250
+        351.2436637990286,
+        494.7832555524259
       ],
       "size": [
         420,
         320
       ],
       "flags": {},
-      "order": 8,
+      "order": 5,
       "mode": 0,
-      "inputs": [],
-      "outputs": [
+      "inputs": [
         {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            9
-          ],
-          "slot_index": 0
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
         },
         {
-          "name": "MASK",
-          "type": "MASK",
-          "links": [],
-          "slot_index": 1
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
         }
       ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            9
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "title": "参考角色图",
       "properties": {
         "Node name for S&R": "LoadImage"
       },
@@ -361,7 +573,6 @@
         "017_74196e25975176923b45c982775b10ea.png",
         "image"
       ],
-      "title": "参考角色图",
       "widgets_values_named": {
         "image": "017_74196e25975176923b45c982775b10ea.png",
         "upload": "image"
@@ -375,128 +586,153 @@
         80
       ],
       "size": [
-        460,
-        520
+        418.79874741735534,
+        350
       ],
       "flags": {},
-      "order": 9,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "提示词",
           "name": "提示词",
           "type": "STRING",
           "link": 25
         },
         {
+          "localized_name": "CLIP模型",
           "name": "CLIP模型",
           "type": "CLIP",
           "link": 6
         },
         {
+          "localized_name": "视频VAE",
           "name": "视频VAE",
           "type": "VAE",
-          "link": 7,
-          "shape": 7
+          "link": 7
         },
         {
+          "localized_name": "音频VAE",
+          "name": "音频VAE",
+          "shape": 7,
+          "type": "VAE",
+          "link": 8
+        },
+        {
+          "localized_name": "首帧图片",
+          "name": "首帧图片",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "尾帧图片",
+          "name": "尾帧图片",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "外置音频",
+          "name": "外置音频",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "localized_name": "参考图片列表",
+          "name": "参考图片列表",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 9
+        },
+        {
+          "localized_name": "参考音频列表",
+          "name": "参考音频列表",
+          "shape": 7,
+          "type": "LIST",
+          "link": null
+        },
+        {
+          "localized_name": "参考视频",
+          "name": "参考视频",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 10
+        },
+        {
+          "localized_name": "参考视频音频",
+          "name": "参考视频音频",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 11
+        },
+        {
+          "localized_name": "接缝首帧",
+          "name": "接缝首帧",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "宽度",
           "name": "宽度",
           "type": "INT",
-          "link": null,
           "widget": {
             "name": "宽度"
-          }
+          },
+          "link": 33
         },
         {
+          "localized_name": "高度",
           "name": "高度",
           "type": "INT",
-          "link": null,
           "widget": {
             "name": "高度"
-          }
+          },
+          "link": 34
         },
         {
+          "localized_name": "帧数",
           "name": "帧数",
           "type": "INT",
-          "link": null,
           "widget": {
             "name": "帧数"
-          }
+          },
+          "link": null
         },
         {
-          "name": "音频VAE",
-          "type": "VAE",
-          "link": 8,
-          "shape": 7
-        },
-        {
-          "name": "首帧图片",
-          "type": "IMAGE",
-          "link": null,
-          "shape": 7
-        },
-        {
-          "name": "尾帧图片",
-          "type": "IMAGE",
-          "link": null,
-          "shape": 7
-        },
-        {
-          "name": "外置音频",
-          "type": "AUDIO",
-          "link": null,
-          "shape": 7
-        },
-        {
-          "name": "参考图片列表",
-          "type": "IMAGE",
-          "link": 9,
-          "shape": 7
-        },
-        {
-          "name": "参考音频列表",
-          "type": "LIST",
-          "link": null,
-          "shape": 7
-        },
-        {
+          "localized_name": "音频模式",
           "name": "音频模式",
+          "shape": 7,
           "type": "COMBO",
-          "link": null,
           "widget": {
             "name": "音频模式"
-          }
-        },
-        {
-          "name": "参考视频",
-          "type": "IMAGE",
-          "link": 10,
-          "shape": 7
-        },
-        {
-          "name": "参考视频音频",
-          "type": "AUDIO",
-          "link": 11,
-          "shape": 7
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
+          "localized_name": "正向条件",
           "name": "正向条件",
           "type": "CONDITIONING",
+          "slot_index": 0,
           "links": [
             12
-          ],
-          "slot_index": 0
+          ]
         },
         {
+          "localized_name": "AV潜变量",
           "name": "AV潜变量",
           "type": "LATENT",
+          "slot_index": 1,
           "links": [
             17
-          ],
-          "slot_index": 1
+          ]
         }
       ],
+      "title": "凤希AI - MiniMax图生视频V2（换人核心）",
       "properties": {
         "Node name for S&R": "FxAiMiniMaxImageToVideoV2"
       },
@@ -506,7 +742,6 @@
         124,
         "音色参考"
       ],
-      "title": "凤希AI - MiniMax图生视频V2（换人核心）",
       "widgets_values_named": {
         "宽度": 608,
         "高度": 1056,
@@ -526,15 +761,17 @@
         60
       ],
       "flags": {},
-      "order": 10,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "模型",
           "name": "model",
           "type": "MODEL",
           "link": 27
         },
         {
+          "localized_name": "条件",
           "name": "conditioning",
           "type": "CONDITIONING",
           "link": 12
@@ -542,6 +779,7 @@
       ],
       "outputs": [
         {
+          "localized_name": "引导器",
           "name": "GUIDER",
           "type": "GUIDER",
           "links": [
@@ -551,9 +789,7 @@
       ],
       "properties": {
         "Node name for S&R": "BasicGuider"
-      },
-      "widgets_values": [],
-      "widgets_values_named": {}
+      }
     },
     {
       "id": 12,
@@ -567,11 +803,22 @@
         58
       ],
       "flags": {},
-      "order": 11,
+      "order": 6,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "localized_name": "采样器名称",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        }
+      ],
       "outputs": [
         {
+          "localized_name": "采样器",
           "name": "SAMPLER",
           "type": "SAMPLER",
           "links": [
@@ -601,17 +848,46 @@
         106
       ],
       "flags": {},
-      "order": 12,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "模型",
           "name": "model",
           "type": "MODEL",
           "link": 28
+        },
+        {
+          "localized_name": "调度器",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "步数",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "降噪",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
+          "localized_name": "Sigmas",
           "name": "SIGMAS",
           "type": "SIGMAS",
           "links": [
@@ -619,19 +895,19 @@
           ]
         }
       ],
+      "title": "8 步（配 turbo 8步 LoRA）",
       "properties": {
         "Node name for S&R": "BasicScheduler"
       },
       "widgets_values": [
         "simple",
         8,
-        1.0
+        1
       ],
-      "title": "8 步（配 turbo 8步 LoRA）",
       "widgets_values_named": {
         "scheduler": "simple",
         "steps": 8,
-        "denoise": 1.0
+        "denoise": 1
       }
     },
     {
@@ -646,11 +922,22 @@
         82
       ],
       "flags": {},
-      "order": 13,
+      "order": 7,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "localized_name": "噪波随机种",
+          "name": "noise_seed",
+          "type": "INT",
+          "widget": {
+            "name": "noise_seed"
+          },
+          "link": null
+        }
+      ],
       "outputs": [
         {
+          "localized_name": "噪波",
           "name": "NOISE",
           "type": "NOISE",
           "links": [
@@ -682,30 +969,35 @@
         170
       ],
       "flags": {},
-      "order": 14,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "噪波",
           "name": "noise",
           "type": "NOISE",
           "link": 16
         },
         {
+          "localized_name": "引导器",
           "name": "guider",
           "type": "GUIDER",
           "link": 13
         },
         {
+          "localized_name": "采样器",
           "name": "sampler",
           "type": "SAMPLER",
           "link": 14
         },
         {
+          "localized_name": "西格玛",
           "name": "sigmas",
           "type": "SIGMAS",
           "link": 15
         },
         {
+          "localized_name": "Latent图像",
           "name": "latent_image",
           "type": "LATENT",
           "link": 17
@@ -713,26 +1005,26 @@
       ],
       "outputs": [
         {
+          "localized_name": "Latent",
           "name": "output",
           "type": "LATENT",
+          "slot_index": 0,
           "links": [
             18,
             19
-          ],
-          "slot_index": 0
+          ]
         },
         {
+          "localized_name": "降噪Latent",
           "name": "denoised_output",
           "type": "LATENT",
-          "links": [],
-          "slot_index": 1
+          "slot_index": 1,
+          "links": []
         }
       ],
       "properties": {
         "Node name for S&R": "SamplerCustomAdvanced"
-      },
-      "widgets_values": [],
-      "widgets_values_named": {}
+      }
     },
     {
       "id": 16,
@@ -746,15 +1038,17 @@
         46
       ],
       "flags": {},
-      "order": 15,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "Latent",
           "name": "samples",
           "type": "LATENT",
           "link": 18
         },
         {
+          "localized_name": "vae",
           "name": "vae",
           "type": "VAE",
           "link": 20
@@ -762,6 +1056,7 @@
       ],
       "outputs": [
         {
+          "localized_name": "图像",
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
@@ -771,9 +1066,7 @@
       ],
       "properties": {
         "Node name for S&R": "VAEDecode"
-      },
-      "widgets_values": [],
-      "widgets_values_named": {}
+      }
     },
     {
       "id": 17,
@@ -787,15 +1080,17 @@
         46
       ],
       "flags": {},
-      "order": 16,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "Latent",
           "name": "samples",
           "type": "LATENT",
           "link": 19
         },
         {
+          "localized_name": "vae",
           "name": "vae",
           "type": "VAE",
           "link": 21
@@ -803,6 +1098,7 @@
       ],
       "outputs": [
         {
+          "localized_name": "音频",
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
@@ -812,9 +1108,7 @@
       ],
       "properties": {
         "Node name for S&R": "VAEDecodeAudio"
-      },
-      "widgets_values": [],
-      "widgets_values_named": {}
+      }
     },
     {
       "id": 18,
@@ -828,15 +1122,24 @@
         150
       ],
       "flags": {},
-      "order": 17,
+      "order": 22,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "图片序列",
           "name": "图片序列",
           "type": "IMAGE",
           "link": 32
         },
         {
+          "localized_name": "音频",
+          "name": "音频",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 23
+        },
+        {
+          "localized_name": "视频序号",
           "name": "视频序号",
           "type": "INT",
           "widget": {
@@ -845,6 +1148,7 @@
           "link": null
         },
         {
+          "localized_name": "保存目录",
           "name": "保存目录",
           "type": "STRING",
           "widget": {
@@ -853,41 +1157,41 @@
           "link": null
         },
         {
+          "localized_name": "帧率FPS",
           "name": "帧率FPS",
           "type": "INT",
           "widget": {
             "name": "帧率FPS"
           },
           "link": null
-        },
-        {
-          "name": "音频",
-          "type": "AUDIO",
-          "link": 23
         }
       ],
       "outputs": [
         {
+          "localized_name": "过渡帧",
           "name": "过渡帧",
           "type": "IMAGE",
-          "links": [],
-          "slot_index": 0
+          "slot_index": 0,
+          "links": []
         },
         {
+          "localized_name": "视频文件路径",
           "name": "视频文件路径",
           "type": "STRING",
+          "slot_index": 1,
           "links": [
             24
-          ],
-          "slot_index": 1
+          ]
         },
         {
+          "localized_name": "保存目录",
           "name": "保存目录",
           "type": "STRING",
-          "links": [],
-          "slot_index": 2
+          "slot_index": 2,
+          "links": []
         }
       ],
+      "title": "保存视频",
       "properties": {
         "Node name for S&R": "FxAiVideoSaveV1"
       },
@@ -896,7 +1200,6 @@
         "h3_swap_single",
         30
       ],
-      "title": "保存视频",
       "widgets_values_named": {
         "视频序号": -1,
         "保存目录": "h3_swap_single",
@@ -912,13 +1215,14 @@
       ],
       "size": [
         420,
-        90
+        112
       ],
       "flags": {},
-      "order": 18,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "视频文件路径",
           "name": "视频文件路径",
           "type": "STRING",
           "widget": {
@@ -928,99 +1232,118 @@
         }
       ],
       "outputs": [],
+      "title": "预览",
       "properties": {
         "Node name for S&R": "FxAiVideoPreview"
       },
       "widgets_values": [
+        "",
         ""
       ],
-      "title": "预览",
       "widgets_values_named": {
-        "视频文件路径": ""
+        "视频文件路径": "",
+        "video_player": ""
       }
     },
     {
       "id": 20,
       "type": "MarkdownNote",
       "pos": [
-        470,
-        620
+        -1016.8034116683467,
+        793.0205905052924
       ],
       "size": [
         700,
         460
       ],
       "flags": {},
-      "order": 19,
+      "order": 8,
       "mode": 0,
       "inputs": [],
       "outputs": [],
+      "title": "说明",
       "properties": {
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
         "## 凤希AI · H3 角色替换（单段，已跑通）\n\n**来源**：从工作流 2 `minimax_h3_参考模型-视频迁移替换--换头-修脸----表情还原1029.json` 拆出来的，\n用的是我们自己那套 H3 节点。导演台只是后来对照研究，不是这条链路的出处。\n\n**换人核心已换成我们自己的节点**：`凤希AI - MiniMax图生视频V2`\n（`FxAiMiniMaxImageToVideoV2`），已实测与原生 ref2v 等效。\n它原本只有参考图/参考音频，这次补上了 **`参考视频` / `参考视频音频`** 两个输入。\n\n### 三个必须知道的点\n\n1. **源视频必须走「参考视频」，不要用 AddGuide 锚整段。**\n   - 走 `参考视频` → 只参考动作/镜头/背景，不锁原主体 → 才能换人\n   - 用 AddGuide 把 124 帧全锚死 → 模型直接照抄源视频，身份一点不换（实测 598s 白跑）\n   - AddGuide 只喂首帧 1 帧也能换人，但动作靠自由生成，不如参考视频稳\n\n2. **提示词必须是 `body_swap:` 结构化模板。**\n   那句 `no second character, no character duplication` 是关键——\n   少了它模型会把参考角色当\"新增素材\"，在原演员旁边再加一个人。\n\n3. **步数 6 + turbo 4 步 LoRA。**\n   去掉 turbo LoRA 就改回 `res_multistep` / `simple` / 20 步（官方 Akatz 配置）。\n\n### 帧数必须落在 17k+5 网格（30fps）\n\n| 帧数 | 秒数 | 单步 | 6步采样 | 折合每秒成片 |\n|---|---|---|---|---|\n| 56 | 1.87s | 8.6s | 52s | 27.7s |\n| 73 | 2.43s | 14.6s | 88s | 36.1s |\n| 90 | 3.00s | 22.3s | 134s | 44.5s |\n| 107 | 3.57s | 31.5s | 189s | 52.9s |\n| **124** | **4.13s** | 42.2s | 253s | **61.3s** |\n| 141 | 4.70s | 54.6s | 328s | 69.7s |\n| 158 | 5.27s | 68.6s | 411s | 78.1s |\n| 209 | 6.97s | 120.0s | 720s | 103.3s |\n\n**单步耗时 ∝ 帧数²（注意力平方级）**：实测 209 帧比 141 帧，帧数只涨 1.48 倍、单步却涨 2.1 倍。\n\n### 分段默认值：124 帧 / 4.13 秒\n\n- 4 秒动作节奏立得住；1.87 秒太短，模型只出一个姿势\n- 比 141 帧省 10%，60 秒片接缝只多 2 处（15 段 vs 13 段）\n- 要画质 → 141 帧（4.70s）；要速度 → 107 帧（3.57s）\n\n### 实测耗时\n\n| 版本 | 节点 | 帧数 | 端到端 | 成片 |\n|---|---|---|---|---|\n| v6 | 原生 ref2v | 141 | 491s = 8.2 分 | 4.70s |\n| v7 | 原生 ref2v | 209 | 872s = 14.5 分 | 6.97s |\n| **v8** | **我们的 V2** | **124** | **418s = 7.0 分** | **4.13s** |\n\n### 接长视频（下一步）\n`FxAiForLoopStart/End` 循环 + `FxAiH3LatentStitcher` 接缝，\n每段 `FxAiVideoLoad` 的 起始时间/结束时间 按 4.13 秒推进。\n"
       ],
-      "title": "说明",
-      "widgets_values_named": {}
+      "widgets_values_named": {
+        "text": "## 凤希AI · H3 角色替换（单段，已跑通）\n\n**来源**：从工作流 2 `minimax_h3_参考模型-视频迁移替换--换头-修脸----表情还原1029.json` 拆出来的，\n用的是我们自己那套 H3 节点。导演台只是后来对照研究，不是这条链路的出处。\n\n**换人核心已换成我们自己的节点**：`凤希AI - MiniMax图生视频V2`\n（`FxAiMiniMaxImageToVideoV2`），已实测与原生 ref2v 等效。\n它原本只有参考图/参考音频，这次补上了 **`参考视频` / `参考视频音频`** 两个输入。\n\n### 三个必须知道的点\n\n1. **源视频必须走「参考视频」，不要用 AddGuide 锚整段。**\n   - 走 `参考视频` → 只参考动作/镜头/背景，不锁原主体 → 才能换人\n   - 用 AddGuide 把 124 帧全锚死 → 模型直接照抄源视频，身份一点不换（实测 598s 白跑）\n   - AddGuide 只喂首帧 1 帧也能换人，但动作靠自由生成，不如参考视频稳\n\n2. **提示词必须是 `body_swap:` 结构化模板。**\n   那句 `no second character, no character duplication` 是关键——\n   少了它模型会把参考角色当\"新增素材\"，在原演员旁边再加一个人。\n\n3. **步数 6 + turbo 4 步 LoRA。**\n   去掉 turbo LoRA 就改回 `res_multistep` / `simple` / 20 步（官方 Akatz 配置）。\n\n### 帧数必须落在 17k+5 网格（30fps）\n\n| 帧数 | 秒数 | 单步 | 6步采样 | 折合每秒成片 |\n|---|---|---|---|---|\n| 56 | 1.87s | 8.6s | 52s | 27.7s |\n| 73 | 2.43s | 14.6s | 88s | 36.1s |\n| 90 | 3.00s | 22.3s | 134s | 44.5s |\n| 107 | 3.57s | 31.5s | 189s | 52.9s |\n| **124** | **4.13s** | 42.2s | 253s | **61.3s** |\n| 141 | 4.70s | 54.6s | 328s | 69.7s |\n| 158 | 5.27s | 68.6s | 411s | 78.1s |\n| 209 | 6.97s | 120.0s | 720s | 103.3s |\n\n**单步耗时 ∝ 帧数²（注意力平方级）**：实测 209 帧比 141 帧，帧数只涨 1.48 倍、单步却涨 2.1 倍。\n\n### 分段默认值：124 帧 / 4.13 秒\n\n- 4 秒动作节奏立得住；1.87 秒太短，模型只出一个姿势\n- 比 141 帧省 10%，60 秒片接缝只多 2 处（15 段 vs 13 段）\n- 要画质 → 141 帧（4.70s）；要速度 → 107 帧（3.57s）\n\n### 实测耗时\n\n| 版本 | 节点 | 帧数 | 端到端 | 成片 |\n|---|---|---|---|---|\n| v6 | 原生 ref2v | 141 | 491s = 8.2 分 | 4.70s |\n| v7 | 原生 ref2v | 209 | 872s = 14.5 分 | 6.97s |\n| **v8** | **我们的 V2** | **124** | **418s = 7.0 分** | **4.13s** |\n\n### 接长视频（下一步）\n`FxAiForLoopStart/End` 循环 + `FxAiH3LatentStitcher` 接缝，\n每段 `FxAiVideoLoad` 的 起始时间/结束时间 按 4.13 秒推进。\n"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
     },
     {
       "id": 21,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        470,
-        640
+        345.1848953560302,
+        866.6061061288603
       ],
       "size": [
         420,
         320
       ],
       "flags": {},
-      "order": 19,
+      "order": 9,
       "mode": 0,
-      "inputs": [],
-      "outputs": [
+      "inputs": [
         {
-          "name": "STRING",
+          "localized_name": "值",
+          "name": "value",
           "type": "STRING",
-          "links": [
-            25
-          ],
-          "slot_index": 0
+          "widget": {
+            "name": "value"
+          },
+          "link": null
         }
       ],
+      "outputs": [
+        {
+          "localized_name": "字符串",
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            25
+          ]
+        }
+      ],
+      "title": "换人提示词（body_swap 结构化模板）",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no new objects, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
+        "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The vehicle ridden or carried by the source person is part of the scene and must stay exactly as in <Video 1>: the same vehicle, the same size, position, orientation and motion. If the source person is riding a scooter or motorcycle, <Subject 1> remains seated on it in the same riding posture, hands on the handlebars and feet on the footboard, and the vehicle stays fully visible and unchanged. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no objects other than those already present in <Video 1>, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
       ],
       "widgets_values_named": {
-        "value": "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no new objects, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
-      },
-      "title": "换人提示词（body_swap 结构化模板）"
+        "value": "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The vehicle ridden or carried by the source person is part of the scene and must stay exactly as in <Video 1>: the same vehicle, the same size, position, orientation and motion. If the source person is riding a scooter or motorcycle, <Subject 1> remains seated on it in the same riding posture, hands on the handlebars and feet on the footboard, and the vehicle stays fully visible and unchanged. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no objects other than those already present in <Video 1>, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
+      }
     },
     {
       "id": 37,
       "type": "FxAiMiniMaxBlockCache",
       "pos": [
-        -2140,
-        240
+        -163.95726821480443,
+        -229.40210719198825
       ],
       "size": [
         420,
         106
       ],
       "flags": {},
-      "order": 2,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "模型",
           "name": "模型",
           "type": "MODEL",
           "link": 1
         },
         {
+          "localized_name": "速度档位",
           "name": "速度档位",
           "type": "COMBO",
           "widget": {
@@ -1029,6 +1352,7 @@
           "link": null
         },
         {
+          "localized_name": "采样步数",
           "name": "采样步数",
           "type": "INT",
           "widget": {
@@ -1039,20 +1363,23 @@
       ],
       "outputs": [
         {
-          "name": "MODEL",
+          "localized_name": "模型",
+          "name": "模型",
           "type": "MODEL",
+          "slot_index": 0,
           "links": [
             26
-          ],
-          "slot_index": 0
+          ]
         },
         {
-          "name": "INT",
+          "localized_name": "采样步数",
+          "name": "采样步数",
           "type": "INT",
-          "links": [],
-          "slot_index": 1
+          "slot_index": 1,
+          "links": []
         }
       ],
+      "title": "块缓存加速（不加速 = 原速，想快换「均衡」）",
       "properties": {
         "Node name for S&R": "FxAiMiniMaxBlockCache"
       },
@@ -1063,30 +1390,31 @@
       "widgets_values_named": {
         "速度档位": "不加速",
         "采样步数": 8
-      },
-      "title": "块缓存加速（不加速 = 原速，想快换「均衡」）"
+      }
     },
     {
       "id": 38,
       "type": "ModelAttentionBackend",
       "pos": [
-        -2140,
-        400
+        291.08490974672407,
+        -64.80939311365927
       ],
       "size": [
         420,
         82
       ],
       "flags": {},
-      "order": 4,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "model",
           "name": "model",
           "type": "MODEL",
           "link": 4
         },
         {
+          "localized_name": "attention",
           "name": "attention",
           "type": "COMBO",
           "widget": {
@@ -1097,15 +1425,17 @@
       ],
       "outputs": [
         {
-          "name": "MODEL",
+          "localized_name": "模型",
+          "name": "model",
           "type": "MODEL",
+          "slot_index": 0,
           "links": [
             27,
             28
-          ],
-          "slot_index": 0
+          ]
         }
       ],
+      "title": "注意力后端（INT8 · 必须挂）",
       "properties": {
         "Node name for S&R": "ModelAttentionBackend"
       },
@@ -1114,65 +1444,444 @@
       ],
       "widgets_values_named": {
         "attention": "comfy kitchen attention"
-      },
-      "title": "注意力后端（INT8 · 必须挂）"
+      }
     },
     {
       "id": 39,
       "type": "FxAiToneMatch",
       "pos": [
-        900,
-        520
+        1778.5536422058292,
+        490.9168944921983
       ],
       "size": [
-        350,
-        280
+        233.835546875,
+        198
       ],
       "flags": {},
-      "order": 14,
+      "order": 21,
       "mode": 0,
       "inputs": [
         {
+          "localized_name": "图片序列",
           "name": "图片序列",
           "type": "IMAGE",
           "link": 22
         },
         {
+          "localized_name": "参考序列",
           "name": "参考序列",
+          "shape": 7,
           "type": "IMAGE",
           "link": 31
+        },
+        {
+          "localized_name": "方式",
+          "name": "方式",
+          "type": "COMBO",
+          "widget": {
+            "name": "方式"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "采样区",
+          "name": "采样区",
+          "type": "COMBO",
+          "widget": {
+            "name": "采样区"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "强度",
+          "name": "强度",
+          "type": "FLOAT",
+          "widget": {
+            "name": "强度"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "最大调整",
+          "name": "最大调整",
+          "type": "FLOAT",
+          "widget": {
+            "name": "最大调整"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "逐帧",
+          "name": "逐帧",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "逐帧"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "平滑帧数",
+          "name": "平滑帧数",
+          "type": "INT",
+          "widget": {
+            "name": "平滑帧数"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
+          "localized_name": "图片序列",
           "name": "图片序列",
           "type": "IMAGE",
+          "slot_index": 0,
           "links": [
             32
-          ],
-          "slot_index": 0
+          ]
         }
       ],
+      "title": "⑤c 影调对齐（背景拉回源片）",
       "properties": {
         "Node name for S&R": "FxAiToneMatch"
       },
       "widgets_values": [
         "增益",
         "四角",
-        1.0,
-        20.0,
+        1,
+        20,
         false,
         15
       ],
       "widgets_values_named": {
         "方式": "增益",
         "采样区": "四角",
-        "强度": 1.0,
-        "最大调整": 20.0,
+        "强度": 1,
+        "最大调整": 20,
         "逐帧": false,
         "平滑帧数": 15
+      }
+    },
+    {
+      "id": 40,
+      "type": "FxAIGeneratorController",
+      "pos": [
+        -65.60399258114455,
+        494.4348738448401
+      ],
+      "size": [
+        380,
+        474
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "场景分段时长",
+          "name": "场景分段时长",
+          "shape": 7,
+          "type": "LIST",
+          "link": null
+        },
+        {
+          "localized_name": "音频分段时长",
+          "name": "音频分段时长",
+          "shape": 7,
+          "type": "LIST",
+          "link": null
+        },
+        {
+          "localized_name": "启用场景分段",
+          "name": "启用场景分段",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "启用场景分段"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "开始索引",
+          "name": "开始索引",
+          "type": "INT",
+          "widget": {
+            "name": "开始索引"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "结束索引",
+          "name": "结束索引",
+          "type": "INT",
+          "widget": {
+            "name": "结束索引"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "帧率",
+          "name": "帧率",
+          "type": "INT",
+          "widget": {
+            "name": "帧率"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "宽度",
+          "name": "宽度",
+          "type": "INT",
+          "widget": {
+            "name": "宽度"
+          },
+          "link": 37
+        },
+        {
+          "localized_name": "高度",
+          "name": "高度",
+          "type": "INT",
+          "widget": {
+            "name": "高度"
+          },
+          "link": 38
+        },
+        {
+          "localized_name": "长宽对齐基数",
+          "name": "长宽对齐基数",
+          "type": "INT",
+          "widget": {
+            "name": "长宽对齐基数"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "过渡帧数",
+          "name": "过渡帧数",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "过渡帧数"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "采样次数",
+          "name": "采样次数",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "采样次数"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "自动关机",
+          "name": "自动关机",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "自动关机"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "分段时长列表",
+          "name": "分段时长列表",
+          "type": "LIST",
+          "slot_index": 0,
+          "links": []
+        },
+        {
+          "localized_name": "开始索引",
+          "name": "开始索引",
+          "type": "INT",
+          "slot_index": 1,
+          "links": []
+        },
+        {
+          "localized_name": "循环数",
+          "name": "循环数",
+          "type": "INT",
+          "slot_index": 2,
+          "links": []
+        },
+        {
+          "localized_name": "每秒帧数",
+          "name": "每秒帧数",
+          "type": "INT",
+          "slot_index": 3,
+          "links": []
+        },
+        {
+          "localized_name": "实际宽度",
+          "name": "实际宽度",
+          "type": "INT",
+          "slot_index": 4,
+          "links": [
+            33
+          ]
+        },
+        {
+          "localized_name": "实际高度",
+          "name": "实际高度",
+          "type": "INT",
+          "slot_index": 5,
+          "links": [
+            34
+          ]
+        },
+        {
+          "localized_name": "分段数量",
+          "name": "分段数量",
+          "type": "INT",
+          "slot_index": 6,
+          "links": []
+        },
+        {
+          "localized_name": "过渡帧数",
+          "name": "过渡帧数",
+          "type": "INT",
+          "slot_index": 7,
+          "links": []
+        },
+        {
+          "localized_name": "实际半宽",
+          "name": "实际半宽",
+          "type": "INT",
+          "slot_index": 8,
+          "links": []
+        },
+        {
+          "localized_name": "实际半高",
+          "name": "实际半高",
+          "type": "INT",
+          "slot_index": 9,
+          "links": []
+        },
+        {
+          "localized_name": "自动关机",
+          "name": "自动关机",
+          "type": "BOOLEAN",
+          "slot_index": 10,
+          "links": []
+        }
+      ],
+      "title": "⓪ 生成控制器（分辨率在这里设）",
+      "properties": {
+        "Node name for S&R": "FxAIGeneratorController"
       },
-      "title": "⑤c 影调对齐（背景拉回源片）"
+      "widgets_values": [
+        false,
+        0,
+        -1,
+        30,
+        1280,
+        720,
+        32,
+        9,
+        1,
+        false
+      ],
+      "widgets_values_named": {
+        "启用场景分段": false,
+        "开始索引": 0,
+        "结束索引": -1,
+        "帧率": 30,
+        "宽度": 1280,
+        "高度": 720,
+        "长宽对齐基数": 32,
+        "过渡帧数": 9,
+        "采样次数": 1,
+        "自动关机": false
+      }
+    },
+    {
+      "id": 41,
+      "type": "FxAiScaleSize",
+      "pos": [
+        -445.60399258114455,
+        534.4348738448401
+      ],
+      "size": [
+        330,
+        190
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "原宽度",
+          "type": "INT",
+          "widget": {
+            "name": "原宽度"
+          },
+          "link": 35
+        },
+        {
+          "name": "原高度",
+          "type": "INT",
+          "widget": {
+            "name": "原高度"
+          },
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "宽度",
+          "type": "INT",
+          "links": [
+            37
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "高度",
+          "type": "INT",
+          "links": [
+            38
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "半宽",
+          "type": "INT",
+          "links": [],
+          "slot_index": 2
+        },
+        {
+          "name": "半高",
+          "type": "INT",
+          "links": [],
+          "slot_index": 3
+        },
+        {
+          "name": "对齐基数",
+          "type": "INT",
+          "links": [],
+          "slot_index": 4
+        },
+        {
+          "name": "缩放信息",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 5
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FxAiScaleSize"
+      },
+      "widgets_values": [
+        100.0,
+        32,
+        1,
+        1280,
+        720,
+        ""
+      ],
+      "title": "宽高-按百分比缩放（100% = 原片尺寸）"
     }
   ],
   "links": [
@@ -1215,38 +1924,6 @@
       10,
       2,
       "VAE"
-    ],
-    [
-      8,
-      7,
-      0,
-      10,
-      6,
-      "VAE"
-    ],
-    [
-      9,
-      9,
-      0,
-      10,
-      10,
-      "IMAGE"
-    ],
-    [
-      10,
-      8,
-      0,
-      10,
-      13,
-      "IMAGE"
-    ],
-    [
-      11,
-      8,
-      6,
-      10,
-      14,
-      "AUDIO"
     ],
     [
       12,
@@ -1337,14 +2014,6 @@
       "IMAGE"
     ],
     [
-      23,
-      17,
-      0,
-      18,
-      4,
-      "AUDIO"
-    ],
-    [
       24,
       18,
       1,
@@ -1399,17 +2068,104 @@
       18,
       0,
       "IMAGE"
+    ],
+    [
+      33,
+      40,
+      4,
+      10,
+      12,
+      "INT"
+    ],
+    [
+      34,
+      40,
+      5,
+      10,
+      13,
+      "INT"
+    ],
+    [
+      8,
+      7,
+      0,
+      10,
+      3,
+      "VAE"
+    ],
+    [
+      9,
+      9,
+      0,
+      10,
+      7,
+      "IMAGE"
+    ],
+    [
+      10,
+      8,
+      0,
+      10,
+      9,
+      "IMAGE"
+    ],
+    [
+      11,
+      8,
+      6,
+      10,
+      10,
+      "AUDIO"
+    ],
+    [
+      23,
+      17,
+      0,
+      18,
+      1,
+      "AUDIO"
+    ],
+    [
+      35,
+      8,
+      7,
+      41,
+      0,
+      "INT"
+    ],
+    [
+      36,
+      8,
+      8,
+      41,
+      1,
+      "INT"
+    ],
+    [
+      37,
+      41,
+      0,
+      40,
+      6,
+      "INT"
+    ],
+    [
+      38,
+      41,
+      1,
+      40,
+      7,
+      "INT"
     ]
   ],
-  "floatingLinks": [],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.62,
+      "scale": 0.7502000000000001,
       "offset": [
-        0,
-        0
+        970.8564090976051,
+        102.98485807578419
       ]
     },
     "frontendVersion": "1.57.6"
@@ -1419,8 +2175,5 @@
       "14": 0
     }
   },
-  "version": 0.4,
-  "seed_widgets": {
-    "14": 0
-  }
+  "version": 0.4
 }

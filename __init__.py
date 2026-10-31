@@ -163,6 +163,7 @@ NODE_REGISTRY = [
     ("FxAiMaxRatioSizeV2",        "fxai_max_ratio_size_v2",     "凤希AI - 宽高-按比例V2"),
     ("FxAiPhotoSizeConfig",       "fxai_photo_size_config",     "凤希AI - 宽高-按照片预设"),
     ("FxAiPhotoSizeConfigV2",     "fxai_photo_size_config_v2",  "凤希AI - 宽高设置"),
+    ("FxAiScaleSize",             "fxai_scale_size",            "凤希AI - 宽高-按百分比缩放"),
     ("FxAiIntToFloat",            "fxai_int_to_float",          "凤希AI - 整数转小数"),
     ("FxAIGeneratorController",   "fxai_generator_controller",  "凤希AI - 生成控制器"),
     ("FxAiFrameGenerator",        "fxai_frame_generator",       "凤希AI - 首尾帧生成器"),
@@ -249,6 +250,15 @@ WEB_DIRECTORY = "./js"
 
 # 导出
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
+
+# 异常自愈守卫：让显存/内存异常只失败当前 prompt，不带崩整个服务。
+# 必须早于任何执行发生（这里已经在节点注册之后、服务启动之前，够用）。
+# 关掉：启动前设 FXAI_GUARD=0
+try:
+    from . import fxai_guard
+    fxai_guard.install()
+except Exception as _exc:
+    print(f"❌[凤希AI] 异常守卫安装失败（不影响其他功能）：{_exc}")
 
 # 人脸精修：Pick faces 选择器的后端路由（/h3_facerefine/scan|preview|preview_xy|videos）
 try:

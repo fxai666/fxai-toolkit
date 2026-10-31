@@ -71,8 +71,9 @@ class FxAiVideoSegmenterV1:
     CATEGORY = "凤希AI/视频"
     FUNCTION = "split_segments"
 
-    RETURN_TYPES = ("STRING", "LIST", "INT", "INT", "STRING", "AUDIO", "INT")
-    RETURN_NAMES = ("视频路径", "分段时长列表", "分段总数", "帧率", "分段信息", "音频", "起始帧")
+    RETURN_TYPES = ("STRING", "LIST", "INT", "INT", "STRING", "AUDIO", "INT", "INT", "INT")
+    RETURN_NAMES = ("视频路径", "分段时长列表", "分段总数", "帧率", "分段信息", "音频", "起始帧",
+                    "原始宽度", "原始高度")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -166,7 +167,8 @@ class FxAiVideoSegmenterV1:
         # 帧率按整数往外给：下游保存节点、控制器都按整数帧率走，
         # 源素材真有 23.976 这种也四舍五入成 24（分段计算内部仍用真实值）
         return (rel_video_path(path), durations, len(segments), int(round(fps)),
-                "\n".join(lines), audio, span_start)
+                "\n".join(lines), audio, span_start,
+                int(info["width"]), int(info["height"]))
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):

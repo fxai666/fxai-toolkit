@@ -36,10 +36,21 @@ class FxAiVideoSaveV1:
             },
             "optional": {
                 "音频": ("AUDIO",),
+                # 追加在最后：老工作流的 widgets_values 只有 3 个值，
+                # 第 4 个会取默认值 True，不会错位。
+                "保存后释放": ("BOOLEAN", {
+                    "default": True,
+                    "label_on": "释放",
+                    "label_off": "不释放",
+                    "tooltip": "保存完这一段就把模型和显存/内存全部放掉，再进下一轮循环。\n"
+                               "开着：每段峰值只占一份权重（约 35G），不会越跑越高。\n"
+                               "关掉：模型留在显存里跨段复用，单段更快，但内存会累积。",
+                }),
             },
         }
 
-    def run(self, 图片序列, 视频序号=-1, 保存目录="sucai", 帧率FPS=24, 音频=None):
+    def run(self, 图片序列, 视频序号=-1, 保存目录="sucai", 帧率FPS=24, 音频=None,
+            保存后释放=True):
         if 图片序列 is None:
             return (图片序列, "", "")
 
@@ -60,6 +71,24 @@ class FxAiVideoSaveV1:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+        # 本段存完就把这一轮占的模型/显存/内存全放掉，再进下一个循环。
+        # 只 del + empty_cache 是不够的：权重还 staged 在 pinned 内存里
+        # （实测一段 32.4G），循环 20 段就会叠成两份甚至三份。
+        #
+        # shrink_working_set 必须关掉！`SetProcessWorkingSetSize(-1,-1)` 会把进程
+        # 的工作集强行换出到页面文件，下一段再 stage 32.4G 时要从页面文件读回来 ——
+        # 实测「模型初始化」从 1 分 15 秒涨到 28 分 51 秒（2026-10-31 01:25）。
+        # 清显存 + 卸模型本身是快的，慢的是这个强制换出。
+        if 保存后释放:
+            try:
+                from fxai_release_resources import release_resources
+                release_resources(unload_models=True, empty_cuda=True,
+                                  shrink_working_set=False)
+                print(f"[凤希AI] 第 {视频序号 + 1 if 视频序号 >= 0 else 1} 段已保存，"
+                      f"显存与内存已释放")
+            except Exception as e:
+                print(f"[凤希AI] 保存后释放失败（不影响成片）：{type(e).__name__}: {e}")
 
         if video_path and os.path.exists(video_path):
             try:

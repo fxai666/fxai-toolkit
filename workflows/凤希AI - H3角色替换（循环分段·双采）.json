@@ -1,8 +1,8 @@
 {
   "id": "4f25bcef-1de5-43ab-bacb-6c5f6ff9718e",
   "revision": 0,
-  "last_node_id": 38,
-  "last_link_id": 58,
+  "last_node_id": 40,
+  "last_link_id": 64,
   "nodes": [
     {
       "id": 1,
@@ -107,15 +107,15 @@
         "Node name for S&R": "FxAiLoraLoader"
       },
       "widgets_values": [
-        "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3_character_swap_v1.5.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.7,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0}]",
+        "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3_character_swap.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.4,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0}]",
         "",
         {
           "name": "lora_data",
-          "value": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3_character_swap_v1.5.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.7,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0}]"
+          "value": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3_character_swap.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.4,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0}]"
         }
       ],
       "widgets_values_named": {
-        "lora_data": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3_character_swap_v1.5.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.7,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0}]"
+        "lora_data": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3_character_swap.safetensors\",\"model_strength\":1.0,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"h3-人脸去油.safetensors\",\"model_strength\":0.4,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1.0,\"fade_end\":1.0}]"
       },
       "title": "LoRA 链（V3 同款 · 仅多换人 v1.5）"
     },
@@ -310,11 +310,11 @@
         "Node name for S&R": "LoadImage"
       },
       "widgets_values": [
-        "char011.png",
+        "037.png",
         "image"
       ],
       "widgets_values_named": {
-        "image": "char011.png",
+        "image": "037.png",
         "upload": "image"
       },
       "title": "参考角色图（<Picture 1>）"
@@ -348,10 +348,10 @@
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no new objects, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
+        "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The vehicle ridden or carried by the source person is part of the scene and must stay exactly as in <Video 1>: the same vehicle, the same size, position, orientation and motion. If the source person is riding a scooter or motorcycle, <Subject 1> remains seated on it in the same riding posture, hands on the handlebars and feet on the footboard, and the vehicle stays fully visible and unchanged. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no objects other than those already present in <Video 1>, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
       ],
       "widgets_values_named": {
-        "value": "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no new objects, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
+        "value": "body_swap: subject_definitions: <Subject 1> is the person shown in <Picture 1>. The reference picture exclusively defines <Subject 1> identity and appearance: the exact facial structure, eyes, eyebrows, nose, mouth, jawline, skin tone, hairstyle, hair color, head proportions, body silhouette, and the complete visible outfit and accessories. The outfit and accessories in <Picture 1> replace everything the source person wears, from neck to feet: no top, no trousers, no belt, no sash, no waist scarf or kerchief, no knotted cloth, no hanging cord, no bag, no jewellery and no footwear from <Video 1> may survive. Do not borrow the original person identity, face, hair or clothing from <Video 1>. The guide <Video 1> exclusively defines the original location, background, camera movement, framing, lighting direction, perspective, and performance frame by frame, including posture, action timing, hand and leg movements, facial expression, head turns, gaze and mouth movements. summary: [video generation + reference] Replace only the single main person in <Video 1> with <Subject 1> from <Picture 1>; preserve the source video performance and surroundings. detailed_description: [Shot 1] From the first frame to the last frame, <Subject 1> completely takes the place of the guide person, at the same screen coordinates, size, depth and orientation. The entire character consistently matches <Picture 1>: facial identity, proportions, hairstyle, skin appearance, outfit design, colors, fabrics and accessories. The waistline shows only the outfit from <Picture 1>; any belt, sash, scarf, kerchief, cord or dangling accessory worn by the source person is removed. Follow the source video motion exactly in timing, pose, gestures, foot placement, movement trajectory, facial expressions and lip movements. Keep the camera movement, shot timing, scene geometry, background objects, color balance, lighting and original audio from <Video 1>. The vehicle ridden or carried by the source person is part of the scene and must stay exactly as in <Video 1>: the same vehicle, the same size, position, orientation and motion. If the source person is riding a scooter or motorcycle, <Subject 1> remains seated on it in the same riding posture, hands on the handlebars and feet on the footboard, and the vehicle stays fully visible and unchanged. The scene keeps the bright, evenly lit look of <Video 1>: background brightness, contrast and white level stay identical to <Video 1>. When the character turns sideways, walks, spins or is partially occluded, maintain the same identity, matching outfit and anatomical continuity. No original face reappearing, no face blending, no second character, no character duplication, no objects other than those already present in <Video 1>, no belt, no waist scarf, no kerchief tied at the hip, no dangling cord or strap, no leftover source clothing, no reference-image background, no gray or monochrome backdrop, no text overlays, no sudden camera cuts, no flickering, no warped hands, no extra limbs, no clothing changes, no looping or skipped motions."
       },
       "title": "换人提示词（body_swap 结构化模板）"
     },
@@ -426,13 +426,29 @@
             17
           ],
           "slot_index": 6
+        },
+        {
+          "name": "原始宽度",
+          "type": "INT",
+          "links": [
+            61
+          ],
+          "slot_index": 7
+        },
+        {
+          "name": "原始高度",
+          "type": "INT",
+          "links": [
+            62
+          ],
+          "slot_index": 8
         }
       ],
       "properties": {
         "Node name for S&R": "FxAiVideoSegmenterV1"
       },
       "widgets_values": [
-        "K:/phone/view.mp4",
+        "I:/ComfyUI/input/gu_zhuang_12s.mp4",
         "[]",
         false,
         true,
@@ -441,7 +457,7 @@
         "MiniMax"
       ],
       "widgets_values_named": {
-        "视频文件": "K:/phone/view.mp4",
+        "视频文件": "I:/ComfyUI/input/gu_zhuang_12s.mp4",
         "关键帧JSON": "[]",
         "跳过初始段": false,
         "包含尾部段": true,
@@ -1099,13 +1115,15 @@
       },
       "widgets_values": [
         -1,
-        "h3_swap_dual",
-        30
+        "h3_swap_dual12s",
+        30,
+        true
       ],
       "widgets_values_named": {
         "视频序号": -1,
-        "保存目录": "h3_swap_dual",
-        "帧率FPS": 30
+        "保存目录": "h3_swap_dual12s",
+        "帧率FPS": 30,
+        "保存后释放": true
       },
       "title": "⑥ 本段单独存一个视频"
     },
@@ -1873,7 +1891,7 @@
           "widget": {
             "name": "宽度"
           },
-          "link": null
+          "link": 63
         },
         {
           "name": "高度",
@@ -1881,7 +1899,7 @@
           "widget": {
             "name": "高度"
           },
-          "link": null
+          "link": 64
         },
         {
           "name": "长宽对齐基数",
@@ -2006,8 +2024,8 @@
         0,
         -1,
         30,
-        608,
-        1056,
+        1280,
+        720,
         32,
         9,
         2,
@@ -2018,8 +2036,8 @@
         "开始索引": 0,
         "结束索引": -1,
         "帧率": 30,
-        "宽度": 608,
-        "高度": 1056,
+        "宽度": 1280,
+        "高度": 720,
         "长宽对齐基数": 32,
         "过渡帧数": 9,
         "采样次数": 2,
@@ -2201,6 +2219,93 @@
         "平滑帧数": 15
       },
       "title": "⑤c 影调对齐（背景拉回源片）"
+    },
+    {
+      "id": 40,
+      "type": "FxAiScaleSize",
+      "pos": [
+        -2040,
+        160
+      ],
+      "size": [
+        330,
+        190
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "原宽度",
+          "type": "INT",
+          "widget": {
+            "name": "原宽度"
+          },
+          "link": 61
+        },
+        {
+          "name": "原高度",
+          "type": "INT",
+          "widget": {
+            "name": "原高度"
+          },
+          "link": 62
+        }
+      ],
+      "outputs": [
+        {
+          "name": "宽度",
+          "type": "INT",
+          "links": [
+            63
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "高度",
+          "type": "INT",
+          "links": [
+            64
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "半宽",
+          "type": "INT",
+          "links": [],
+          "slot_index": 2
+        },
+        {
+          "name": "半高",
+          "type": "INT",
+          "links": [],
+          "slot_index": 3
+        },
+        {
+          "name": "对齐基数",
+          "type": "INT",
+          "links": [],
+          "slot_index": 4
+        },
+        {
+          "name": "缩放信息",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 5
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FxAiScaleSize"
+      },
+      "widgets_values": [
+        100.0,
+        32,
+        2,
+        1280,
+        720,
+        ""
+      ],
+      "title": "宽高-按百分比缩放（100% = 原片尺寸）"
     }
   ],
   "links": [
@@ -2683,6 +2788,38 @@
       28,
       0,
       "IMAGE"
+    ],
+    [
+      61,
+      10,
+      7,
+      40,
+      0,
+      "INT"
+    ],
+    [
+      62,
+      10,
+      8,
+      40,
+      1,
+      "INT"
+    ],
+    [
+      63,
+      40,
+      0,
+      36,
+      4,
+      "INT"
+    ],
+    [
+      64,
+      40,
+      1,
+      36,
+      5,
+      "INT"
     ]
   ],
   "floatingLinks": [],
