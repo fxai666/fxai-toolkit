@@ -2367,39 +2367,12 @@
       ],
       "size": [
         270,
-        150
+        130
       ],
       "flags": {},
       "order": 13,
       "mode": 0,
       "inputs": [
-        {
-          "localized_name": "百分比",
-          "name": "百分比",
-          "type": "FLOAT",
-          "widget": {
-            "name": "百分比"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "对齐基数",
-          "name": "对齐基数",
-          "type": "INT",
-          "widget": {
-            "name": "对齐基数"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "采样次数",
-          "name": "采样次数",
-          "type": "INT",
-          "widget": {
-            "name": "采样次数"
-          },
-          "link": null
-        },
         {
           "localized_name": "原宽度",
           "name": "原宽度",
@@ -2419,16 +2392,6 @@
             "name": "原高度"
           },
           "link": 50
-        },
-        {
-          "localized_name": "分辨率",
-          "name": "分辨率",
-          "shape": 7,
-          "type": "STRING",
-          "widget": {
-            "name": "分辨率"
-          },
-          "link": null
         }
       ],
       "outputs": [
@@ -2458,15 +2421,8 @@
       "widgets_values": [
         640,
         1280,
-        720,
-        ""
-      ],
-      "widgets_values_named": {
-        "最大边长": 640,
-        "原宽度": 1280,
-        "原高度": 720,
-        "分辨率": ""
-      }
+        720
+      ]
     },
     {
       "id": 42,
@@ -2959,7 +2915,7 @@
       10,
       7,
       41,
-      3,
+      0,
       "INT"
     ],
     [
@@ -2967,7 +2923,7 @@
       10,
       8,
       41,
-      4,
+      1,
       "INT"
     ],
     [
