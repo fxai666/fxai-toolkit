@@ -2,7 +2,7 @@
   "id": "14019e70-313e-4719-967b-73675ac247ac",
   "revision": 0,
   "last_node_id": 45,
-  "last_link_id": 94,
+  "last_link_id": 98,
   "nodes": [
     {
       "id": 1,
@@ -74,7 +74,7 @@
         284.39476679659197
       ],
       "flags": {},
-      "order": 15,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
@@ -162,7 +162,7 @@
         106
       ],
       "flags": {},
-      "order": 17,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -438,8 +438,8 @@
       "id": 9,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        -1730.2216823197548,
-        1077.6353034237002
+        -1712.8358852740985,
+        1092.53741517712
       ],
       "size": [
         765.3337387966678,
@@ -646,22 +646,22 @@
         "Node name for S&R": "FxAiVideoSegmenterV1"
       },
       "widgets_values": [
-        "成片_ep1_风尘花魁_sub.mp4",
+        "file.mp4",
         "[]",
         false,
         true,
         true,
-        5,
+        4,
         "MiniMax",
         ""
       ],
       "widgets_values_named": {
-        "视频文件": "成片_ep1_风尘花魁_sub.mp4",
+        "视频文件": "file.mp4",
         "关键帧JSON": "[]",
         "跳过初始段": false,
         "包含尾部段": true,
         "是否平均分段": true,
-        "平均分段时长": 5,
+        "平均分段时长": 4,
         "目标模型": "MiniMax",
         "video_segment_editor": ""
       }
@@ -675,10 +675,10 @@
       ],
       "size": [
         210,
-        130
+        122
       ],
       "flags": {},
-      "order": 16,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -769,7 +769,7 @@
         146
       ],
       "flags": {},
-      "order": 18,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
@@ -865,7 +865,7 @@
         350
       ],
       "flags": {},
-      "order": 20,
+      "order": 21,
       "mode": 0,
       "inputs": [
         {
@@ -956,7 +956,7 @@
           "widget": {
             "name": "宽度"
           },
-          "link": 62
+          "link": 95
         },
         {
           "localized_name": "高度",
@@ -965,7 +965,7 @@
           "widget": {
             "name": "高度"
           },
-          "link": 63
+          "link": 96
         },
         {
           "localized_name": "帧数",
@@ -1125,7 +1125,7 @@
         106
       ],
       "flags": {},
-      "order": 21,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -1228,11 +1228,11 @@
         "Node name for S&R": "RandomNoise"
       },
       "widgets_values": [
-        937280883023136,
+        72967828479223,
         "randomize"
       ],
       "widgets_values_named": {
-        "noise_seed": 937280883023136,
+        "noise_seed": 72967828479223,
         "control_after_generate": "randomize"
       }
     },
@@ -1960,7 +1960,7 @@
         82
       ],
       "flags": {},
-      "order": 19,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
@@ -2121,15 +2121,15 @@
       "id": 40,
       "type": "FxAIGeneratorController",
       "pos": [
-        -2222.3309589567925,
-        1071.285309916568
+        -2238.47491335633,
+        1375.5367582155527
       ],
       "size": [
-        380,
+        253.8375,
         474
       ],
       "flags": {},
-      "order": 13,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -2189,7 +2189,7 @@
           "widget": {
             "name": "宽度"
           },
-          "link": null
+          "link": 97
         },
         {
           "localized_name": "高度",
@@ -2198,7 +2198,7 @@
           "widget": {
             "name": "高度"
           },
-          "link": null
+          "link": 98
         },
         {
           "localized_name": "长宽对齐基数",
@@ -2280,14 +2280,18 @@
           "name": "实际宽度",
           "type": "INT",
           "slot_index": 4,
-          "links": []
+          "links": [
+            95
+          ]
         },
         {
           "localized_name": "实际高度",
           "name": "实际高度",
           "type": "INT",
           "slot_index": 5,
-          "links": []
+          "links": [
+            96
+          ]
         },
         {
           "localized_name": "分段数量",
@@ -2358,15 +2362,15 @@
       "id": 41,
       "type": "FxAiScaleSize",
       "pos": [
-        -968.3084571279014,
-        474.5379297684737
+        -2238.7134841069287,
+        1049.5110749212497
       ],
       "size": [
-        300,
-        280
+        270,
+        150
       ],
       "flags": {},
-      "order": 14,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
@@ -2434,7 +2438,7 @@
           "type": "INT",
           "slot_index": 0,
           "links": [
-            62
+            97
           ]
         },
         {
@@ -2443,36 +2447,8 @@
           "type": "INT",
           "slot_index": 1,
           "links": [
-            63
+            98
           ]
-        },
-        {
-          "localized_name": "半宽",
-          "name": "半宽",
-          "type": "INT",
-          "slot_index": 2,
-          "links": []
-        },
-        {
-          "localized_name": "半高",
-          "name": "半高",
-          "type": "INT",
-          "slot_index": 3,
-          "links": []
-        },
-        {
-          "localized_name": "对齐基数",
-          "name": "对齐基数",
-          "type": "INT",
-          "slot_index": 4,
-          "links": []
-        },
-        {
-          "localized_name": "缩放信息",
-          "name": "缩放信息",
-          "type": "STRING",
-          "slot_index": 5,
-          "links": []
         }
       ],
       "title": "宽高-按百分比缩放（100% = 原片尺寸）",
@@ -2480,17 +2456,13 @@
         "Node name for S&R": "FxAiScaleSize"
       },
       "widgets_values": [
-        100,
-        32,
-        1,
+        50,
         1280,
         720,
         ""
       ],
       "widgets_values_named": {
-        "百分比": 100,
-        "对齐基数": 32,
-        "采样次数": 1,
+        "百分比": 50,
         "原宽度": 1280,
         "原高度": 720,
         "分辨率": ""
@@ -2927,22 +2899,6 @@
       "LIST"
     ],
     [
-      62,
-      41,
-      0,
-      14,
-      12,
-      "INT"
-    ],
-    [
-      63,
-      41,
-      1,
-      14,
-      13,
-      "INT"
-    ],
-    [
       86,
       11,
       1,
@@ -3023,6 +2979,14 @@
       "INT"
     ],
     [
+      94,
+      40,
+      1,
+      11,
+      2,
+      "INT"
+    ],
+    [
       38,
       11,
       0,
@@ -3047,11 +3011,35 @@
       "STRING"
     ],
     [
-      94,
+      95,
       40,
+      4,
+      14,
+      12,
+      "INT"
+    ],
+    [
+      96,
+      40,
+      5,
+      14,
+      13,
+      "INT"
+    ],
+    [
+      97,
+      41,
+      0,
+      40,
+      6,
+      "INT"
+    ],
+    [
+      98,
+      41,
       1,
-      11,
-      2,
+      40,
+      7,
       "INT"
     ]
   ],
@@ -3059,10 +3047,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.6655000000000015,
+      "scale": 0.8052550000000024,
       "offset": [
-        2459.65214234455,
-        224.59050422810841
+        3112.264735521877,
+        -137.43643133888526
       ]
     },
     "frontendVersion": "1.58.3"

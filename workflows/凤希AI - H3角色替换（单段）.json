@@ -1781,8 +1781,8 @@
         534.4348738448401
       ],
       "size": [
-        330,
-        190
+        270,
+        150
       ],
       "flags": {},
       "order": 24,
@@ -1821,30 +1821,6 @@
             38
           ],
           "slot_index": 1
-        },
-        {
-          "name": "半宽",
-          "type": "INT",
-          "links": [],
-          "slot_index": 2
-        },
-        {
-          "name": "半高",
-          "type": "INT",
-          "links": [],
-          "slot_index": 3
-        },
-        {
-          "name": "对齐基数",
-          "type": "INT",
-          "links": [],
-          "slot_index": 4
-        },
-        {
-          "name": "缩放信息",
-          "type": "STRING",
-          "links": [],
-          "slot_index": 5
         }
       ],
       "properties": {
@@ -1852,8 +1828,6 @@
       },
       "widgets_values": [
         100.0,
-        32,
-        1,
         1280,
         720,
         ""
