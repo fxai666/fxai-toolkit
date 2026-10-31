@@ -22,18 +22,33 @@
 #   那个节点求的是整帧均值差，而整帧均值被人物服装主导（白上衣换黑蕾丝，
 #   中央区差 -46），会算出远超实际的偏移量。这里只采样背景区。
 #
+# 为什么要卡增益范围（2026-10-31 加）：
+#   暗背景片子上会算出灾难性的比值。实测某段生成四角 70/3/6/11、源片 29/1/5/2，
+#   四块比 0.411/0.335/0.923/0.173，剔离群后 0.2986 —— 整段亮度砍到 30%，
+#   对比度从 44 塌到 13.6，画面像蒙了一层灰雾。
+#   前两段没事是因为有一块 84 的亮区被当离群值剔掉了；这一段四块全暗，
+#   没有离群值可剔，四个噪声级的小比值直接平均成了灾难。
+#   真实漂移实测只有 12%（86.5 → 75.2，比值 0.87），所以：
+#     比值落在 [0.7, 1.4] 之外 → 判定采样不可靠，本段跳过，画面不动。
+#   宁可少调一段，也不能把整段压成灰雾。
+#
 # 为什么取中位数而不是平均值：
 #   长裙、阔腿裤这类会伸进画面下两角，把「四角」的下两个采样块从背景变成衣服。
 #   实测穿及地汉服时，下两角比源片高 +14/+5，上两角却是 -7/-3 —— 取平均会让
 #   真正的背景角欠校正 5~7 个灰阶。取中位数后，一两个角被侵占会自动被剔除。
 #
 # 采样区怎么选：
-#   四角   —— 默认。取 4 个角块的中位数，能扛住 1~2 个角被人物侵占
+#   八方位 —— 默认。3×3 网格去掉中心（中心是人物），8 块一起估，最稳
+#   四角   —— 4 个角块。能扛住 1~2 个角被人物侵占
 #   上部   —— 只有上两角。及地长裙/阔腿裤挡满下半幅时用这个最稳
 #   边缘带 —— 上下左右四条边带的中位数，适合人物占满左右的镜头
 #   全图   —— 只在整帧都是空镜时用，有人物时会被服装带偏
 
 import torch
+
+# 增益的合理区间。实测漂移约 12%（比值 0.87），±40% 已经远超正常范围；
+# 超出去说明采样不可靠（暗背景、闪白、构图突变），宁可不调
+GAIN_MIN, GAIN_MAX = 0.7, 1.4
 
 
 def _patch_means(gray, region, k):
@@ -41,7 +56,25 @@ def _patch_means(gray, region, k):
     h, w = gray.shape
     if region == "全图":
         return [gray.mean()]
+
     kk = min(k, h // 2, w // 2)
+    if region == "八方位":
+        # 3×3 网格去掉正中那块：中间一定是人物，采进来会被服装主导
+        b = min(k, h // 3, w // 3)
+        cy, cx = h // 2, w // 2
+        half = b // 2
+        blocks = [
+            gray[:b, :b],
+            gray[:b, cx - half:cx + half],
+            gray[:b, w - b:],
+            gray[cy - half:cy + half, :b],
+            gray[cy - half:cy + half, w - b:],
+            gray[h - b:, :b],
+            gray[h - b:, cx - half:cx + half],
+            gray[h - b:, w - b:],
+        ]
+        return [blk.mean() for blk in blocks]
+
     tl = gray[:kk, :kk].mean()
     tr = gray[:kk, w - kk:].mean()
     bl = gray[h - kk:, :kk].mean()
@@ -51,15 +84,14 @@ def _patch_means(gray, region, k):
     if region == "上部":
         return [tl, tr]
     # 边缘带
-    b = min(k, h // 2, w // 2)
-    top = gray[:b, :].mean()
-    bot = gray[h - b:, :].mean()
-    if h > 2 * b:
-        left = gray[b:h - b, :b].mean()
-        right = gray[b:h - b, w - b:].mean()
+    top = gray[:kk, :].mean()
+    bot = gray[h - kk:, :].mean()
+    if h > 2 * kk:
+        left = gray[kk:h - kk, :kk].mean()
+        right = gray[kk:h - kk, w - kk:].mean()
     else:
-        left = gray[:, :b].mean()
-        right = gray[:, w - b:].mean()
+        left = gray[:, :kk].mean()
+        right = gray[:, w - kk:].mean()
     return [top, bot, left, right]
 
 
@@ -126,20 +158,24 @@ class FxAiToneMatch:
             "required": {
                 "图片序列": ("IMAGE", {
                     "tooltip": "生成出来的帧序列（解码、裁剪之后）。"}),
-                "方式": (["增益", "偏移"], {
+                "方式": (["增益", "偏移", "不启用"], {
                     "default": "增益",
                     "tooltip": "增益：整帧乘一个系数。黑位基本不动（P1 5.4→6.1），\n"
                                "高光恢复得多，最适合「发闷」这种观感。默认。\n"
                                "偏移：整帧加一个固定灰阶差。对比度绝对不变，\n"
                                "但会把黑蕾丝/黑皮裤一起抬亮（P1 5.4→14.9）而发灰。\n"
-                               "两者对背景的校正量一样准，差别只在暗部。"}),
-                "采样区": (["四角", "上部", "边缘带", "全图"], {
-                    "default": "四角",
-                    "tooltip": "拿哪块区域来估计「背景亮度」，取各采样块的中位数。\n"
+                               "不启用：原样透传，不采任何样、不改任何像素。\n"
+                               "        排查画面问题时先用它排除本节点的嫌疑。"}),
+                "采样区": (["八方位", "四角", "上部", "边缘带", "全图"], {
+                    "default": "八方位",
+                    "tooltip": "拿哪块区域来估计「背景亮度」。\n"
+                               "八方位：3×3 网格去掉中心，8 块一起估。默认，最稳。\n"
                                "四角：4 个角块。能扛住 1~2 个角被人物侵占。\n"
                                "上部：只有上两角。及地长裙/阔腿裤挡满下半幅时用这个。\n"
                                "边缘带：上下左右四条边带。适合人物占满左右的镜头。\n"
-                               "全图：只在空镜用，有人物时会被服装带偏。"}),
+                               "全图：只在空镜用，有人物时会被服装带偏。\n"
+                               "背景全黑（舞台、夜景）时四角/八方位都会采到噪声，\n"
+                               "算出的比值会被下面的范围检查拦掉，需要换「上部」再试。"}),
                 "强度": ("FLOAT", {
                     "default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05,
                     "tooltip": "校正量乘这个系数。填 0 等于关闭本节点。"}),
@@ -163,8 +199,11 @@ class FxAiToneMatch:
             },
         }
 
-    def run(self, 图片序列, 方式="增益", 采样区="四角", 强度=1.0,
+    def run(self, 图片序列, 方式="增益", 采样区="八方位", 强度=1.0,
             最大调整=20.0, 逐帧=False, 平滑帧数=15, 参考序列=None):
+        if 方式 == "不启用":
+            print("[凤希AI·影调] 未启用，原样透传")
+            return (图片序列,)
         if 图片序列 is None or 图片序列.shape[0] == 0:
             return (图片序列,)
         if 参考序列 is None or 参考序列.shape[0] == 0:
@@ -180,13 +219,13 @@ class FxAiToneMatch:
         ref = 参考序列.to(torch.float32)
         nb, h, w = cur.shape[0], cur.shape[1], cur.shape[2]
         k = max(16, min(h, w) // 8)
-        nr = ref.shape[0]
 
         def patches(t, i):
             return _patch_means(_luma(t[min(i, t.shape[0] - 1)]), 采样区, k)
 
         cur_p = [patches(cur, i) for i in range(nb)]
         ref_p = [patches(ref, i) for i in range(nb)]
+        mid = nb // 2
 
         if 方式 == "偏移":
             per_frame = [_robust([r - c for r, c in zip(rp, cp)])
@@ -203,22 +242,34 @@ class FxAiToneMatch:
                     out[i] = cur[i] + est[i] * s
             else:
                 out = cur + est[0]
-            mid = cur_p[nb // 2]
-            rmid = ref_p[nb // 2]
             print("[凤希AI·影调] 生成 %s → 源 %s ｜ 各块差 %s ｜ 采用 %+.2f 灰阶"
                   "（%s，强度 %.2f）"
-                  % ("/".join("%.0f" % (v * 255) for v in mid),
-                     "/".join("%.0f" % (v * 255) for v in rmid),
+                  % ("/".join("%.0f" % (v * 255) for v in cur_p[mid]),
+                     "/".join("%.0f" % (v * 255) for v in ref_p[mid]),
                      "/".join("%+.1f" % ((r - c) * 255)
-                              for r, c in zip(rmid, mid)),
-                     est[0] * 255, 采样区, s))
+                              for r, c in zip(ref_p[mid], cur_p[mid])),
+                     est[mid] if 逐帧 else est[0], 采样区, s))
         else:
             per_frame = []
             for rp, cp in zip(ref_p, cur_p):
                 ratios = [(r / c) if c > 1e-4 else 1.0 for r, c in zip(rp, cp)]
                 per_frame.append(_robust(ratios))
             est = per_frame if 逐帧 else [_median(per_frame)] * nb
-            cur_m = _robust(cur_p[nb // 2])
+
+            # 采样给出的结论本身不可信时直接跳过 —— 这一段画面不动，
+            # 交给下游的「接缝色彩对齐」按上一段末帧平移，段间不会跳
+            base = est[mid] if 逐帧 else est[0]
+            if not (GAIN_MIN <= base <= GAIN_MAX):
+                print("[凤希AI·影调] 生成 %s → 源 %s ｜ 各块比 %s ｜ 比值 ×%.4f 超出 "
+                      "%.1f~%.1f，判定采样不可靠，本段跳过（%s）"
+                      % ("/".join("%.0f" % (v * 255) for v in cur_p[mid]),
+                         "/".join("%.0f" % (v * 255) for v in ref_p[mid]),
+                         "/".join("%.3f" % ((r / c) if c > 1e-4 else 1.0)
+                                  for r, c in zip(ref_p[mid], cur_p[mid])),
+                         base, GAIN_MIN, GAIN_MAX, 采样区))
+                return (图片序列,)
+
+            cur_m = _robust(cur_p[mid])
             max_g = 1.0 + limit / max(cur_m, 1e-3)
             est = [max(1.0 / max_g, min(max_g, g)) for g in est]
             if 逐帧:
@@ -227,18 +278,16 @@ class FxAiToneMatch:
                 out = cur.clone()
                 for i in range(nb):
                     out[i] = cur[i] * (1.0 + (est[i] - 1.0) * s)
-                g = 1.0 + (est[nb // 2] - 1.0) * s
+                g = 1.0 + (est[mid] - 1.0) * s
             else:
                 g = 1.0 + (est[0] - 1.0) * s
                 out = cur * g
-            mid = cur_p[nb // 2]
-            rmid = ref_p[nb // 2]
             print("[凤希AI·影调] 生成 %s → 源 %s ｜ 各块比 %s ｜ 采用 ×%.4f"
                   "（%s，强度 %.2f）"
-                  % ("/".join("%.0f" % (v * 255) for v in mid),
-                     "/".join("%.0f" % (v * 255) for v in rmid),
+                  % ("/".join("%.0f" % (v * 255) for v in cur_p[mid]),
+                     "/".join("%.0f" % (v * 255) for v in ref_p[mid]),
                      "/".join("%.3f" % ((r / c) if c > 1e-4 else 1.0)
-                              for r, c in zip(rmid, mid)),
+                              for r, c in zip(ref_p[mid], cur_p[mid])),
                      g, 采样区, s))
 
         out = out.clamp_(0.0, 1.0).to(图片序列.dtype)
