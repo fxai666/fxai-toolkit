@@ -7,6 +7,7 @@ import folder_paths
 import server
 from aiohttp import web
 import mimetypes
+from fxai_sort_utils import natural_key as _natural_key
 
 # 安全路径校验：防止目录穿越
 def safe_path_join(base_dir, path):
@@ -52,7 +53,7 @@ def list_images(target_dir):
         m = pattern.match(f)
         if m:
             files.append((m.group(1), f))
-    files.sort()
+    files.sort(key=lambda x: (_natural_key(x[0]), _natural_key(x[1])))
     return [f for _, f in files]
 
 def load_image(file_path):

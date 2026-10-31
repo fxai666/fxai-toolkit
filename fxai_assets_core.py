@@ -18,6 +18,8 @@ import hashlib
 import json
 import mimetypes
 import os
+
+from fxai_sort_utils import natural_key as _natural_key
 import posixpath
 import re
 import shutil
@@ -249,8 +251,8 @@ def list_dir(rel, keyword="", kind="", sort="name", order="asc", page=1, size=60
     elif sort == "time":
         files.sort(key=lambda f: f["mtime"], reverse=rev)
     else:
-        files.sort(key=lambda f: f["name"].lower(), reverse=rev)
-    dirs.sort(key=lambda d: d["name"].lower())
+        files.sort(key=lambda f: _natural_key(f["name"]), reverse=rev)
+    dirs.sort(key=lambda d: _natural_key(d["name"]))
 
     total = len(files)
     sized = sum(f["size"] for f in files)

@@ -1,3 +1,4 @@
+from fxai_sort_utils import natural_key as _natural_key
 import os
 
 # 支持的提示词文件格式（仅txt，可扩展）
@@ -37,7 +38,7 @@ class FxAiLoadPromptByIndex:
                 prompt_files.append(full_path)
         
         # 按文件名排序（保证每次加载顺序一致）
-        prompt_files.sort()
+        prompt_files.sort(key=_natural_key)
         
         # 4. 检查是否有提示词文件
         total_prompts = len(prompt_files)

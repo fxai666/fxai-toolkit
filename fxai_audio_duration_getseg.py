@@ -1,3 +1,4 @@
+from fxai_sort_utils import natural_key as _natural_key
 import os
 import re
 import datetime
@@ -16,7 +17,7 @@ def list_audios(target_dir):
         m = pattern.match(f)
         if m:
             files.append(f)
-    files.sort()
+    files.sort(key=_natural_key)
     return files
 
 def load_comfy_audio(file_path):

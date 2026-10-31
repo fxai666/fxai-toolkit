@@ -10,6 +10,7 @@ import numpy as np
 import subprocess
 import json
 import fxai_task_store
+from fxai_sort_utils import natural_key as _natural_key
 
 # 安全路径校验
 def safe_path_join(base_dir, path):
@@ -43,7 +44,7 @@ def list_audios(target_dir):
         m = pattern.match(f)
         if m:
             files.append(f)
-    files.sort()
+    files.sort(key=_natural_key)
     return files
 
 def sanitize_filename(filename):

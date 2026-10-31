@@ -1,3 +1,4 @@
+from fxai_sort_utils import natural_key as _natural_key
 import os
 
 # 支持的图片格式
@@ -27,7 +28,7 @@ class FxAiGetImagePath:
         
         # 排序+过滤图片
         image_files = []
-        for filename in sorted(os.listdir(folder_path)):
+        for filename in sorted(os.listdir(folder_path), key=_natural_key):
             if filename.lower().endswith(IMAGE_EXTENSIONS):
                 full_path = os.path.join(folder_path, filename)
                 image_files.append(full_path)

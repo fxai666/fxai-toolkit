@@ -1,3 +1,4 @@
+from fxai_sort_utils import natural_key as _natural_key
 import os
 import re
 import subprocess
@@ -15,7 +16,7 @@ def list_audios(target_dir):
         m = pattern.match(f)
         if m:
             files.append(f)
-    files.sort()
+    files.sort(key=_natural_key)
     return files
 
 def get_audio_duration(audio_path):

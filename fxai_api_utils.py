@@ -11,6 +11,7 @@ import aiohttp
 from aiohttp import web
 from server import PromptServer
 from datetime import datetime
+from fxai_sort_utils import natural_key as _natural_key   # 全包统一的自然排序键
 
 app = PromptServer.instance.app
 
@@ -159,7 +160,7 @@ async def get_folder(request):
             full_path = os.path.join(target_dir, name)
             if os.path.isdir(full_path):
                 dir_names.append(name)
-    sorted_dirs = sorted(dir_names)
+    sorted_dirs = sorted(dir_names, key=_natural_key)
 
     return web.json_response({
         "root_path": target_dir,
@@ -173,7 +174,7 @@ async def list_files(request):
 
     result = {"images": [], "audio": [], "video": [], "text": [], "other": []}
     if os.path.isdir(target):
-        for name in sorted(os.listdir(target), key=str.lower):
+        for name in sorted(os.listdir(target), key=_natural_key):
             full = os.path.join(target, name)
             if os.path.isfile(full) and not name.startswith('.'):
                 cat, item = _categorize_file(name, full)
@@ -366,7 +367,7 @@ async def list_model_subdirs(request):
     root = folder_paths.models_dir
     dirs = []
     if os.path.isdir(root):
-        for name in sorted(os.listdir(root), key=str.lower):
+        for name in sorted(os.listdir(root), key=_natural_key):
             full = os.path.join(root, name)
             if os.path.isdir(full) and not name.startswith('.'):
                 try:
@@ -385,7 +386,7 @@ async def list_model_files(request):
     root = os.path.join(folder_paths.models_dir, model_type)
     files = []
     if os.path.isdir(root):
-        for name in sorted(os.listdir(root), key=str.lower):
+        for name in sorted(os.listdir(root), key=_natural_key):
             full = os.path.join(root, name)
             if os.path.isfile(full) and not name.startswith('.'):
                 ext = os.path.splitext(name)[1].lower()
@@ -459,7 +460,7 @@ WORKFLOWS_DIR = os.path.join(os.path.dirname(__file__), "workflows")
 async def list_workflows(request):
     files = []
     if os.path.isdir(WORKFLOWS_DIR):
-        for name in sorted(os.listdir(WORKFLOWS_DIR), key=str.lower):
+        for name in sorted(os.listdir(WORKFLOWS_DIR), key=_natural_key):
             if name.endswith(".json"):
                 files.append({"filename": name, "title": name.replace(".json", "")})
     return web.json_response({"workflows": files})
@@ -474,7 +475,7 @@ SYSTEM_WORKFLOWS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "
 async def list_workflow_dirs(request):
     dirs = []
     if os.path.isdir(SYSTEM_WORKFLOWS_DIR):
-        for name in sorted(os.listdir(SYSTEM_WORKFLOWS_DIR), key=str.lower):
+        for name in sorted(os.listdir(SYSTEM_WORKFLOWS_DIR), key=_natural_key):
             full = os.path.join(SYSTEM_WORKFLOWS_DIR, name)
             if os.path.isdir(full) and not name.startswith('.'):
                 count = len([f for f in os.listdir(full) if f.endswith('.json') and os.path.isfile(os.path.join(full, f))])
@@ -487,7 +488,7 @@ async def list_workflow_files(request):
     target = os.path.join(SYSTEM_WORKFLOWS_DIR, subdir) if subdir else SYSTEM_WORKFLOWS_DIR
     files = []
     if os.path.isdir(target):
-        for name in sorted(os.listdir(target), key=str.lower):
+        for name in sorted(os.listdir(target), key=_natural_key):
             if name.endswith(".json") and os.path.isfile(os.path.join(target, name)):
                 full = os.path.join(target, name)
                 try:
@@ -675,7 +676,7 @@ def _image_v1_list_images(target_dir):
         m = pattern.match(f)
         if m:
             files.append((m.group(1), f))
-    files.sort()
+    files.sort(key=lambda x: (_natural_key(x[0]), _natural_key(x[1])))
     return [f for _, f in files]
 
 async def image_v1_preview(request):
@@ -952,7 +953,7 @@ def _audio_list_audios(target_dir):
         m = pattern.match(f)
         if m:
             files.append(f)
-    files.sort()
+    files.sort(key=_natural_key)
     return files
 
 def _audio_get_duration_ffprobe(audio_path):
@@ -1143,6 +1144,8 @@ def _video_list_videos(target_dir):
         m = pattern.match(f)
         if m:
             files.append(f)
+    # 必须显式排序：Linux(os.listdir 为哈希序) 下不排会乱序
+    files.sort(key=_natural_key)
     return files
 
 async def video_loop_preview(request):
@@ -1386,7 +1389,7 @@ def _prompt_list_prompts(target_dir):
         fp = os.path.join(target_dir, f)
         if os.path.isfile(fp) and f.lower().endswith(".txt"):
             files.append(f)
-    files.sort()
+    files.sort(key=_natural_key)
     return files
 
 async def prompt_list(request):

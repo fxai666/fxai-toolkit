@@ -6,6 +6,7 @@ import json
 
 import folder_paths
 
+from fxai_sort_utils import natural_key as _natural_key
 VIDEO_EXTENSIONS = ('.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.mpeg', '.mpg', '.webm')
 AUDIO_SAMPLE_RATE = 44100
 
@@ -216,7 +217,7 @@ class FxAiVideoLoad:
 
         if os.path.isdir(target):
             files = sorted([f for f in os.listdir(target)
-                            if f.lower().endswith(VIDEO_EXTENSIONS)])
+                            if f.lower().endswith(VIDEO_EXTENSIONS)], key=_natural_key)
             if not files:
                 raise RuntimeError(f"文件夹内无视频文件：{target}")
             use = idx if idx >= 0 else 0      # -1 = 没指定索引，取第一个

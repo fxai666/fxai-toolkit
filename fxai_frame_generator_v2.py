@@ -1,3 +1,4 @@
+from fxai_sort_utils import natural_key as _natural_key
 import os
 import torch
 import numpy as np
@@ -85,7 +86,7 @@ class FxAiFrameGeneratorV2:
     def generate_frames(self, 文件夹路径, 首帧索引, 尾帧索引, 启用转场, 输出宽度, 输出高度, 图片序列=None, 过渡帧数=0):
         image_files = []
         try:
-            for filename in sorted(os.listdir(文件夹路径)):
+            for filename in sorted(os.listdir(文件夹路径), key=_natural_key):
                 if filename.lower().endswith(IMAGE_EXTENSIONS):
                     image_files.append(os.path.join(文件夹路径, filename))
         except OSError:

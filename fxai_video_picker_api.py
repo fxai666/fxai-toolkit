@@ -32,6 +32,12 @@ except Exception:                                    # 脱离 ComfyUI 单独 imp
     folder_paths = None
 
 try:
+    from fxai_sort_utils import natural_key as _natural_key
+except Exception:                                    # 脱离包环境独立运行时的兜底
+    def _natural_key(name):
+        return str(name).lower()
+
+try:
     from server import PromptServer
 except Exception:
     PromptServer = None
@@ -153,7 +159,7 @@ def _list_videos(target):
     if not os.path.isdir(target):
         return []
     try:
-        names = sorted([f for f in os.listdir(target) if f.lower().endswith(VIDEO_EXTS)])
+        names = sorted([f for f in os.listdir(target) if f.lower().endswith(VIDEO_EXTS)], key=_natural_key)
     except Exception:
         return []
 
@@ -182,7 +188,7 @@ def _list_dirs(target):
         return []
     dirs = []
     try:
-        for name in sorted(os.listdir(target), key=str.lower):
+        for name in sorted(os.listdir(target), key=_natural_key):
             full = os.path.join(target, name)
             if name.startswith('.') or not os.path.isdir(full):
                 continue

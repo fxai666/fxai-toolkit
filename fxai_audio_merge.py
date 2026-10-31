@@ -1,4 +1,5 @@
 # ===================== 所有导入统一放在顶部 =====================
+from fxai_sort_utils import natural_key as _natural_key
 import os
 import re
 import torch
@@ -16,7 +17,7 @@ def list_audios(target_dir):
         return []
     pattern = re.compile(r'(.+)\.(mp3|wav|ogg|flac|m4a)$', re.IGNORECASE)
     files = []
-    for f in sorted(os.listdir(target_dir)):
+    for f in sorted(os.listdir(target_dir), key=_natural_key):
         fp = os.path.join(target_dir, f)
         if os.path.isfile(fp) and pattern.match(f):
             files.append(f)
