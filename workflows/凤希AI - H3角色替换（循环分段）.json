@@ -2,7 +2,7 @@
   "id": "14019e70-313e-4719-967b-73675ac247ac",
   "revision": 0,
   "last_node_id": 45,
-  "last_link_id": 93,
+  "last_link_id": 94,
   "nodes": [
     {
       "id": 1,
@@ -675,7 +675,7 @@
       ],
       "size": [
         210,
-        100
+        130
       ],
       "flags": {},
       "order": 16,
@@ -697,6 +697,15 @@
             "name": "total"
           },
           "link": 56
+        },
+        {
+          "localized_name": "start_index",
+          "name": "start_index",
+          "type": "INT",
+          "widget": {
+            "name": "start_index"
+          },
+          "link": 94
         }
       ],
       "outputs": [
@@ -738,10 +747,12 @@
         "Node name for S&R": "FxAiForLoopStart"
       },
       "widgets_values": [
-        1
+        1,
+        0
       ],
       "widgets_values_named": {
-        "total": 1
+        "total": 1,
+        "start_index": 0
       },
       "color": "#223",
       "bgcolor": "#335"
@@ -2244,7 +2255,9 @@
           "name": "开始索引",
           "type": "INT",
           "slot_index": 1,
-          "links": []
+          "links": [
+            94
+          ]
         },
         {
           "localized_name": "循环数",
@@ -3032,6 +3045,14 @@
       22,
       2,
       "STRING"
+    ],
+    [
+      94,
+      40,
+      1,
+      11,
+      2,
+      "INT"
     ]
   ],
   "groups": [],
