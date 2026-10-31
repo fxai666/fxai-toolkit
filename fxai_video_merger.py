@@ -145,6 +145,18 @@ def get_video_files(source_dir, max_count=0):
         return (int(m.group(1)), f) if m else (float("inf"), f)
 
     files = sorted((f for f in os.listdir(source_dir) if f.lower().endswith(exts)), key=sort_key)
+
+    # 分段文件的标准命名是「纯数字.mp4」（000.mp4 / 001.mp4 …）。
+    # 目录里一旦混进源视频、参考片这类「带后缀」的文件（如 002_file.mp4），
+    # 它的数字键会和 002.mp4 撞成同一个 2，被插到分段序列中间，
+    # 于是 max_count 只取前 N 个时真正的尾段被挤出合并列表；
+    # 而且源片分辨率/编码通常和分段不同，进 concat -c copy 会让 DTS 回退，
+    # 后续所有段的时间戳塌成同一个值（画面慢放、尾部丢帧）。
+    # 所以：只要目录里存在纯数字命名，就只认这些，其余一律不当分段。
+    numbered = [f for f in files if re.fullmatch(r"\d+", os.path.splitext(f)[0])]
+    if numbered:
+        files = numbered
+
     if max_count > 0:
         files = files[:max_count]
     return [os.path.normpath(safe_path_join(source_dir, f)) for f in files]
