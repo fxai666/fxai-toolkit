@@ -515,67 +515,44 @@
     },
     {
       "id": 9,
-      "type": "LoadImage",
+      "type": "FxAiCharacterImageSelector",
       "pos": [
         351.2436637990286,
         494.7832555524259
       ],
       "size": [
         420,
-        320
+        340
       ],
       "flags": {},
       "order": 5,
       "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "COMBO",
-          "widget": {
-            "name": "image"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "选择文件上传",
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
-          },
-          "link": null
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "localized_name": "图像",
-          "name": "IMAGE",
+          "name": "图片列表",
           "type": "IMAGE",
-          "slot_index": 0,
           "links": [
             9
-          ]
+          ],
+          "slot_index": 0
         },
         {
-          "localized_name": "遮罩",
-          "name": "MASK",
-          "type": "MASK",
-          "slot_index": 1,
-          "links": []
+          "name": "总数量",
+          "type": "INT",
+          "links": [],
+          "slot_index": 1
         }
       ],
       "title": "参考角色图",
       "properties": {
-        "Node name for S&R": "LoadImage"
+        "Node name for S&R": "FxAiCharacterImageSelector"
       },
       "widgets_values": [
-        "017_74196e25975176923b45c982775b10ea.png",
-        "image"
+        "avatar/017_74196e25975176923b45c982775b10ea.png"
       ],
       "widgets_values_named": {
-        "image": "017_74196e25975176923b45c982775b10ea.png",
-        "upload": "image"
+        "图片列表": "avatar/017_74196e25975176923b45c982775b10ea.png"
       }
     },
     {
