@@ -212,27 +212,41 @@ function buildFrameSegments(totalFrames, fps, keyframes, skipInitial, includeTai
 }
 
 // ---------- 上传 ----------
-async function uploadFile(file, onProgress) {
+/**
+ * 传到指定目录（dir 为空 = 视频库）。
+ * 返回后端的完整回执 {name, path, rel, dir, index, size}，
+ * 以前走 /upload/image 只回一个文件名，落到 input 下就找不着了。
+ */
+async function uploadFile(file, dir, onProgress) {
     const body = new FormData();
-    body.append("image", file);
+    body.append("file", file);
     return new Promise((resolve, reject) => {
         const req = new XMLHttpRequest();
         req.upload.onprogress = (event) => onProgress?.(event.loaded / event.total);
         req.onload = () => {
-            if (req.status !== 200) {
-                reject(new Error(`上传失败: ${req.status}`));
+            let data = null;
+            try { data = JSON.parse(req.responseText); } catch { /* 非 JSON 走下面的兜底 */ }
+            if (req.status !== 200 || !data || data.error) {
+                const error = new Error((data && data.error) || `上传失败: ${req.status}`);
+                error.status = req.status;
+                reject(error);
                 return;
             }
-            try {
-                resolve(JSON.parse(req.responseText).name);
-            } catch {
-                reject(new Error("解析响应失败"));
-            }
+            resolve(data);
         };
         req.onerror = () => reject(new Error("网络错误"));
-        req.open("POST", api.apiURL("/upload/image"), true);
+        req.open("POST", api.apiURL(`/fxai/video/picker/upload?dir=${encodeURIComponent(dir || "")}`), true);
         req.send(body);
     });
+}
+
+/** 当前视频所在的目录（填的是目录就原样用）。 */
+function videoDirOf(node) {
+    let dir = String(getWidget(node, "视频文件")?.value || "").trim();
+    if (/\.(mp4|avi|mov|mkv|flv|wmv|mpeg|mpg|webm)$/i.test(dir)) {
+        dir = dir.replace(/[\\/][^\\/]*$/, "");
+    }
+    return dir;
 }
 
 // ---------- 面板 ----------
@@ -679,6 +693,7 @@ function buildEditor(node) {
         const fileInput = document.createElement("input");
         fileInput.type = "file";
         fileInput.accept = "video/*";
+        fileInput.multiple = true;
         fileInput.style.display = "none";
         document.body.appendChild(fileInput);
         fileInput.click();
@@ -687,17 +702,36 @@ function buildEditor(node) {
                 fileInput.remove();
                 return;
             }
-            const file = fileInput.files[0];
+            const files = Array.from(fileInput.files);
             const originalText = uploadButton.textContent;
             uploadButton.disabled = true;
             try {
-                const name = await uploadFile(file, (progress) => {
-                    uploadButton.textContent = `上传中 ${Math.round(progress * 100)}%`;
-                });
+                // 优先落到当前视频所在目录；那个目录不在 视频库/input/output
+                // 之内（或已经不存在）时后端会 403/404，退回视频库再传一次。
+                const preferDir = videoDirOf(node);
+                let last = null;
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const tag = files.length > 1 ? `(${i + 1}/${files.length}) ` : "";
+                    let payload;
+                    try {
+                        payload = await uploadFile(file, preferDir, (progress) => {
+                            uploadButton.textContent = `${tag}上传中 ${Math.round(progress * 100)}%`;
+                        });
+                    } catch (error) {
+                        if (error.status !== 403 && error.status !== 404) throw error;
+                        payload = await uploadFile(file, "", (progress) => {
+                            uploadButton.textContent = `${tag}上传中 ${Math.round(progress * 100)}%`;
+                        });
+                    }
+                    last = payload;
+                }
+                // 相对根写法（/fxai/video/xxx.mp4）最稳：换机器、换盘符、走 API 都不用改
+                const target = last.rel || last.path;
                 const pathWidget = getWidget(node, "视频文件");
                 if (pathWidget) {
-                    pathWidget.value = name;
-                    if (pathWidget.callback) pathWidget.callback(name);
+                    pathWidget.value = target;
+                    if (pathWidget.callback) pathWidget.callback(target);
                 }
                 await loadVideo();
             } catch (error) {

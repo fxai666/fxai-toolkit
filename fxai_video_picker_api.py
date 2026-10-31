@@ -16,6 +16,13 @@
     GET /fxai/video/file?path=<绝对文件>
         原视频流（给 <video> 播放/悬停预览，FileResponse 自带 range 支持）
 
+    POST /fxai/video/picker/upload?dir=<绝对目录>
+        把视频传到当前浏览的目录（multipart 字段名 file）
+
+⚠️ 上传**不能**复用 /fxai/video/upload：那条在 fxai_api_utils.py 里，语义是
+「subdir 相对 fxai/video、自动改名成 001_xxx」，而且它先注册，同名路由抢不过来。
+选片窗口要的是「传到我正在看的这个目录」（含 input / output），所以单独开一条。
+
 安全：所有路径必须落在 ComfyUI 根目录之内，越界一律 403。
 """
 
@@ -154,6 +161,43 @@ def _roots():
     return out
 
 
+def _root_paths():
+    return [r["path"] for r in _roots()]
+
+
+def _under_roots(path):
+    """path 是否落在某个快捷入口（视频库 / input / output）之内，含等于它自己。"""
+    if not path:
+        return False
+    return any(_inside(path, root) for root in _root_paths())
+
+
+def _parent_within_roots(target):
+    """上一级目录，但**不许爬出** 视频库 / input / output 这三块。
+
+    到顶（parent 等于某个入口本身）或再往上（落到 ComfyUI 根、fxai/ 之类）一律给空串，
+    前端据此把「上一级」按钮灰掉。
+    """
+    parent = os.path.dirname(target)
+    if not parent or os.path.normcase(parent) == os.path.normcase(target):
+        return ""
+    return parent if _under_roots(parent) else ""
+
+
+def _default_dir():
+    """兜底目录：优先视频库，其次第一个存在的入口。"""
+    base = _base_dir()
+    if not base:
+        return ""
+    video_lib = os.path.join(base, "fxai", "video")
+    if os.path.isdir(video_lib):
+        return video_lib
+    for root in _root_paths():
+        if os.path.isdir(root):
+            return root
+    return ""
+
+
 # ----------------------------------------------------------------------------
 # 列目录
 # ----------------------------------------------------------------------------
@@ -258,23 +302,30 @@ def _make_thumb(video_path, out_path):
 # 路由
 # ----------------------------------------------------------------------------
 async def video_browse(request):
-    target = _resolve_dir(request.query.get("dir", ""))
-    if target is None:
-        return web.json_response({"error": "目录不在 ComfyUI 根目录内"}, status=403)
-    if not os.path.isdir(target):
-        return web.json_response({"error": f"目录不存在：{target}"}, status=404)
+    requested = str(request.query.get("dir", "") or "")
+    target = _resolve_dir(requested)
 
-    base = _base_dir()
-    parent = os.path.dirname(target)
-    if not _inside(parent, base) or os.path.normcase(parent) == os.path.normcase(target):
-        parent = ""
+    # 起始目录不存在（节点里存的是别的机器上的路径、目录被删、盘符变了）时
+    # **不能直接报错**——前端拿不到 roots 就渲染不出任何可点的东西，弹窗变成死路。
+    # 这里退回默认视频库，并把原始请求带回去让前端提示一句。
+    fallback = False
+    if target is None:
+        return web.json_response({"error": "目录不在 ComfyUI 根目录内", "roots": _roots()}, status=403)
+    if not os.path.isdir(target):
+        alt = _default_dir()
+        if not alt:
+            return web.json_response(
+                {"error": "目录不存在：%s" % target, "roots": _roots()}, status=404)
+        target, fallback = alt, True
 
     return web.json_response({
         "dir": target,
-        "parent": parent,
+        "parent": _parent_within_roots(target),
         "roots": _roots(),
         "dirs": _list_dirs(target),
         "videos": _list_videos(target),
+        "fallback": fallback,
+        "requested": requested,
     })
 
 
@@ -308,6 +359,97 @@ async def video_file(request):
 
 
 # ----------------------------------------------------------------------------
+# 上传
+# ----------------------------------------------------------------------------
+_BAD_NAME_CHARS = '<>:"/\\|?*'
+
+
+def _safe_name(stem):
+    """去掉文件名里的路径分隔符和 Windows 非法字符，别让上传把文件写到别的目录去。"""
+    s = "".join("_" if (c in _BAD_NAME_CHARS or ord(c) < 32) else c for c in str(stem or ""))
+    s = s.strip(" .")
+    return (s or "video")[:80]
+
+
+def _unique_name(target, stem, ext):
+    """重名就加序号，绝不覆盖已有素材。"""
+    name = stem + ext
+    n = 1
+    while os.path.exists(os.path.join(target, name)):
+        name = "%s (%d)%s" % (stem, n, ext)
+        n += 1
+    return name
+
+
+async def video_upload(request):
+    """把视频传到当前浏览的目录。
+
+    只允许落在 视频库 / input / output 之内——和浏览、父级导航同一套边界，
+    免得从弹窗里把文件写到 ComfyUI 根目录或系统目录去。
+    """
+    target = _resolve_dir(request.query.get("dir", ""))
+    if target is None:
+        return web.json_response({"error": "目录不在 ComfyUI 根目录内"}, status=403)
+    if not os.path.isdir(target):
+        return web.json_response({"error": "目录不存在：%s" % target}, status=404)
+    if not _under_roots(target):
+        return web.json_response(
+            {"error": "只能传到 视频库 / input / output 里面，当前目录不在范围内"}, status=403)
+
+    saved = None
+    try:
+        reader = await request.multipart()
+        while True:
+            part = await reader.next()
+            if part is None:
+                break
+            if part.name not in ("file", "image"):
+                continue
+            raw = part.filename or ""
+            ext = os.path.splitext(raw)[1].lower()
+            if ext not in VIDEO_EXTS:
+                return web.json_response(
+                    {"error": "不是支持的视频格式：%s" % (ext or "无扩展名")}, status=400)
+            stem = _safe_name(os.path.splitext(os.path.basename(raw))[0])
+            name = _unique_name(target, stem, ext)
+            saved = os.path.join(target, name)
+            with open(saved, "wb") as fh:
+                while True:
+                    chunk = await part.read_chunk(1 << 20)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+            break
+    except Exception as exc:
+        if saved and os.path.isfile(saved):
+            try:
+                os.remove(saved)
+            except Exception:
+                pass
+        return web.json_response({"error": "上传失败：%s" % exc}, status=500)
+
+    if not saved or not os.path.isfile(saved) or os.path.getsize(saved) == 0:
+        if saved and os.path.isfile(saved):
+            try:
+                os.remove(saved)
+            except Exception:
+                pass
+        return web.json_response({"error": "没收到文件，或者文件是空的"}, status=400)
+
+    base = _base_dir()
+    index = next((v["index"] for v in _list_videos(target)
+                  if os.path.normcase(v["path"]) == os.path.normcase(saved)), -1)
+    return web.json_response({
+        "name": os.path.basename(saved),
+        "path": saved,
+        "rel": _rel_path(saved, base),
+        "dir": target,
+        "index": index,
+        "size": os.path.getsize(saved),
+    })
+
+
+# ----------------------------------------------------------------------------
 # 注册
 # ----------------------------------------------------------------------------
 def register():
@@ -317,6 +459,7 @@ def register():
     routes.get("/fxai/video/browse")(video_browse)
     routes.get("/fxai/video/thumb")(video_thumb)
     routes.get("/fxai/video/file")(video_file)
+    routes.post("/fxai/video/picker/upload")(video_upload)
     return True
 
 

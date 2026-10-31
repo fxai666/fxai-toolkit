@@ -131,6 +131,31 @@ import { api } from "../../scripts/api.js";
             }
             .fxai-vp-chip:hover { background: #3d3d3d; }
             .fxai-vp-chip.on { background: #4a8fff; color: #fff; }
+            .fxai-vp-chip:disabled { opacity: .35; cursor: not-allowed; }
+            .fxai-vp-chip:disabled:hover { background: #333; }
+            .fxai-vp-spacer { flex: 1 1 auto; }
+            .fxai-vp-notice {
+                display: none; font-size: 12px; line-height: 1.55; color: #ffd479;
+                background: #3b2f12; border: 1px solid #6d5720; border-radius: 4px;
+                padding: 6px 9px; white-space: pre-wrap; word-break: break-all;
+            }
+            /* 目录搜索：直接塞进顶部工具条，不单独占一行 */
+            .fxai-vp-search {
+                flex: 0 0 200px; width: 200px; height: 26px; box-sizing: border-box;
+                padding: 0 9px; background: #1a1a1a; border: 1px solid #3a3a3a;
+                border-radius: 4px; color: #ddd; font-size: 12px; outline: none;
+                font-family: system-ui, "Microsoft YaHei", sans-serif;
+            }
+            .fxai-vp-search:focus { border-color: #4a8fff; }
+            .fxai-vp-search::placeholder { color: #777; }
+            .fxai-vp-searchinfo { font-size: 11px; color: #888; white-space: nowrap; }
+            /* 子目录条：最多露 4 行，多的走滚动条，别把下面的网格挤没 */
+            .fxai-vp-dirbar {
+                max-height: 104px; overflow-y: auto; overflow-x: hidden;
+                align-content: flex-start; scrollbar-gutter: stable;
+                padding-right: 2px;
+            }
+            .fxai-vp-dirnone { font-size: 12px; color: #777; padding: 6px 2px; }
             .fxai-vp-grid {
                 flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap;
                 gap: 8px; align-content: flex-start;
@@ -212,12 +237,34 @@ import { api } from "../../scripts/api.js";
             pathEl.className = "fxai-vp-path";
             modal.appendChild(pathEl);
 
+            // 提示条：路径回退、上传结果、目录打不开，都走这里说一句
+            const notice = document.createElement("div");
+            notice.className = "fxai-vp-notice";
+            modal.appendChild(notice);
+
+            // 上传用的隐藏 file input（放在弹窗里，跟着弹窗一起销毁）
+            const fileInput = document.createElement("input");
+            fileInput.type = "file";
+            fileInput.multiple = true;
+            fileInput.accept = "video/*,.mp4,.mov,.mkv,.avi,.webm,.flv,.wmv,.mpeg,.mpg";
+            fileInput.style.display = "none";
+            modal.appendChild(fileInput);
+
             const rootBar = document.createElement("div");
             rootBar.className = "fxai-vp-bar";
             modal.appendChild(rootBar);
 
+            // 目录搜索：跟「上传视频」并排放在顶部工具条右端，不单独占一行。
+            // 目录多了以后子目录条会一路往下长，所以条子本身限高 4 行、内部滚动。
+            const searchInput = document.createElement("input");
+            searchInput.className = "fxai-vp-search";
+            searchInput.type = "text";
+            searchInput.placeholder = "🔍 搜索目录名";
+            const searchInfo = document.createElement("span");
+            searchInfo.className = "fxai-vp-searchinfo";
+
             const dirBar = document.createElement("div");
-            dirBar.className = "fxai-vp-bar";
+            dirBar.className = "fxai-vp-bar fxai-vp-dirbar";
             modal.appendChild(dirBar);
 
             const grid = document.createElement("div");
@@ -270,45 +317,136 @@ import { api } from "../../scripts/api.js";
             };
             mask.onclick = function (e) { if (e.target === mask) close(); };
             document.addEventListener("keydown", function esc(e) {
-                if (e.key === "Escape") { document.removeEventListener("keydown", esc); close(); }
+                if (e.key !== "Escape") return;
+                // 搜索框里有字时，Esc 先把搜索清掉，再按一次才关窗 ——
+                // 否则筛完目录想退出搜索，会连窗口一起关掉
+                if (searchInput.value) {
+                    searchInput.value = "";
+                    dirFilter = "";
+                    renderDirs(curData || { dirs: [] });
+                    return;
+                }
+                document.removeEventListener("keydown", esc);
+                close();
             });
 
-            // ---- 顶部快捷入口 ----
-            function renderRoots(roots) {
-                rootBar.innerHTML = "";
+            // ---- 提示条 ----
+            function showNotice(msg) {
+                if (!msg) {
+                    notice.style.display = "none";
+                    notice.textContent = "";
+                    return;
+                }
+                notice.style.display = "block";
+                notice.textContent = msg;
+            }
+
+            // 当前目录落在哪个入口里（取最长匹配，子目录也算自己那个入口）
+            function activeRoot(roots, dir) {
+                const norm = function (s) { return String(s || "").replace(/\\/g, "/").toLowerCase(); };
+                const d = norm(dir);
+                let best = "";
                 (roots || []).forEach(function (r) {
+                    const p = norm(r.path);
+                    if (!p || !d) return;
+                    if ((d === p || d.indexOf(p + "/") === 0) && p.length > best.length) best = p;
+                });
+                return best;
+            }
+
+            // ---- 顶部：上一级 + 快捷入口 + 上传 + 刷新 ----
+            function renderRoots(data) {
+                rootBar.innerHTML = "";
+                const roots = data.roots || [];
+
+                // 「上一级」只在这三块之内走。后端 parent 为空 = 已经到顶
+                // （视频库 / input / output 本身），按钮直接灰掉，
+                // 免得一路爬到 ComfyUI 根目录、fxai/ 去。
+                const up = document.createElement("button");
+                up.className = "fxai-vp-chip";
+                up.textContent = "⬆ 上一级";
+                up.disabled = !data.parent;
+                up.title = data.parent
+                    || "已经在最上层（视频库 / input / output 之内，不能再往上）";
+                up.onclick = function () { if (data.parent) load(data.parent); };
+                rootBar.appendChild(up);
+
+                const on = activeRoot(roots, data.dir);
+                roots.forEach(function (r) {
                     const b = document.createElement("button");
-                    b.className = "fxai-vp-chip";
+                    const isOn = on && on === String(r.path || "").replace(/\\/g, "/").toLowerCase();
+                    b.className = "fxai-vp-chip" + (isOn ? " on" : "");
                     b.textContent = r.label;
                     b.title = r.path;
                     b.onclick = function () { load(r.path); };
                     rootBar.appendChild(b);
                 });
+
+                const spacer = document.createElement("div");
+                spacer.className = "fxai-vp-spacer";
+                rootBar.appendChild(spacer);
+
+                // 搜索框排在「上传视频」左边，一起待在右端
+                rootBar.appendChild(searchInput);
+                rootBar.appendChild(searchInfo);
+
+                const btnUpload = document.createElement("button");
+                btnUpload.className = "fxai-vp-chip";
+                btnUpload.textContent = "📤 上传视频";
+                btnUpload.disabled = !data.dir;
+                btnUpload.title = "把视频传到当前这个目录：\n" + (data.dir || "（先选一个目录）");
+                btnUpload.onclick = function () { fileInput.click(); };
+                rootBar.appendChild(btnUpload);
+
+                const btnRefresh = document.createElement("button");
+                btnRefresh.className = "fxai-vp-chip";
+                btnRefresh.textContent = "🔄 刷新";
+                btnRefresh.onclick = function () { load(curDir, true); };
+                rootBar.appendChild(btnRefresh);
             }
 
             // ---- 子目录 ----
+            let dirFilter = "";
+
             function renderDirs(data) {
                 dirBar.innerHTML = "";
-                if (data.parent) {
-                    const up = document.createElement("button");
-                    up.className = "fxai-vp-chip";
-                    up.textContent = "⬆ 上一级";
-                    up.onclick = function () { load(data.parent); };
-                    dirBar.appendChild(up);
-                }
-                (data.dirs || []).forEach(function (d) {
+                const all = (data && data.dirs) || [];
+                const dirs = dirFilter
+                    ? all.filter(function (d) {
+                        return String(d.name).toLowerCase().indexOf(dirFilter) !== -1;
+                    })
+                    : all;
+
+                dirs.forEach(function (d) {
                     const b = document.createElement("button");
                     b.className = "fxai-vp-chip";
                     b.textContent = "📁 " + d.name + (d.videos ? " (" + d.videos + ")" : "");
                     b.onclick = function () { load(d.path); };
                     dirBar.appendChild(b);
                 });
-                if (!data.parent && (!data.dirs || !data.dirs.length)) {
-                    dirBar.style.display = "none";
-                } else {
-                    dirBar.style.display = "flex";
+
+                if (!dirs.length && dirFilter) {
+                    const none = document.createElement("div");
+                    none.className = "fxai-vp-dirnone";
+                    none.textContent = "没有名字含「" + dirFilter + "」的目录";
+                    dirBar.appendChild(none);
                 }
+
+                // 一个子目录都没有、也没在搜 → 整条收起来，别白占高度
+                dirBar.style.display = (dirs.length || dirFilter) ? "flex" : "none";
+                // 没有子目录时搜索框没意义，收掉；但正在搜的时候必须留着，好清空
+                const showSearch = all.length > 0 || !!dirFilter;
+                searchInput.style.display = showSearch ? "" : "none";
+                searchInfo.style.display = showSearch ? "" : "none";
+                searchInfo.textContent = dirFilter
+                    ? "匹配 " + dirs.length + "/" + all.length
+                    : (all.length ? "共 " + all.length + " 个目录" : "");
             }
+
+            searchInput.oninput = function () {
+                dirFilter = searchInput.value.trim().toLowerCase();
+                renderDirs(curData || { dirs: [] });
+            };
 
             // ---- 视频网格 ----
             function renderGrid(data) {
@@ -318,7 +456,8 @@ import { api } from "../../scripts/api.js";
                     const empty = document.createElement("div");
                     empty.className = "fxai-vp-empty";
                     empty.innerHTML = "这个目录下没有视频文件<br>" +
-                        "<span style='font-size:12px'>点上面的目录进下一层，或者把视频放进这个目录再点刷新</span>";
+                        "<span style='font-size:12px'>点右上角「📤 上传视频」直接传进来，" +
+                        "或者点上面的目录进下一层</span>";
                     grid.appendChild(empty);
                     return;
                 }
@@ -326,6 +465,7 @@ import { api } from "../../scripts/api.js";
                     const card = document.createElement("div");
                     card.className = "fxai-vp-card";
                     card.title = v.path;
+                    card.dataset.path = v.path;
 
                     const img = document.createElement("img");
                     img.className = "thumb";
@@ -372,34 +512,115 @@ import { api } from "../../scripts/api.js";
                     };
                     grid.appendChild(card);
                 });
+
+                // 刚上传完的那个文件自动选中，省得用户在一堆卡片里再找一遍
+                if (pendingSelect) {
+                    const want = pendingSelect;
+                    pendingSelect = "";
+                    const hit = Array.prototype.find.call(
+                        grid.querySelectorAll(".fxai-vp-card"),
+                        function (el) { return el.dataset.path === want; });
+                    if (hit) hit.click();
+                }
             }
+
+            let pendingSelect = "";     // 上传完成后要自动选中的文件路径
 
             function load(dir, force) {
                 grid.innerHTML = "<div class='fxai-vp-empty'>读取中…</div>";
-                browse(dir, force).then(function (data) {
+                showNotice("");
+                // 换目录就清掉搜索词：否则点进新文件夹后还挂着上次的关键词，
+                // 子目录一条都不显示，看着像空目录
+                dirFilter = "";
+                if (searchInput.value) searchInput.value = "";
+                return browse(dir, force).then(function (data) {
                     if (!data || data.error) {
+                        // 读不到目录时**不能只写一行红字就完事**——一进来就撞上
+                        // 这种情况（节点里存的是别的机器上的路径、目录被删），
+                        // 用户会连一个可点的东西都没有，弹窗直接变死路。
+                        // 后端把 roots 一起带回来了，这里照样渲染入口。
+                        pathEl.textContent = dir || "（未指定目录）";
+                        renderRoots({ roots: (data && data.roots) || [], parent: "", dir: "" });
+                        renderDirs({ dirs: [] });
                         grid.innerHTML = "<div class='fxai-vp-empty'>" +
-                            (data && data.error ? data.error : "读取失败") + "</div>";
+                            (data && data.error ? data.error : "读取失败") +
+                            "<br><span style='font-size:12px'>点上面的入口重新选一个目录</span></div>";
+                        showNotice("打不开这个目录，已回到入口列表");
+                        footLeft.textContent = "";
                         return;
                     }
                     curData = data;
                     curDir = data.dir;
                     pathEl.textContent = data.dir;
-                    renderRoots(data.roots);
+                    if (data.fallback) {
+                        showNotice("原路径不存在：" + (data.requested || "（空）") +
+                            "\n已跳到「" + data.dir + "」，请重新选一个");
+                    }
+                    renderRoots(data);
                     renderDirs(data);
                     renderGrid(data);
                     footLeft.textContent = (data.videos || []).length
                         ? "共 " + data.videos.length + " 个视频 · 点一下选中，双击直接用完整路径"
-                        : "";
+                        : "这个目录是空的，点右上角「📤 上传视频」传一个进来";
                 });
             }
 
-            // 加一个刷新按钮到左侧
-            const btnRefresh = document.createElement("button");
-            btnRefresh.className = "fxai-vp-chip";
-            btnRefresh.textContent = "🔄 刷新";
-            btnRefresh.onclick = function () { load(curDir, true); };
-            rootBar.appendChild(btnRefresh);
+            // ---- 上传 ----
+            function uploadOne(file) {
+                return new Promise(function (resolve) {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", apiUrl("/fxai/video/picker/upload?dir=" + encodeURIComponent(curDir)));
+                    // fetch 拿不到上传进度，只能上 XHR
+                    xhr.upload.onprogress = function (e) {
+                        if (!e.lengthComputable) return;
+                        footLeft.textContent = "上传 " + file.name + " · " +
+                            Math.round(e.loaded / e.total * 100) + "%";
+                    };
+                    xhr.onload = function () {
+                        let data = null;
+                        try { data = JSON.parse(xhr.responseText); } catch (err) {}
+                        resolve({
+                            ok: xhr.status >= 200 && xhr.status < 300 && !!data && !data.error,
+                            data: data || { error: "HTTP " + xhr.status },
+                        });
+                    };
+                    xhr.onerror = function () { resolve({ ok: false, data: { error: "网络中断" } }); };
+                    const fd = new FormData();
+                    fd.append("file", file, file.name);
+                    xhr.send(fd);
+                });
+            }
+
+            async function uploadFiles(list) {
+                const files = Array.from(list || []);
+                if (!files.length) return;
+                if (!curDir) { showNotice("先在上面选一个目录，再上传"); return; }
+
+                const bad = [];
+                let last = null;
+                for (let i = 0; i < files.length; i++) {
+                    footLeft.textContent = "上传 " + (i + 1) + "/" + files.length + "：" + files[i].name;
+                    const r = await uploadOne(files[i]);
+                    if (r.ok) last = r.data;
+                    else bad.push(files[i].name + "（" + ((r.data && r.data.error) || "失败") + "）");
+                }
+
+                if (last) pendingSelect = last.path;
+                await load(curDir, true);
+
+                if (bad.length) {
+                    showNotice("有 " + bad.length + " 个没传上去：\n" + bad.join("\n"));
+                } else if (last) {
+                    showNotice("已上传：" + last.name);
+                    setTimeout(function () { showNotice(""); }, 4000);
+                }
+            }
+
+            fileInput.onchange = function () {
+                const list = fileInput.files;
+                fileInput.value = "";      // 清空，允许连着传同一个文件
+                uploadFiles(list);
+            };
 
             document.body.appendChild(mask);
             load(startDir);
