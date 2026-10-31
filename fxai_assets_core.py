@@ -19,7 +19,12 @@ import json
 import mimetypes
 import os
 
-from fxai_sort_utils import natural_key as _natural_key
+try:
+    from fxai_sort_utils import natural_key as _natural_key
+except ImportError:   # 兜底：__init__ 还没把本目录注入 sys.path 时自愈，避免整个包加载失败
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from fxai_sort_utils import natural_key as _natural_key
 import posixpath
 import re
 import shutil

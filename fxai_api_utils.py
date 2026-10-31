@@ -11,7 +11,12 @@ import aiohttp
 from aiohttp import web
 from server import PromptServer
 from datetime import datetime
-from fxai_sort_utils import natural_key as _natural_key   # 全包统一的自然排序键
+try:
+    from fxai_sort_utils import natural_key as _natural_key   # 全包统一的自然排序键
+except ImportError:   # 兜底：__init__ 还没把本目录注入 sys.path 时自愈，避免整个包加载失败
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from fxai_sort_utils import natural_key as _natural_key
 
 app = PromptServer.instance.app
 
