@@ -9,6 +9,16 @@ import os
 from aiohttp import web
 from server import PromptServer
 
+# ==============================================
+# 【顺序要求】把当前目录加入搜索路径
+# 必须放在所有 `from . import xxx` 之前：被导入的模块内部用 `import fxai_xxx`
+# 这种绝对方式引用同目录模块（如 fxai_sort_utils），路径晚一步插入就已经
+# ImportError，整个节点包会加载失败。
+# ==============================================
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
 # Windows 下抑制 asyncio Proactor 远程连接断开的噪音日志
 if sys.platform == "win32":
     import asyncio.proactor_events
@@ -45,13 +55,6 @@ def install_package(package):
 required_packages = ["soundfile","psutil"]
 for pkg in required_packages:
     install_package(pkg)
-
-# ==============================================
-# 【关键修复】把当前目录加入搜索路径，解决找不到模块问题
-# ==============================================
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
 
 # ==============================================
 # 【节点注册配置区】
