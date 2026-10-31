@@ -189,6 +189,28 @@ def _parse_rate(text):
         return 0.0
 
 
+def _pick_fps(stream, duration, frames):
+    """在 r_frame_rate / avg_frame_rate / 帧数÷时长 之间挑真实帧率。
+
+    有些容器把 r_frame_rate 写成 timebase 而不是帧率：手机录屏、二次转码的
+    HEVC 常见标 240/1，实际是 30fps。照 r_frame_rate 走，55 秒的片子会被
+    当成 6.9 秒，「10 秒一段」变成每段 2260 帧，整条只切出 1 段。
+
+    帧数÷时长是实测值，拿它当裁判：标称值和它差超过 5% 就丢掉。正常的
+    NTSC 23.976 与实测 23.98 只差 0.02%，不会被误杀；240 与 30 差 8 倍，
+    一定被杀掉。
+    """
+    nominal = [r for r in (_parse_rate(stream.get('avg_frame_rate')),
+                           _parse_rate(stream.get('r_frame_rate'))) if r > 0]
+    if frames > 0 and duration > 0:
+        measured = frames / duration
+        if not nominal:
+            return measured
+        best = min(nominal, key=lambda r: abs(math.log(r / measured)))
+        return measured if abs(math.log(best / measured)) > 0.05 else best
+    return nominal[0] if nominal else 30.0
+
+
 def probe_video(video_path):
     cmd = [
         'ffprobe', video_path,
@@ -206,9 +228,10 @@ def probe_video(video_path):
     if stream is None:
         raise RuntimeError(f"这个文件里没有视频流：{video_path}")
 
-    fps = _parse_rate(stream.get('r_frame_rate')) or _parse_rate(stream.get('avg_frame_rate')) or 30.0
     duration = float(stream.get('duration') or 0.0) or float(info.get('format', {}).get('duration') or 0.0)
-    frames = int(stream.get('nb_frames') or 0) or round_half_up(duration * fps)
+    total = int(stream.get('nb_frames') or 0)
+    fps = _pick_fps(stream, duration, total)
+    frames = total or round_half_up(duration * fps)
     if frames <= 0:
         raise RuntimeError(f"读不出这个视频的帧数：{video_path}")
 
