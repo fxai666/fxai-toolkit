@@ -27,7 +27,7 @@ const CFG = {
     FxAiForLoopStart: {
         offset: 1, max: 19, fixedOut: ["flow", "index"],
         inLabel: "初始值", outLabel: "过程值",
-        widgetLabels: { total: "循环次数" },
+        widgetLabels: { total: "循环次数", start_index: "开始索引" },
     },
     FxAiForLoopEnd: {
         offset: 1, max: 19, fixedOut: [],

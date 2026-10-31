@@ -20,6 +20,9 @@ ComfyUI 的循环不是「跳回上一行」，而是节点在执行时返回
   结束节点靠 `flow[0]` 找到自己的开始节点，再从 dynprompt 里读它的 total。
 - `initial_value0` 是内部状态位（当前 index），放在 `hidden` 里，前端看不到；
   `initial_value1..19` 才是用户能接的循环变量，共 20 个槽位。
+- `start_index`（开始索引）只挪「序号」的起点，不改变「跑几轮」：序号 = 开始索引 +
+  第几轮。内部状态位存的正是这个序号，所以结束节点的续跑条件是
+  `序号 + 1 < 循环次数 + 开始索引`。开始索引为 0 时与老版本行为完全一致。
 - 循环次数为 0 时，开始节点把每个 value 输出换成 `ExecutionBlocker`，
   循环体（含里面的保存节点）整个不执行，结束节点把初值原样透传出去。
 
@@ -59,7 +62,7 @@ _LOOP_END_TYPES = {
 # 计数循环
 # ---------------------------------------------------------------------------
 class FxAiForLoopStart:
-    """循环开始。输出 flow 给结束节点认，index 是当前第几次（从 0 数）。"""
+    """循环开始。输出 flow 给结束节点认，index 是当前序号（从 start_index 数）。"""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -69,6 +72,11 @@ class FxAiForLoopStart:
                     "default": 1, "min": 0, "max": 100000, "step": 1,
                     "tooltip": "循环次数。0 = 一次都不跑，循环体（含里面的保存节点）全部不执行，"
                                "结束节点直接把下面的初值原样输出。",
+                }),
+                "start_index": ("INT", {
+                    "default": 0, "min": -1000000, "max": 1000000, "step": 1,
+                    "tooltip": "开始索引，序号的起点。序号 = 开始索引 + 第几轮（第一轮就是开始索引本身）。\n"
+                               "循环次数只决定跑几轮，不受开始索引影响。",
                 }),
             },
             "optional": {
@@ -89,8 +97,12 @@ class FxAiForLoopStart:
     FUNCTION = "for_loop_start"
     CATEGORY = "凤希AI/循环"
 
-    def for_loop_start(self, total, prompt=None, extra_pnginfo=None, unique_id=None, **kwargs):
-        i = kwargs.get("initial_value0", 0)
+    def for_loop_start(self, total, start_index=0, prompt=None, extra_pnginfo=None, unique_id=None, **kwargs):
+        # 内部状态位 initial_value0 存的是「当前序号」，第一轮没有回填值，就从开始索引起步
+        base = 0 if start_index is None else int(start_index)
+        i = kwargs.get("initial_value0", None)
+        if i is None:
+            i = base
 
         if total <= 0:
             # 零次循环：把 value 输出全部 block 掉，循环体里的节点一个都不跑
@@ -99,7 +111,7 @@ class FxAiForLoopStart:
         graph = GraphBuilder()
         initial_values = {f"initial_value{n}": kwargs.get(f"initial_value{n}", None)
                           for n in range(1, MAX_FLOW_NUM)}
-        # 计数循环就是「条件恒真的 while」：condition 传 total，靠结束节点递减
+        # 计数循环就是「条件恒真的 while」：condition 传 total，靠结束节点递增序号
         graph.node("FxAiWhileLoopStart", condition=total, initial_value0=i, **initial_values)
         outputs = [kwargs.get(f"initial_value{n}", None) for n in range(1, MAX_FLOW_NUM)]
         return {
@@ -109,7 +121,11 @@ class FxAiForLoopStart:
 
 
 class FxAiForLoopEnd:
-    """循环结束。把 index+1 和本轮算出来的值喂回开始节点，直到 index 追上 total。"""
+    """循环结束。把「序号 + 1」和本轮算出来的值喂回开始节点。
+
+    序号从开始索引起步，所以跑完的条件是 `序号 + 1 < 循环次数 + 开始索引`，
+    循环次数本身仍然是「跑几轮」。
+    """
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -146,6 +162,11 @@ class FxAiForLoopEnd:
             )
 
         total = start_inputs["total"]
+        # 序号从开始索引起步，所以「跑完」的上界是 循环次数 + 开始索引。
+        # 老工作流没有这个控件时读不到，按 0 处理。
+        start_index = start_inputs.get("start_index", 0)
+        if start_index is None:
+            start_index = 0
         # 循环 0 次时用这些初值当结果
         skipped = {f"initial_value{i}": start_inputs.get(f"initial_value{i}", None)
                    for i in range(1, MAX_FLOW_NUM)}
@@ -156,9 +177,13 @@ class FxAiForLoopEnd:
         if not is_link(total) and total <= 0:
             return tuple(ExecutionBlocker(None) for _ in range(MAX_FLOW_NUM - 1))
 
-        # index + 1 < total 就继续下一轮
+        # index + 1 < 循环次数 + 开始索引 就继续下一轮
         nxt = graph.node("FxAiMathInt", a=[start_id, 1], b=1, operation="add")
-        cond = graph.node("FxAiCompare", a=nxt.out(0), b=total, comparison="a < b")
+        if is_link(total) or is_link(start_index):
+            stop = graph.node("FxAiMathInt", a=total, b=start_index, operation="add").out(0)
+        else:
+            stop = total + start_index
+        cond = graph.node("FxAiCompare", a=nxt.out(0), b=stop, comparison="a < b")
         values = {f"initial_value{i}": kwargs.get(f"initial_value{i}", None)
                   for i in range(1, MAX_FLOW_NUM)}
         close = graph.node("FxAiWhileLoopEnd", flow=flow, condition=cond.out(0),
