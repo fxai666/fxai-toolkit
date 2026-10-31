@@ -2,11 +2,18 @@
 # Licensed under MIT License
 # 商用需购买商业授权
 
-"""凤希AI - 宽高-按百分比缩放
+"""凤希AI - 宽高-按最大边长缩放
 
-纯换算器：源宽高 × 百分比 → 两个整数宽高，输出给下游。
+把「源素材宽高」压进一个方形上限里，只输出两个整数宽高。
 
-这里只做乘法，不做对齐、不切半宽、不猜下游要什么基数 —— 对齐规则在
+规则一句话：最长边不超过「最大边长」。
+    源片最大边 ≤ 最大边长  → 原样输出，不放大
+    源片最大边 > 最大边长  → 等比缩到最大边正好等于上限
+
+比按百分比省事：不用知道素材是横是竖、多大，填一个 1280 就够，
+1080×1904 的竖片和 1920×1080 的横片都会落在 1280 这条线内。
+
+这里只做乘除法，不做对齐、不切半宽、不猜下游要什么基数 —— 对齐规则在
 FxAIGeneratorController 里（有效基数 = 长宽对齐基数 × 采样次数，floor），
 在别处再算一遍只会算错，还会跟控制器打架。
 
@@ -39,30 +46,38 @@ def parse_resolution(text):
     return w, h
 
 
-def scale_size(src_w, src_h, percent):
-    """源宽高 × 百分比，四舍五入到整数像素。"""
-    pct = float(percent)
-    if pct <= 0:
-        raise ValueError(f"百分比必须大于 0，当前 {percent}")
-    w = int(round(int(src_w) * pct / 100.0))
-    h = int(round(int(src_h) * pct / 100.0))
-    # 缩得极狠时可能掉到 0，下游拿到 0 会直接崩，兜到 1
-    return max(1, w), max(1, h)
+def fit_max_side(src_w, src_h, max_side):
+    """最长边压到 max_side 以内，等比缩放；本来就够小就原样返回。"""
+    src_w, src_h = int(src_w), int(src_h)
+    max_side = int(max_side)
+    if max_side <= 0:
+        raise ValueError(f"最大边长必须大于 0，当前 {max_side}")
+
+    longest = max(src_w, src_h)
+    if longest <= max_side:
+        return src_w, src_h
+
+    scale = max_side / longest
+    w = max(1, int(round(src_w * scale)))
+    h = max(1, int(round(src_h * scale)))
+    return w, h
 
 
 class FxAiScaleSize:
-    """宽高-按百分比缩放（源素材尺寸 → 生成画布尺寸）"""
+    """宽高-按最大边长缩放（源素材尺寸 → 生成画布尺寸）"""
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "百分比": ("FLOAT", {
-                    "default": 100.0, "min": 1.0, "max": 400.0, "step": 0.5,
+                "最大边长": ("INT", {
+                    "default": 1280, "min": 64, "max": 16384, "step": 2,
                     "display": "number",
-                    "tooltip": "相对源素材的缩放比例。100 = 原尺寸，90 = 缩到九成。\n"
+                    "tooltip": "最长边不超过这个值。\n"
+                               "源片最大边已经小于它 → 原样输出，不放大；\n"
+                               "大于它 → 等比缩到最大边正好等于它。\n"
                                "注意：H3 原生画布面积上限约 1.03 Mpx（1344×768），\n"
-                               "超过这个面积模型会自己再压，等于白算。",
+                               "1280 已经贴近这条线，再往上模型会自己压，等于白算。",
                 }),
             },
             "optional": {
@@ -90,7 +105,7 @@ class FxAiScaleSize:
     FUNCTION = "process"
     CATEGORY = "凤希AI/工具"
 
-    def process(self, 百分比, 原宽度=1920, 原高度=1080, 分辨率=""):
+    def process(self, 最大边长, 原宽度=1920, 原高度=1080, 分辨率=""):
         parsed = parse_resolution(分辨率)
         if parsed:
             sw, sh = parsed
@@ -102,6 +117,8 @@ class FxAiScaleSize:
         if sw <= 0 or sh <= 0:
             raise RuntimeError(f"源尺寸不合法：{sw}×{sh}")
 
-        w, h = scale_size(sw, sh, 百分比)
-        print(f"📐 [凤希AI] 宽高缩放：{sw}×{sh} ×{百分比:g}% → {w}×{h}（{src_note}）")
+        w, h = fit_max_side(sw, sh, 最大边长)
+        keep = "，未超过上限原样输出" if (w, h) == (sw, sh) else ""
+        print(f"📐 [凤希AI] 宽高缩放：{sw}×{sh} 最长边 {max(sw, sh)} "
+              f"→ 上限 {最大边长} → {w}×{h}（{src_note}{keep}）")
         return (w, h)

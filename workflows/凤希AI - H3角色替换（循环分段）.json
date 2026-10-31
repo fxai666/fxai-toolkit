@@ -2451,18 +2451,18 @@
           ]
         }
       ],
-      "title": "宽高-按百分比缩放（100% = 原片尺寸）",
+      "title": "宽高-按最大边长缩放",
       "properties": {
         "Node name for S&R": "FxAiScaleSize"
       },
       "widgets_values": [
-        50,
+        640,
         1280,
         720,
         ""
       ],
       "widgets_values_named": {
-        "百分比": 50,
+        "最大边长": 640,
         "原宽度": 1280,
         "原高度": 720,
         "分辨率": ""

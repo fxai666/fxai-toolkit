@@ -1827,12 +1827,18 @@
         "Node name for S&R": "FxAiScaleSize"
       },
       "widgets_values": [
-        100.0,
+        1280,
         1280,
         720,
         ""
       ],
-      "title": "宽高-按百分比缩放（100% = 原片尺寸）"
+      "title": "宽高-按最大边长缩放",
+      "widgets_values_named": {
+        "最大边长": 1280,
+        "原宽度": 1280,
+        "原高度": 720,
+        "分辨率": ""
+      }
     }
   ],
   "links": [
