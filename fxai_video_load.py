@@ -158,7 +158,7 @@ class FxAiVideoLoad:
                     "multiline": False,
                     "tooltip": "两种填法都行：\n"
                                "① 填一个**目录** → 按 视频索引 挑这个目录里排序后的第几个视频；\n"
-                               "② 直接填一个**视频文件的完整路径**（如 I:/ComfyUI/input/xxx.mp4）\n"
+                               "② 直接填一个**视频文件的完整路径**（如 input/xxx.mp4）\n"
                                "   → 只读这一个文件，视频索引 自动失效。\n"
                                "填文件时不怕目录里增删文件、也不怕改名排序变化，最稳。"}),
                 "视频索引": ("INT", {
@@ -199,7 +199,7 @@ class FxAiVideoLoad:
         if not target:
             raise RuntimeError(
                 "「视频文件夹路径」没填。可以填一个目录，"
-                "也可以直接填一个视频文件的完整路径（如 I:/ComfyUI/input/a.mp4）")
+                "也可以直接填一个视频文件的完整路径（如 input/a.mp4）")
 
         target = expand_path(target)
 

@@ -35,7 +35,10 @@ def model_root():
         import folder_paths
         base = folder_paths.models_dir
     except Exception:
-        base = r"I:\ComfyUI\models"
+        # 不在 ComfyUI 进程里（独立导入 fxai_vsr）时按包位置向上找：
+        # fxai_vsr/ → fxai-toolkit/ → custom_nodes/ → <ComfyUI>/models
+        here = os.path.dirname(os.path.abspath(__file__))
+        base = os.path.normpath(os.path.join(here, os.pardir, os.pardir, os.pardir, "models"))
     return os.path.join(base, ROOT_NAME)
 
 
