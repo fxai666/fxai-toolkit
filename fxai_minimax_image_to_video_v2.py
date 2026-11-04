@@ -347,7 +347,7 @@ class FxAiMiniMaxImageToVideoV2:
             # 文本编码器按 2fps 看视频，带时间戳
             sample_idx = list(range(0, frames.shape[0], FPS // 2))
             if _NO_TEXT_VIDEO:
-                print("[凤希AI·换人] 实验开关：参考视频不进文本编码（只走 VAE latent 通道）")
+                print("[凤希AI] 实验开关：参考视频不进文本编码（只走 VAE latent 通道）")
             else:
                 ref_items.append({
                     "type": "video",
@@ -422,7 +422,7 @@ class FxAiMiniMaxImageToVideoV2:
             for name, t in _marks:
                 parts.append("%s %.1fs" % (name, t - prev))
                 prev = t
-            print("[凤希AI·换人] %d 帧 条件构建耗时：%s | 合计 %.1fs"
+            print("[凤希AI] %d 帧 条件构建耗时：%s | 合计 %.1fs"
                   % (frame_count, " + ".join(parts), time.perf_counter() - _t0))
 
         return (cond, latent)
