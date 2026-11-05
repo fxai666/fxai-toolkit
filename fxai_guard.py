@@ -44,14 +44,22 @@ L4  **接口**：`GET /fxai/guard/status`、`POST /fxai/guard/recover`。
 
         curl -X POST http://127.0.0.1:8188/fxai/guard/recover
 
+L5  **提交前预检**：挂在 `PromptQueue.put` 上，队列空时自动清一遍再入队，
+    UI 和所有脚本提交都覆盖。连续排队提交只有第一条会清，队列非空一律跳过 ——
+    卸模型会把正在跑的任务直接打死。脚本可先打 `POST /fxai/guard/preflight`
+    做严格校验（回收有失败步骤 / 显存余量不足就拒绝提交，提示重启）。
+
 环境变量
 ========
-    FXAI_GUARD=0        关掉全部兜底（排查「是不是守卫搞的」时用）
-    FXAI_GUARD_LOG=0    不打印恢复日志
+    FXAI_GUARD=0                       关掉全部兜底（排查「是不是守卫搞的」时用）
+    FXAI_GUARD_LOG=0                   不打印恢复日志
+    FXAI_PREFLIGHT=0                   关掉提交前自动清理
+    FXAI_PREFLIGHT_MIN_FREE_GB=2.0     预检要求的最低可用显存（GB）
 """
 
 import gc
 import os
+import threading
 import time
 import traceback
 
@@ -63,7 +71,11 @@ _state = {
     "last_recover_steps": [],
     "last_error": "",
     "errors_seen": 0,
+    "last_preflight_at": 0,
 }
+
+_EXECUTOR = None
+_PREFLIGHT_LOCK = threading.Lock()
 
 _ENABLED = os.environ.get("FXAI_GUARD", "1") != "0"
 _VERBOSE = os.environ.get("FXAI_GUARD_LOG", "1") != "0"
@@ -71,6 +83,10 @@ _VERBOSE = os.environ.get("FXAI_GUARD_LOG", "1") != "0"
 # 进程会一直占着 ~69G 内存（实测 2026-10-31 00:10：跑完仍占 69.17G / 显存 6.2G）。
 # 代价：下次开跑要重新 stage 一遍权重（约 1-2 分钟）。要连续调参就设 0。
 _AUTO_FREE = os.environ.get("FXAI_AUTO_FREE", "1") != "0"
+# 提交前自动清理：队列空时先把上一条任务留下的显存/内存/执行缓存清干净再入队。
+# 挂在 PromptQueue.put 上，UI 和所有脚本提交都覆盖。关掉：FXAI_PREFLIGHT=0
+_PREFLIGHT = os.environ.get("FXAI_PREFLIGHT", "1") != "0"
+_MIN_FREE_GB = float(os.environ.get("FXAI_PREFLIGHT_MIN_FREE_GB", "2.0"))
 
 # 这些片段出现在异常里，就按「显存/内存不足」处理
 _OOM_HINTS = (
@@ -174,9 +190,8 @@ def recover(reason="手动", quiet=False, shrink=False):
         _log(f"硬回收完成（{reason}）第 {_state['recover_count']} 次"
              + (f"，{len(bad)} 步失败：{[s['step'] for s in bad]}" if bad else "，全部成功"))
     else:
-        freed = [s for s in steps if s["step"] == "收缩工作集"]
-        print(f"[凤希AI·守卫] 任务结束，已释放显存与内存"
-              + (f"（{len(bad)} 步失败）" if bad else ""), flush=True)
+        print(f"[凤希AI·守卫] 已释放显存与内存（{reason}）"
+              + (f"，{len(bad)} 步失败" if bad else ""), flush=True)
     return {"ok": not bad, "reason": reason, "steps": steps}
 
 
@@ -296,14 +311,15 @@ def _patch_debug_summary():
 
 
 def _patch_auto_free():
-    """整条任务跑完（成功或失败）自动释放模型与显存/内存。
+    """整条任务跑完（成功或失败）自动释放模型与显存/内存，并记下 executor。
 
     ComfyUI 默认「跑完不卸载」，为的是下次跑得快。代价是跑完一条 32G 模型的活儿，
     进程会一直占着 69G 内存不放 —— 实测 2026-10-31 00:10。手动 `POST /free`
     能放掉（69.17G → 5.95G），这里把它做成自动的。
+
+    提交前预检要拿这个 executor 清执行缓存，所以即使 FXAI_AUTO_FREE=0
+    也要装这层包装，只是跳过 finally 里的回收。
     """
-    if not _AUTO_FREE:
-        return False
     try:
         import execution
     except Exception:
@@ -317,6 +333,10 @@ def _patch_auto_free():
         return False
 
     def execute(self, *args, **kwargs):
+        global _EXECUTOR
+        _EXECUTOR = self
+        if not _AUTO_FREE:
+            return orig(self, *args, **kwargs)
         try:
             return orig(self, *args, **kwargs)
         finally:
@@ -327,6 +347,8 @@ def _patch_auto_free():
 
     execute._fxai_guarded = True
     cls.execute = execute
+    if not _AUTO_FREE:
+        _log("FXAI_AUTO_FREE=0：只记录执行器，任务结束不自动回收")
     return True
 
 
@@ -390,6 +412,118 @@ def status():
     return out
 
 
+# ------------------------------------------------------------ 提交前预检
+
+def _queue():
+    try:
+        from server import PromptServer
+        return getattr(getattr(PromptServer, "instance", None), "prompt_queue", None)
+    except Exception:
+        return None
+
+
+def preflight(reason="提交前", min_free_gb=None, q=None):
+    """提交前把上一条任务留下的东西清干净，并判断这个进程还能不能接活。
+
+    队列非空时一律跳过：这时候卸模型会把正在跑的任务直接打死。
+    拿不到队列也拒绝 —— 确认不了安全就不清。
+    """
+    if q is None:
+        q = _queue()
+    if q is None:
+        return {"ok": False, "skipped": False,
+                "message": "拿不到任务队列，无法确认安全，拒绝提交"}
+
+    remaining = q.get_tasks_remaining()
+    if remaining != 0:
+        return {"ok": True, "skipped": True, "remaining": remaining,
+                "message": f"队列里还有 {remaining} 个任务，跳过清理（不能卸正在跑的模型）"}
+
+    if min_free_gb is None:
+        min_free_gb = _MIN_FREE_GB
+
+    steps = []
+    if _EXECUTOR is None:
+        steps.append({"step": "清执行缓存", "ok": True, "detail": "执行器未就绪，跳过"})
+    else:
+        try:
+            _EXECUTOR.reset()
+            steps.append({"step": "清执行缓存", "ok": True, "detail": "已重建 CacheSet"})
+        except Exception as e:
+            steps.append({"step": "清执行缓存", "ok": False,
+                          "detail": f"{type(e).__name__}: {e}"})
+
+    rec = recover(reason=reason, quiet=True, shrink=False)
+    steps.extend(rec["steps"])
+
+    st = status()
+    free = st.get("vram", {}).get("free_gb")
+    failed = [s["step"] for s in steps if not s["ok"]]
+    vram_unknown = not isinstance(free, (int, float))
+    low_vram = (not vram_unknown) and free < min_free_gb
+    ok = not failed and not low_vram and not vram_unknown
+
+    out = {
+        "ok": ok,
+        "skipped": False,
+        "need_restart": bool(failed),
+        "low_vram": low_vram,
+        "vram_free_gb": free,
+        "min_free_gb": min_free_gb,
+        "pinned_gb": st.get("pinned_gb"),
+        "failed_steps": failed,
+        "steps": steps,
+    }
+    if ok:
+        _state["last_preflight_at"] = time.time()
+        out["message"] = f"提交前清理完成，显存可用 {free:.2f}G"
+    else:
+        if failed:
+            out["message"] = "硬回收有失败步骤，CUDA 上下文可能已脏，请重启 ComfyUI 再提交"
+        elif vram_unknown:
+            out["message"] = "读不到显存余量，无法确认安全，请重启 ComfyUI 再提交"
+        else:
+            out["message"] = (f"显存只剩 {free:.2f}G（要求 ≥ {min_free_gb:.1f}G），"
+                              "请检查占用或重启 ComfyUI")
+        _log("提交前预检未通过：" + out["message"])
+    return out
+
+
+def _patch_queue_put():
+    """所有 /prompt 提交的必经之路：队列空时自动做一次提交前清理。
+
+    全局锁把「查队列 → 清理 → 入队」串行化。连续提交时第一条持锁清完并入队，
+    后几条进来时 get_tasks_remaining() 已经 > 0，直接入队，
+    绝不会在任务跑着的时候卸模型。
+    """
+    if not _PREFLIGHT:
+        return False
+    try:
+        import execution
+    except Exception:
+        return False
+    cls = getattr(execution, "PromptQueue", None)
+    if cls is None:
+        return False
+    orig = cls.put
+    if getattr(orig, "_fxai_guarded", False):
+        return False
+
+    def put(self, item):
+        with _PREFLIGHT_LOCK:
+            try:
+                if (self.get_tasks_remaining() == 0
+                        and time.time() - _state["last_preflight_at"] > 30):
+                    preflight(reason="提交前(自动)", q=self)
+            except Exception as e:
+                _log(f"提交前自动清理失败（不影响提交）：{type(e).__name__}: {e}")
+            return orig(self, item)
+
+    put._fxai_guarded = True
+    cls.put = put
+    return True
+
+
 # ---------------------------------------------------------------- 路由
 
 async def guard_status(request):
@@ -397,10 +531,22 @@ async def guard_status(request):
     return web.json_response(status())
 
 
+async def guard_preflight(request):
+    from aiohttp import web
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    return web.json_response(preflight(reason=data.get("reason") or "提交前"))
+
+
 async def guard_recover(request):
     from aiohttp import web
     reason = "接口调用"
-    shrink = True          # 手动/守护进程调用时，把内存真的还给系统
+    # 默认不收缩工作集：SetProcessWorkingSetSize 会把 staged 权重换出到页面文件，
+    # 下一段「模型初始化」从 1:15 涨到 28:51（2026-10-31 01:25 实测）。
+    # 整批任务跑完、确实要把内存还给系统时才显式传 {"shrink": true}。
+    shrink = False
     try:
         data = await request.json()
         reason = data.get("reason") or reason
@@ -419,6 +565,8 @@ def _register_routes():
             return False
         routes.get("/fxai/guard/status")(guard_status)
         routes.post("/fxai/guard/recover")(guard_recover)
+        routes.post("/fxai/guard/preflight")(guard_preflight)
+        routes.get("/fxai/guard/preflight")(guard_preflight)
         return True
     except Exception as e:
         _log(f"注册路由失败：{e}")
@@ -442,6 +590,7 @@ def install():
         "error_handler": _patch_error_handler(),
         "auto_free": _patch_auto_free(),
         "routes": _register_routes(),
+        "preflight_put": _patch_queue_put(),
     }
     _state["installed"] = True
     _log("已安装 " + " / ".join(k for k, v in done.items() if v)
