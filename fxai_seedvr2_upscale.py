@@ -777,7 +777,7 @@ class FxAiSeedVR2Upscale:
             f"（输出只有 {tw * th / 1e6:.2f} Mpx，重叠浪费 {calc_mpx / (tw * th / 1e6):.2f}×）"
             f"\nVAE 解码分块：{dec_desc}"
         )
-        print(f"[凤希AI][SeedVR2] 预估：{preflight}")
+        print(f"[凤希AI] SeedVR2 预估：{preflight}")
 
         if avail and chain_bytes > avail * 0.9:
             keep = max(1, int(total * avail * 0.9 / chain_bytes))
@@ -844,7 +844,7 @@ class FxAiSeedVR2Upscale:
                 cur_chunk = new_chunk
                 cur_overlap = min(cur_overlap, (cur_chunk - 1) // 2)
                 oom_drops += 1
-                print(f"[凤希AI][SeedVR2] 显存不够，分块降到 {cur_chunk} 帧重试")
+                print(f"[凤希AI] SeedVR2 显存不够，分块降到 {cur_chunk} 帧重试")
                 continue
 
             # 写回输出：第一块直接铺，后面的块与上一块交叉淡化
@@ -920,7 +920,7 @@ class FxAiSeedVR2Upscale:
             report += f"\n显存自适应触发 {oom_drops} 次降块"
         if notes:
             report += "\n注：" + "；".join(notes)
-        print(f"[凤希AI][SeedVR2] {report}")
+        print(f"[凤希AI] SeedVR2 {report}")
 
         mm.soft_empty_cache()
         # 实际达到的倍数（可能因为「目标短边」或 16 对齐跟「放大倍数」略有出入），

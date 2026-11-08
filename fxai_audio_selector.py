@@ -34,7 +34,7 @@ class FxAiAudioSelector:
             return str(e)
 
     def select(self, 音频文件=""):
-        print(f"✅ [凤希AI] 已加载音频：{音频文件}，即将进行人声分离")
+        print(f"✅ [凤希AI] 已加载音频：{音频文件}")
         return (load_audio_tensor_from_file(音频文件),)
 
     @classmethod

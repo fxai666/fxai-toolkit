@@ -202,12 +202,12 @@ class FxAiToneMatch:
     def run(self, 图片序列, 方式="增益", 采样区="八方位", 强度=1.0,
             最大调整=20.0, 逐帧=False, 平滑帧数=15, 参考序列=None):
         if 方式 == "不启用":
-            print("[凤希AI·影调] 未启用，原样透传")
+            print("[凤希AI] 影调：未启用，原样透传")
             return (图片序列,)
         if 图片序列 is None or 图片序列.shape[0] == 0:
             return (图片序列,)
         if 参考序列 is None or 参考序列.shape[0] == 0:
-            print("[凤希AI·影调] 没接参考序列，原样透传")
+            print("[凤希AI] 影调：没接参考序列，原样透传")
             return (图片序列,)
 
         s = float(强度 or 0.0)
@@ -242,7 +242,7 @@ class FxAiToneMatch:
                     out[i] = cur[i] + est[i] * s
             else:
                 out = cur + est[0]
-            print("[凤希AI·影调] 生成 %s → 源 %s ｜ 各块差 %s ｜ 采用 %+.2f 灰阶"
+            print("[凤希AI] 影调：生成 %s → 源 %s ｜ 各块差 %s ｜ 采用 %+.2f 灰阶"
                   "（%s，强度 %.2f）"
                   % ("/".join("%.0f" % (v * 255) for v in cur_p[mid]),
                      "/".join("%.0f" % (v * 255) for v in ref_p[mid]),
@@ -260,7 +260,7 @@ class FxAiToneMatch:
             # 交给下游的「接缝色彩对齐」按上一段末帧平移，段间不会跳
             base = est[mid] if 逐帧 else est[0]
             if not (GAIN_MIN <= base <= GAIN_MAX):
-                print("[凤希AI·影调] 生成 %s → 源 %s ｜ 各块比 %s ｜ 比值 ×%.4f 超出 "
+                print("[凤希AI] 影调：生成 %s → 源 %s ｜ 各块比 %s ｜ 比值 ×%.4f 超出 "
                       "%.1f~%.1f，判定采样不可靠，本段跳过（%s）"
                       % ("/".join("%.0f" % (v * 255) for v in cur_p[mid]),
                          "/".join("%.0f" % (v * 255) for v in ref_p[mid]),
@@ -282,7 +282,7 @@ class FxAiToneMatch:
             else:
                 g = 1.0 + (est[0] - 1.0) * s
                 out = cur * g
-            print("[凤希AI·影调] 生成 %s → 源 %s ｜ 各块比 %s ｜ 采用 ×%.4f"
+            print("[凤希AI] 影调：生成 %s → 源 %s ｜ 各块比 %s ｜ 采用 ×%.4f"
                   "（%s，强度 %.2f）"
                   % ("/".join("%.0f" % (v * 255) for v in cur_p[mid]),
                      "/".join("%.0f" % (v * 255) for v in ref_p[mid]),

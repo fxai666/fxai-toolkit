@@ -88,7 +88,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
         
         return temp_path
     except Exception as e:
-        print(f"[凤希AI FFmpeg音频转换失败] {str(e)}")
+        print(f"[凤希AI] FFmpeg音频转换失败：{str(e)}")
         import traceback
         traceback.print_exc()
         return ""
@@ -108,7 +108,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=-1, transition_frames
 
     save_path = safe_path_join(save_dir, filename)
     if save_path is None:
-        print("[凤希AI视频] 路径安全校验失败，禁止写入")
+        print("[凤希AI] 视频路径安全校验失败，禁止写入")
         return ""
 
     # 下面全部和你原始代码一致无修改
@@ -118,7 +118,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=-1, transition_frames
     total_frames = len(img_np)
 
     if total_frames == 0:
-        print("[凤希AI视频合成失败] 没有有效帧")
+        print("[凤希AI] 视频合成失败：没有有效帧")
         return ""
 
     try:
@@ -179,13 +179,13 @@ def save_video(images, save_dir, audio, fps=24, custom_num=-1, transition_frames
             raise subprocess.CalledProcessError(proc.returncode, cmd)
 
     except Exception as e:
-        print(f"[凤希AI视频合成失败] {str(e)}")
+        print(f"[凤希AI] 视频合成失败：{str(e)}")
         import traceback
         traceback.print_exc()
         return ""
 		
     gc.collect()
-    print(f"[凤希AI视频] 成功保存：{save_path}")
+    print(f"[凤希AI] 视频成功保存：{save_path}")
     return save_path
 
 class FxAiVideoGeneratorV4:

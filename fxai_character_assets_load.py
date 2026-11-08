@@ -51,7 +51,7 @@ class FxAiCharacterAssetsLoad:
             full_path = os.path.join(full_dir, filename)
 
             if not os.path.exists(full_path):
-                print(f"[凤希] 图片不存在：{full_path}")
+                print(f"[凤希AI] 图片不存在：{full_path}")
                 continue
 
             try:
@@ -60,7 +60,7 @@ class FxAiCharacterAssetsLoad:
                 images.append(fixed)
 
             except Exception as e:
-                print(f"[凤希] 加载失败：{full_path} => {e}")
+                print(f"[凤希AI] 加载失败：{full_path} => {e}")
 
         if not images:
             return (None, None, None, 0)

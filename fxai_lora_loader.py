@@ -186,7 +186,7 @@ class FxAiLoraLoader:
                     model, clip, lora_name, model_str, clip_str
                 )
             except Exception as e:
-                raise RuntimeError(f"[凤希AI LoRA加载失败] {lora_name}\n失败原因：{str(e)}") from e
+                raise RuntimeError(f"[凤希AI] LoRA加载失败：{lora_name}\n失败原因：{str(e)}") from e
 
             # 当前LoRA的tag拼接成一行，加入列表（顺序和加载LoRA完全一致）
             if isinstance(trigger_words, list):

@@ -132,7 +132,7 @@ class Detector:
         self.device = "CUDA" if "CUDAExecutionProvider" in (
             app.det_model.session.get_providers() if app.det_model else []) else "CPU"
         if verbose:
-            print(f"[凤希AI·检测] buffalo_l 就绪  {self.device}  det_size={det_size}")
+            print(f"[凤希AI] buffalo_l 就绪  {self.device}  det_size={det_size}")
 
     # ---- 原始检测 ----
     def raw(self, img):

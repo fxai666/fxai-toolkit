@@ -75,7 +75,7 @@ class FxAiScreenLoad:
             frame = x + (5 - x) % 17
 
         except Exception as e:
-            print(f"✅ [凤希AI场景加载] 异常：{e}")
+            print(f"✅ [凤希AI] 场景加载异常：{e}")
             x = max(5, int(round(时长 * 24)))
             frame = x + (5 - x) % 17
             return (
@@ -99,14 +99,14 @@ class FxAiScreenLoad:
             full_path = os.path.join(full_dir, filename)
 
             if not os.path.exists(full_path):
-                print(f"[凤希] 图片不存在：{full_path}")
+                print(f"[凤希AI] 图片不存在：{full_path}")
                 continue
 
             try:
                 tensor = load_single_image(full_path)
                 images.append(tensor)
             except Exception as e:
-                print(f"[凤希] 加载失败：{full_path} => {e}")
+                print(f"[凤希AI] 加载失败：{full_path} => {e}")
 
             # 该图片对应的角色若有声音：参考音色截前 2 秒，音频输出全量
             char = characters.get(rel_path)
@@ -122,7 +122,7 @@ class FxAiScreenLoad:
                         audio = slice_audio(audio, 0, cut_frames)
                     参考音色.append(audio)
                 except Exception as e:
-                    print(f"[凤希] 音频加载失败：{char['voice']} => {e}")
+                    print(f"[凤希AI] 音频加载失败：{char['voice']} => {e}")
 
         return (
             提示词,
@@ -187,7 +187,7 @@ class FxAiScreenLoadSimple:
             path_list = [p.strip() for p in str(素材).split(",") if p.strip()]
 
         except Exception as e:
-            print(f"✅ [凤希AI场景加载] 异常：{e}")
+            print(f"✅ [凤希AI] 场景加载异常：{e}")
             return (提示词, images)
 
         for rel_path in path_list:
@@ -200,13 +200,13 @@ class FxAiScreenLoadSimple:
             full_path = os.path.join(full_dir, filename)
 
             if not os.path.exists(full_path):
-                print(f"[凤希] 图片不存在：{full_path}")
+                print(f"[凤希AI] 图片不存在：{full_path}")
                 continue
 
             try:
                 tensor = load_single_image(full_path)
                 images.append(tensor)
             except Exception as e:
-                print(f"[凤希] 加载失败：{full_path} => {e}")
+                print(f"[凤希AI] 加载失败：{full_path} => {e}")
 
         return (提示词, images)

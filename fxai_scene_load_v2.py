@@ -57,7 +57,7 @@ class FxAiSceneLoadV2:
 
         # ====================== 异常捕获 + 打印 + 返回默认值
         except Exception as e:
-            print(f"✅ [凤希AI场景] 已加载默认值。信息： \n{e}")
+            print(f"✅ [凤希AI] 场景已加载默认值。信息： \n{e}")
             
             提示词 = f"{通用提示词}{尾部通用提示词}"
             return (行索引, 提示词, 行索引, 0.0, 15.0, 行索引, -1, True)

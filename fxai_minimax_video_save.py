@@ -118,7 +118,7 @@ def audio_tensor_to_wav_ffmpeg(audio_dict):
 
         return temp_path
     except Exception as e:
-        print(f"[凤希AI FFmpeg音频转换失败] {str(e)}")
+        print(f"[凤希AI] FFmpeg音频转换失败：{str(e)}")
         import traceback
         traceback.print_exc()
         return ""
@@ -137,14 +137,14 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0, denoise="关闭"):
 
     save_path = safe_path_join(save_dir, filename)
     if save_path is None:
-        print("[凤希AI视频] 路径安全校验失败，禁止写入")
+        print("[凤希AI] 视频路径安全校验失败，禁止写入")
         return ""
 
     img_np = (images.cpu().numpy() * 255).astype(np.uint8)
     total_frames = img_np.shape[0]
 
     if total_frames == 0:
-        print("[凤希AI视频合成失败] 没有有效帧")
+        print("[凤希AI] 视频合成失败：没有有效帧")
         return ""
 
     try:
@@ -209,13 +209,13 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0, denoise="关闭"):
             raise subprocess.CalledProcessError(proc.returncode, cmd)
 
     except Exception as e:
-        print(f"[凤希AI视频合成失败] {str(e)}")
+        print(f"[凤希AI] 视频合成失败：{str(e)}")
         import traceback
         traceback.print_exc()
         return ""
 
     gc.collect()
-    print(f"[凤希AI视频] 成功保存：{save_path}")
+    print(f"[凤希AI] 视频成功保存：{save_path}")
     return save_path
 
 
@@ -288,7 +288,7 @@ class FxAiMiniMaxVideoSave:
             try:
                 fxai_task_store.save_result("video", 目录, [os.path.basename(video_path)])
             except Exception as e:
-                print(f"[凤希AI视频] 任务结果保存失败：{e}")
+                print(f"[凤希AI] 视频任务结果保存失败：{e}")
 
         return (过渡帧, 过渡帧列表, video_path, target_dir, 保存帧数, tail_audio)
 		

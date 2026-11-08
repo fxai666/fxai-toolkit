@@ -157,7 +157,7 @@ class FxAiForLoopEnd:
 
         if start_node["class_type"] != "FxAiForLoopStart":
             raise RuntimeError(
-                f"[凤希AI·循环] flow 接的不是循环开始节点（{start_node['class_type']}），"
+                f"[凤希AI] 循环：flow 接的不是循环开始节点（{start_node['class_type']}），"
                 f"检查是不是把 flow 连错了"
             )
 
@@ -406,7 +406,7 @@ class FxAiMathInt:
 
     def calc(self, a, b, operation):
         if operation == "divide" and b == 0:
-            raise ValueError("[凤希AI·整数运算] 除数为 0，请改一个非零的 b")
+            raise ValueError("[凤希AI] 整数运算：除数为 0，请改一个非零的 b")
         return (_MATH_INT_OPS[operation](a, b),)
 
 
@@ -605,7 +605,7 @@ class FxAiSimpleMath:
                           {**_MATH_NAMESPACE, "a": a, "b": b, "c": c})
             return (int(result), float(result), int(result) != 0)
         except Exception as exc:
-            print(f"⚠️[凤希AI·公式] 算不出来（{value}）：{exc}")
+            print(f"⚠️[凤希AI] 公式：算不出来（{value}）：{exc}")
             return (0, 0.0, False)
 
 
@@ -718,11 +718,11 @@ class FxAiImageConcat:
 
         if horizontal and image1.shape[1] != image2.shape[1]:
             raise ValueError(
-                f"[凤希AI·图片拼接] 两张图高度不一致（{image1.shape[1]} vs {image2.shape[1]}），"
+                f"[凤希AI] 图片拼接：两张图高度不一致（{image1.shape[1]} vs {image2.shape[1]}），"
                 "请把「匹配图片尺寸」打开")
         if not horizontal and image1.shape[2] != image2.shape[2]:
             raise ValueError(
-                f"[凤希AI·图片拼接] 两张图宽度不一致（{image1.shape[2]} vs {image2.shape[2]}），"
+                f"[凤希AI] 图片拼接：两张图宽度不一致（{image1.shape[2]} vs {image2.shape[2]}），"
                 "请把「匹配图片尺寸」打开")
 
         if direction == "right":

@@ -148,10 +148,10 @@ class FxAiVideoToVR:
             if proc.returncode != 0:
                 raise Exception(f"FFmpeg错误：{proc.stderr[-500:]}")
 
-            print(f"[凤希AI VR] 转换成功：{vr_path}")
+            print(f"[凤希AI] VR 转换成功：{vr_path}")
 
         except Exception as e:
-            print(f"[凤希AI VR 错误] {str(e)}")
+            print(f"[凤希AI] VR 错误：{str(e)}")
             vr_path = save_dir = ""
 
         return (vr_path, save_dir)

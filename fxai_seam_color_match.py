@@ -68,7 +68,7 @@ class FxAiSeamColorMatch:
         out = (图片序列.to(torch.float32) + delta.view(1, 1, 1, 3)).clamp_(0.0, 1.0)
         out = out.to(图片序列.dtype)
 
-        print("[凤希AI·接缝] 色彩对齐：需要 %+.2f %+.2f %+.2f 灰阶，实际施加 %+.2f %+.2f %+.2f"
+        print("[凤希AI] 接缝：色彩对齐：需要 %+.2f %+.2f %+.2f 灰阶，实际施加 %+.2f %+.2f %+.2f"
               % (raw[0] * 255, raw[1] * 255, raw[2] * 255,
                  delta[0] * 255, delta[1] * 255, delta[2] * 255))
         return (out,)

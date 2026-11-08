@@ -239,7 +239,7 @@ class Vosr2Engine:
         if verbose:
             n = sum(p.numel() for p in dit.parameters()) / 1e9
             vdt = str(next(vae.parameters()).dtype).split(".")[-1]
-            print(f"[凤希AI·VOSR2] 自研引擎就绪  DiT {n:.2f}B/{str(dtype).split('.')[-1]}  "
+            print(f"[凤希AI] VOSR2 自研引擎就绪  DiT {n:.2f}B/{str(dtype).split('.')[-1]}  "
                   f"VAE {vdt}  显存 {torch.cuda.memory_allocated(self.device)/2**30:.2f} GiB")
 
     # ---- 内部 ----

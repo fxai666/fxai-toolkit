@@ -56,7 +56,7 @@ def _align_cond_shapes(kwargs):
 
 
 if _H3_BASE is None:
-    print("【凤希AI】跳过 MiniMax H3 核心补丁：comfy.model_base 中已无 MiniMaxH3，"
+    print("[凤希AI] 跳过 MiniMax H3 核心补丁：comfy.model_base 中已无 MiniMaxH3，"
           "核心可能重命名了该类，本次按官方原行为运行。")
 else:
     class MiniMaxH3Patch(_H3_BASE):
@@ -109,7 +109,7 @@ else:
             try:
                 _align_cond_shapes(kwargs)
             except Exception as exc:
-                print(f"【凤希AI】MiniMax H3 条件尺寸对齐已跳过，按官方原始条件继续（原因：{exc!r}）")
+                print(f"[凤希AI] MiniMax H3 条件尺寸对齐已跳过，按官方原始条件继续（原因：{exc!r}）")
             return super().extra_conds(**kwargs)
 
     def apply_patch():

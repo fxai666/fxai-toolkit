@@ -116,7 +116,7 @@ class SwapEngine:
 
     def __init__(self, model_path, device_id=0, verbose=True):
         if not os.path.isfile(model_path):
-            raise FileNotFoundError(f"找不到换脸模型：{model_path}")
+            raise FileNotFoundError(f"找不到模型文件：{model_path}")
         self.model_path = model_path
 
         _ensure_cuda_dlls()
@@ -147,7 +147,7 @@ class SwapEngine:
         self._src_emb = None
         if verbose:
             dev = "CUDA" if "CUDAExecutionProvider" in self.providers else "CPU"
-            print(f"[凤希AI·换脸] {os.path.basename(model_path)} 就绪  {dev}  {self.size}px")
+            print(f"[凤希AI] {os.path.basename(model_path)} 就绪  {dev}  {self.size}px")
 
     # ---- 身份 ----
     def encode_source(self, normed_embedding):

@@ -200,7 +200,7 @@ def save_video(images, save_dir, audio, fps=24, custom_num=0):
                 raise subprocess.CalledProcessError(result.returncode, cmd_mux)
 
     except Exception as e:
-        print(f"[凤希AI视频合成失败] {str(e)}")
+        print(f"[凤希AI] 视频合成失败：{str(e)}")
         import traceback
         traceback.print_exc()
         return ""

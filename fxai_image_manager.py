@@ -209,9 +209,9 @@ class FxAiImageManager:
                 filename = f"{next_num + i:03d}.png"
                 save_path = os.path.join(save_dir, filename)
                 img.save(save_path, format="PNG")
-                print(f"[凤希AI图片资源] 已保存：{save_path}")
+                print(f"[凤希AI] 图片资源已保存：{save_path}")
         except Exception as e:
-            print(f"[凤希AI图片资源] 保存失败：{e}")
+            print(f"[凤希AI] 图片资源保存失败：{e}")
 
     def run(self, 目录="", 图片=None, 刷新标记=0):
         target_dir = get_image_dir(目录)

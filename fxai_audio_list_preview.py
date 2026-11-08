@@ -58,6 +58,6 @@ class FxAiAudioListPreview:
                 filename = _save_audio_to_temp(audio, index)
                 results.append({"filename": filename, "subfolder": "", "type": "temp"})
             except Exception as e:
-                print(f"[凤希AI音频列表预览] 第{index + 1}段保存失败: {e}")
+                print(f"[凤希AI] 音频列表预览：第{index + 1}段保存失败: {e}")
 
         return {"ui": {"audio": results}, "result": (len(results),)}

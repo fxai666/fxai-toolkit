@@ -66,7 +66,7 @@ class FxAiCharacterSelector:
                         else:
                             参考音色 = 音频
             except Exception as e:
-                print(f"[凤希AI选择角色] 查询角色音频失败：{e}")
+                print(f"[凤希AI] 选择角色：查询角色音频失败：{e}")
 
             try:
                 if os.path.exists(get_image_path(avatar)):

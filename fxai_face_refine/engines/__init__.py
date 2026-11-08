@@ -22,7 +22,7 @@ from . import detect, paths, vosr2  # noqa: F401
 try:                       # 换脸是可选能力，导入失败不该连累精修主链路
     from . import swap  # noqa: F401
 except Exception as _swap_exc:  # pragma: no cover
-    print(f"⚠️[凤希AI] 换脸引擎导入失败（不影响精修）: {_swap_exc}")
+    print(f"⚠️[凤希AI] 可选引擎导入失败（不影响主链路）: {_swap_exc}")
     swap = None
 
 __all__ = ["vosr2", "detect", "paths", "swap"]

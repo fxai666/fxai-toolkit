@@ -42,14 +42,14 @@ def install_package(package):
         importlib.import_module(package)
         return True
     except ImportError:
-        print(f"[凤希AI音频分段器] 未找到 {package}，正在自动安装...")
+        print(f"[凤希AI] 音频分段器：未找到 {package}，正在自动安装...")
         python_exe = sys.executable
         try:
             subprocess.check_call([python_exe, "-m", "pip", "install", package])
-            print(f"[凤希AI音频分段器] {package} 安装成功")
+            print(f"[凤希AI] 音频分段器：{package} 安装成功")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"[凤希AI音频分段器] 安装 {package} 失败: {e}")
+            print(f"[凤希AI] 音频分段器：安装 {package} 失败: {e}")
             return False
 
 required_packages = ["soundfile","psutil"]

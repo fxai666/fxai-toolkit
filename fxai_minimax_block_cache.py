@@ -172,7 +172,7 @@ class _MiniMaxH3Cache:
             return
         self.disabled = True
         self.measuring = False
-        print(f"【凤希AI】块缓存加速已自动关闭，后续按官方原速运行（原因：{exc!r}）")
+        print(f"[凤希AI] 块缓存加速已自动关闭，后续按官方原速运行（原因：{exc!r}）")
 
     def _warm_blocks(self, block_count):
         """无测量时的默认 warm 块数，与官方固定尾部缓存一致。"""
@@ -260,7 +260,7 @@ class _MiniMaxH3Cache:
         if self.total_blocks <= 0:
             return
         saved = 100.0 * self.skipped_blocks / self.total_blocks
-        print(f"【凤希AI】加速生效，已加速 {saved:.0f}% （{self.preset_name}档）。如需调整请切换节点的【速度档位】。")
+        print(f"[凤希AI] 加速生效，已加速 {saved:.0f}% （{self.preset_name}档）。如需调整请切换节点的【速度档位】。")
 
 
 class _MiniMaxH3BlockHook:

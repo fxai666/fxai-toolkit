@@ -104,7 +104,7 @@ _OOM_HINTS = (
 
 def _log(msg):
     if _VERBOSE:
-        print(f"[凤希AI·守卫] {msg}", flush=True)
+        print(f"[凤希AI] 守卫：{msg}", flush=True)
 
 
 def looks_like_oom(ex):
@@ -190,7 +190,7 @@ def recover(reason="手动", quiet=False, shrink=False):
         _log(f"硬回收完成（{reason}）第 {_state['recover_count']} 次"
              + (f"，{len(bad)} 步失败：{[s['step'] for s in bad]}" if bad else "，全部成功"))
     else:
-        print(f"[凤希AI·守卫] 已释放显存与内存（{reason}）"
+        print(f"[凤希AI] 守卫：已释放显存与内存（{reason}）"
               + (f"，{len(bad)} 步失败" if bad else ""), flush=True)
     return {"ok": not bad, "reason": reason, "steps": steps}
 
@@ -577,7 +577,7 @@ def _register_routes():
 
 def install():
     if not _ENABLED:
-        print("[凤希AI·守卫] FXAI_GUARD=0，已关闭", flush=True)
+        print("[凤希AI] 守卫：FXAI_GUARD=0，已关闭", flush=True)
         return False
     if _state["installed"]:
         return True
