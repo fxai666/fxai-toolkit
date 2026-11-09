@@ -59,6 +59,7 @@ L5  **提交前预检**：挂在 `PromptQueue.put` 上，队列空时自动清�
 
 import gc
 import os
+import subprocess
 import threading
 import time
 import traceback
@@ -70,9 +71,18 @@ _state = {
     "last_recover_reason": "",
     "last_recover_steps": [],
     "last_error": "",
+    "last_error_at": "",
+    "last_error_kind": "none",
+    "error_log": [],
     "errors_seen": 0,
     "last_preflight_at": 0,
 }
+
+# 最近的错误摘要，供提交链判因（HTTP 5xx / OOM 到底是显存还是服务本身）。
+_ERROR_LOG = []
+# 空载固有开销（CUDA 上下文 + aimdo 虚拟地址保留），仅用于算「残留增量」。
+_IDLE_USED_GIB = float(os.environ.get("FXAI_GUARD_IDLE_GIB", "1.2"))
+_SKIP_RECOVER_GIB = float(os.environ.get("FXAI_GUARD_SKIP_GIB", "1.0"))
 
 _EXECUTOR = None
 _PREFLIGHT_LOCK = threading.Lock()
@@ -107,12 +117,30 @@ def _log(msg):
         print(f"[凤希AI] 守卫：{msg}", flush=True)
 
 
+def looks_like_oom_text(text):
+    """文本级显存错误判据，供状态接口与提交链共用。"""
+    return any(h in (text or "").lower() for h in _OOM_HINTS)
+
+
 def looks_like_oom(ex):
     """字符串级兜底判断：`aimdo` 把 OOM 包成普通 RuntimeError，只能看文本。"""
     if ex is None:
         return False
-    text = f"{type(ex).__name__}: {ex}".lower()
-    return any(h in text for h in _OOM_HINTS)
+    return looks_like_oom_text(f"{type(ex).__name__}: {ex}")
+
+
+def _record_error(text, kind="other"):
+    """结构化记录最近错误，让 /fxai/guard/status 能回答「刚才是什么错」。"""
+    short = str(text)[:500]
+    at = time.strftime("%Y-%m-%d %H:%M:%S")
+    kind = "memory" if looks_like_oom_text(short) else kind
+    _state["last_error"] = short
+    _state["last_error_at"] = at
+    _state["last_error_kind"] = kind
+    _state["errors_seen"] += 1
+    _ERROR_LOG.append({"at": at, "kind": kind, "text": short})
+    del _ERROR_LOG[:-8]
+    _state["error_log"] = list(_ERROR_LOG)
 
 
 # ---------------------------------------------------------------- 硬回收
@@ -213,8 +241,7 @@ def _patch_is_oom():
                 mm.discard_cuda_async_error()
             except Exception:
                 pass
-            _state["errors_seen"] += 1
-            _state["last_error"] = f"{type(e).__name__}: {e}"[:500]
+            _record_error(f"{type(e).__name__}: {e}", "memory")
             return True
         return False
 
@@ -250,7 +277,7 @@ def _patch_host_buffer():
                 try:
                     return orig(self, *args, **kwargs)
                 except RuntimeError as e:
-                    _state["last_error"] = f"HostBuffer.{name}: {e}"[:500]
+                    _record_error(f"HostBuffer.{name}: {e}", "memory")
                     _log(f"HostBuffer.{name} 失败，已忽略（清理失败不影响执行）：{e}")
                     return None
             wrapper._fxai_guarded = True
@@ -275,6 +302,7 @@ def _patch_unload():
         try:
             return orig(*a, **kw)
         except Exception as e:
+            _record_error(f"unload_all_models: {type(e).__name__}: {e}", "memory")
             _log(f"卸载模型时报错，已忽略：{type(e).__name__}: {e}")
             try:
                 mm.soft_empty_cache()
@@ -378,6 +406,11 @@ def _patch_error_handler():
         except Exception as e:
             _log(f"上报错误本身失败：{type(e).__name__}: {e}")
         finally:
+            try:
+                _record_error(f"{type(ex).__name__}: {ex}",
+                              "memory" if looks_like_oom(ex) else "other")
+            except Exception:
+                pass
             if looks_like_oom(ex):
                 try:
                     recover(reason=f"prompt {str(prompt_id)[:8]} 显存/内存异常")
@@ -391,24 +424,53 @@ def _patch_error_handler():
 
 # ---------------------------------------------------------------- 状态
 
+def _hardware_status():
+    """物理卡硬件实况，供接口回答「现在显存硬件是什么情况」。"""
+    try:
+        txt = subprocess.run(
+            ["nvidia-smi", "--query-gpu=index,name,memory.used,memory.total,utilization.gpu",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=10).stdout
+        rows = []
+        for line in txt.splitlines():
+            p = [x.strip() for x in line.split(",")]
+            if len(p) >= 5 and p[0].isdigit() and p[2].isdigit():
+                rows.append({"index": int(p[0]), "name": p[1],
+                             "used_gib": round(int(p[2]) / 1024.0, 2),
+                             "total_gib": round(int(p[3]) / 1024.0, 2),
+                             "util_pct": p[4]})
+        return rows
+    except Exception as e:
+        return [{"error": f"{type(e).__name__}: {e}"}]
+
+
 def status():
     import comfy.model_management as mm
     out = dict(_state)
     out["enabled"] = _ENABLED
+    out["hardware"] = _hardware_status()
+    out["idle_used_gib"] = _IDLE_USED_GIB
+    out["skip_recover_gib"] = _SKIP_RECOVER_GIB
     try:
         import torch
         if torch.cuda.is_available():
             free, total = torch.cuda.mem_get_info()
+            used = (total - free) / 2**30
             out["vram"] = {"free_gb": round(free / 2**30, 2),
                            "total_gb": round(total / 2**30, 2),
+                           "used_gb": round(used, 2),
                            "device": torch.cuda.current_device()}
+            out["residual_gib"] = round(max(0.0, used - _IDLE_USED_GIB), 2)
     except Exception as e:
         out["vram"] = {"error": f"{type(e).__name__}: {e}"}
+        out["residual_gib"] = None
     try:
         out["pinned_gb"] = round(getattr(mm, "TOTAL_PINNED_MEMORY", 0) / 2**30, 2)
         out["pinned_budget_gb"] = round(getattr(mm, "MAX_PINNED_MEMORY", 0) / 2**30, 2)
+        out["models_loaded"] = len(getattr(mm, "current_loaded_models", []) or [])
     except Exception:
         pass
+    out["error_log"] = list(_ERROR_LOG)
     return out
 
 
@@ -453,10 +515,26 @@ def preflight(reason="提交前", min_free_gb=None, q=None):
             steps.append({"step": "清执行缓存", "ok": False,
                           "detail": f"{type(e).__name__}: {e}"})
 
-    rec = recover(reason=reason, quiet=True, shrink=False)
-    steps.extend(rec["steps"])
+    # 释放前先探测：残留低于阈值、显存余量够、pinned 归零时跳过硬回收。
+    # 提交公共层的门禁已按同一判据清过一遍，此处再做一次 recover 属重复卸载。
+    st0 = status()
+    free0 = st0.get("vram", {}).get("free_gb")
+    residual0 = st0.get("residual_gib")
+    pinned0 = st0.get("pinned_gb")
+    already_clean = (
+        isinstance(free0, (int, float)) and free0 >= min_free_gb
+        and isinstance(residual0, (int, float)) and residual0 <= _SKIP_RECOVER_GIB
+        and isinstance(pinned0, (int, float)) and pinned0 <= 0.01
+    )
+    if already_clean:
+        steps.append({"step": "硬回收", "ok": True,
+                      "detail": f"释放前探测残留 {residual0:.2f}G ≤ {_SKIP_RECOVER_GIB:.2f}G，跳过"})
+        st = st0
+    else:
+        rec = recover(reason=reason, quiet=True, shrink=False)
+        steps.extend(rec["steps"])
+        st = status()
 
-    st = status()
     free = st.get("vram", {}).get("free_gb")
     failed = [s["step"] for s in steps if not s["ok"]]
     vram_unknown = not isinstance(free, (int, float))
@@ -466,6 +544,9 @@ def preflight(reason="提交前", min_free_gb=None, q=None):
     out = {
         "ok": ok,
         "skipped": False,
+        "recovered": not already_clean,
+        "residual_gib": residual0,
+        "models_loaded": st0.get("models_loaded"),
         "need_restart": bool(failed),
         "low_vram": low_vram,
         "vram_free_gb": free,
@@ -476,7 +557,8 @@ def preflight(reason="提交前", min_free_gb=None, q=None):
     }
     if ok:
         _state["last_preflight_at"] = time.time()
-        out["message"] = f"提交前清理完成，显存可用 {free:.2f}G"
+        out["message"] = (f"释放前探测已干净（残留 {residual0:.2f}G），跳过回收，显存可用 {free:.2f}G"
+                          if already_clean else f"提交前清理完成，显存可用 {free:.2f}G")
     else:
         if failed:
             out["message"] = "硬回收有失败步骤，CUDA 上下文可能已脏，请重启 ComfyUI 再提交"
