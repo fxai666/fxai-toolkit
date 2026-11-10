@@ -1,5 +1,13 @@
-不知道怎么操作的进Q群：775649071
-不想加群的，那就去B站看视频吧：https://space.bilibili.com/1242183138
+> **快速开始**：要装节点看「[九、安装指南](#九安装指南)」，云端 GPU 看「[9.2 仙宫云 GPU 实例安装](#92-仙宫云-gpu-实例安装)」，全部官方链接看「[十、相关链接一览](#十相关链接一览)」。
+>
+> 不知道怎么操作的进Q群：**775649071**；不想加群的，那就去B站看视频吧：https://space.bilibili.com/1242183138
+
+| 常用入口 | 地址 |
+|---|---|
+| 开源仓库（GitHub） | https://github.com/fxai666/fxai-toolkit |
+| 官网 | https://www.fxai.site |
+| 视频教程（B站） | https://space.bilibili.com/1242183138 |
+| 官方QQ交流群 | 775649071 |
 
 # ComfyUI - 凤希全能节点包 产品说明书
 ## 一、产品概述
@@ -161,9 +169,129 @@ ctl.cmd where   打印识别到的 ComfyUI 根目录、配置文件、脚本路�
 脚本会自己向上找带 `fxai.json` 的目录当根目录（放在 `custom_nodes/fxai-toolkit/` 时向上两级即 `ComfyUI/`），
 启动前把工作目录切到根目录，因此 `main.py` 里的相对路径不受影响。
 
+## 九、安装指南
+
+### 9.1 本机 / 常规 ComfyUI 安装
+
+**前提**：已装好 [ComfyUI](https://github.com/comfyanonymous/ComfyUI)，建议 **≥ 0.30.0**（MiniMax H3 相关节点需要较新的本体）。三种装法任选其一：
+
+| 方式 | 操作 |
+|---|---|
+| ComfyUI-Manager（推荐） | 装好 [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager)，在节点列表里搜 `fxai-toolkit` / `凤希`，或用「Install via Git URL」填 `https://github.com/fxai666/fxai-toolkit` |
+| Git 克隆（推荐，方便升级） | `cd <ComfyUI>/custom_nodes` 后执行 `git clone https://github.com/fxai666/fxai-toolkit.git` |
+| ZIP 解压 | 在仓库页面 Code → Download ZIP（或 [Releases](https://github.com/fxai666/fxai-toolkit/releases) 里已发布的包）下载，解压到 `custom_nodes/`，目录改名为 `fxai-toolkit`；这种方式没有 `.git`，以后升级要删掉重拉 |
+
+装完**重启 ComfyUI**。本包没有 `requirements.txt`，首次启动会自动补 `soundfile`、`psutil`（需要联网）；若启动日志出现 `ModuleNotFoundError: No module named 'xxx'`，用 ComfyUI 那个 Python 环境手动补包再重启：
+
+```bash
+<ComfyUI的python> -m pip install <缺的包名>
+```
+
+**验收**：启动日志里 `custom_nodes/fxai-toolkit` 加载无 `IMPORT FAILED` / `ModuleNotFoundError` → 节点搜索框能搜到「凤希AI - …」开头的节点 → 打开 `http://127.0.0.1:8188/fxweb` 能看到素材库页面 → `/fxai/health` 返回正常。四条都过才算装好。
+
+**升级**：git 装的在 `custom_nodes/fxai-toolkit` 里 `git pull --ff-only`；zip 装的删旧目录重拉，并清掉旧 `__pycache__`；升级完照例重启。
+
+### 9.2 仙宫云 GPU 实例安装
+
+没有本机显卡、或想直接上 4090 跑全套工作流，用 [仙宫云](https://www.xiangongyun.com) 的 GPU 实例。按省事程度有三条路：
+
+#### 方式 A：直接用官方公共镜像（最省事，拉起即用）
+
+创建实例时在**公共镜像**里搜「**凤希AI-ComfyUI全自动短剧MV数字人生成**」（镜像 ID `9463d4ca-2f86-45cf-b0a3-a81ba6f3b27c`，类型 `community`），里面已经装好 ComfyUI、本节点包全部 `FxAi*` 节点和约 80 GB 的常用模型（千问2.1 / MiniMax H3 / YuE2 / Mel-Band RoFormer 等），不用自己克隆、不用等模型下载。开机后确认 ComfyUI 8188 能打开即可。官网也提供仙宫云镜像与代部署服务：在[官网](https://www.fxai.site)下载「凤希AI伴侣」，软件内下单即可；镜像若搜不到，走下面的方式 B/C。
+
+#### 方式 B：已有实例，手动装节点
+
+从仙宫云控制台拿 SSH 信息，连进实例后执行（路径按实例里 ComfyUI 的实际位置改）：
+
+```bash
+cd /root/ComfyUI/custom_nodes        # 没有 ComfyUI 就先克隆 https://github.com/comfyanonymous/ComfyUI.git
+git clone --depth 1 https://github.com/fxai666/fxai-toolkit.git
+# 重启 ComfyUI：控制台重启实例，或重启自己的启动脚本 / screen 会话
+```
+
+- 平台到 GitHub 的 TLS 偶发 `gnutls_handshake() failed`，**重试 2~3 次即可**；`codeload.github.com` 的 zip 下载在该平台常返 404，**请用 `git clone`，不要下 zip**。
+- 依赖与重启规则同 9.1；容器里只有 `python3` 时，pip 要用 ComfyUI 那个 conda/env 的解释器，别用系统 pip。
+- 装完必须重启 ComfyUI 才会注册节点；**不要在 ComfyUI 进程外裸 `import` 验证**，会误报 `PromptServer has no attribute 'instance'`，以重启后的节点列表 / `/object_info` 为准。
+
+#### 方式 C：已装凤希AI技能包，一键部署
+
+技能包里的 `fxai-xiangongyun-deploy` 会把「ComfyUI 本体 → 本节点包 → 模型」一次装完，可中断可续跑：
+
+```bash
+cd <凤希AI技能包>/fxai-xiangongyun-deploy/scripts
+python deploy.py plan  --group all                                   # 先看要装什么、多大
+python deploy.py probe -H <实例IP> -p <SSH端口> -u root -P <SSH密码>  # 体检 GPU / 磁盘 / 已有 ComfyUI
+python deploy.py run   -H <实例IP> -p <SSH端口> -u root -P <SSH密码> --group all
+```
+
+常用开关：`--no-models` 只装节点、`--no-nodes` 只下模型、`--group img|music|mv|vocalsep` 分组下模型、`--variant pruned` 用剪枝版 H3 省空间、`--comfy-dir` 指定 ComfyUI 目录、`--parallel 3` 提速；没有 SSH 时用 `python deploy.py emit --group all --out xgy_deploy.sh` 生成自包含脚本粘到实例终端执行。SSH 凭据放本机 `~/.workbuddy/fxai_global.json`，**不要写进脚本或提交到仓库**。
+
+#### 云端注意点
+
+| 事项 | 说明 |
+|---|---|
+| ComfyUI 访问地址 | 平台给的容器域名把**端口写在主机名里**（形如 `https://<实例ID>-8188.container.x-gpu.com`），不是 `:8188` 后缀；以控制台 / `comfy-url` 给出的地址为准。控制台没放行公网时用 SSH 端口转发 `ssh -L 8188:127.0.0.1:8188 -p <端口> -N root@<ip>`，本机连 `127.0.0.1:8188` |
+| 模型下载加速 | 把 `https://huggingface.co` 换成 `http://hf.x-gpu.com`（`HF_ENDPOINT` 同理）；整仓库可 `hf download`。返 401 = 平台未收录该模型，只能找仙宫云客服收录 |
+| 磁盘 | 免费系统盘 = 镜像 + 100 GB × GPU 数；全量模型约 80 GB，下载前先看剩余空间。不够就分组下、挂数据盘，或「关机释放 GPU → 开机」免费扩容。停机省钱要**关机并释放 GPU**，「关机保留 GPU」照价计费 |
+| 装完不生效 | 先重启 ComfyUI；再查日志是否缺 Python 依赖（整个包 import 失败会让所有 `FxAi*` 节点都不注册）；最后确认 ComfyUI ≥ 0.30.0 |
+
+### 9.3 相关排障速查
+
+| 现象 | 处理 |
+|---|---|
+| 节点全部消失 / `IMPORT FAILED` | 十有八九是缺依赖导致整包 import 失败，看 `comfyui.log` 里的 `ModuleNotFoundError`，补包后重启 |
+| 「找不到模型」 | 本包部分节点读盘目录与常规约定不同，按节点提示的真实目录放模型 |
+| Manager 报拉不到在线清单 | 云端 `raw.githubusercontent.com` / `comfyregistry.org` 可能不通，Manager 会退到 local mode，**不影响装节点**，装节点走 `git clone` |
+| 节点数量不对 | 重启后查 `/object_info` 里 `FxAi*` 是否都在，别只看前端缓存，必要时强刷 `Ctrl+Shift+R` |
+
+## 十、相关链接一览
+
+| 分类 | 名称 | 地址 / 号码 |
+|---|---|---|
+| 项目 | 开源仓库（GitHub） | https://github.com/fxai666/fxai-toolkit |
+| 项目 | Wiki 文档 | https://github.com/fxai666/fxai-toolkit/wiki |
+| 项目 | 问题反馈 / Issues | https://github.com/fxai666/fxai-toolkit/issues |
+| 项目 | Releases / ZIP 下载 | https://github.com/fxai666/fxai-toolkit/releases |
+| 项目 | Comfy Registry | https://registry.comfy.org （搜 `fxai-toolkit` / `FxAi`） |
+| 官方 | 凤希AI 官网 | https://www.fxai.site |
+| 官方 | 技能全览 | https://www.fxai.site/skills/ |
+| 官方 | 完整操作手册 | https://www.fxai.site/skills/manual.html |
+| 社区 | 官方QQ交流群 | **775649071**（安装指导、工作流搭建、故障排查） |
+| 社区 | B站视频教程 | https://space.bilibili.com/1242183138 |
+| 社区 | 服务咨询微信 | `fxai168`（下单后联系，非日常答疑） |
+| 社区 | 联系邮箱 | 15810208908@qq.com |
+| 下载 | 整合包 / 模型 / 工作流 —— 夸克网盘 | https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7 |
+| 下载 | 迅雷网盘（提取码 `qnc3`） | https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3 |
+| 下载 | 百度网盘（提取码 `7r73`） | https://pan.baidu.com/s/1xt_93bsji6g76pvWZt4GZw?pwd=7r73 |
+| 云平台 | 仙宫云官网 | https://www.xiangongyun.com |
+| 云平台 | 仙宫云开放平台 API 文档 | https://www.xiangongyun.com/a/API |
+| 云平台 | 仙宫云 HF 镜像 | http://hf.x-gpu.com |
+| 依赖 | ComfyUI 官方仓库 | https://github.com/comfyanonymous/ComfyUI |
+| 依赖 | ComfyUI-Manager | https://github.com/Comfy-Org/ComfyUI-Manager |
+
+> 网盘链接会随版本更新，失效时以[官网](https://www.fxai.site)、GitHub Releases 或 QQ 群文件里的最新地址为准。
+
 # 授权说明 License
 ## 开源协议
 本项目基于 **MIT License** 开源。
 
 ## 免责声明
 本软件按现状提供，开源版本不提供任何商用担保与技术保障，如需技术支持请联系作者。
+
+---
+
+## 赞助作者及获取授权使用
+
+**赞助作者后立即获取使用授权**：扫码完成赞助，即刻获得本节点包（含源代码、节点与工作流）的使用授权，可用于个人、学习、商用及对外交付；**付款完成即生效**，无需再单独申请、联系或等待确认。金额按你的受益程度自行决定。
+
+这套节点是**开源可读**的：代码、节点、工作流全部摊开，不加密、不留一手。但开源不等于无主之物——模型换代要适配、ComfyUI 版本要跟进、链路跑崩了一节一节复盘，才有今天这些节点与判据；愿意支持的人越多，更新就能做得越快、覆盖越全。
+
+<div align="center">
+  <img src="assets/sponsor-qr.png" width="260" alt="凤希AI 收款二维码" />
+  <br />
+  <sub>凤希AI伴侣(*杰) · 扫码赞助作者</sub>
+</div>
+
+需要授权凭证、发票或批量商用说明：加 QQ 群 **775649071** 或微信 `fxai168` 联系作者。暂时不方便付费，也欢迎点个 Star、把仓库转给用得上的人、遇到问题提个 Issue。
+
+> 本节为最新授权口径；仓库内其它位置若出现「商用需先联系购买授权」等旧表述，一律以本节「赞助后即获取使用授权」为准。
