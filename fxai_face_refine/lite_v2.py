@@ -15,7 +15,7 @@
 
 四条硬约束
 ----------
-1. `裁切框边长 × 超分倍数` 落在 512（VOSR2 训练分辨率）
+1. `裁切框边长 × 超分倍数` 落在 512（超分模型训练分辨率）
 2. 裁切框按**这张脸自己的宽度**算，与全片最大脸无关（小脸占比才够）
 3. 脸宽 ≥ 处理脸宽上限就跳过，整张不动（唯一的速度总闸）
 4. 阈值附近带 15% 滞回：同一张脸在相邻帧之间保持同一判定，不跟着检测抖动进出
@@ -30,7 +30,7 @@
 
 放大倍数（可选输入）
 --------------------
-两个脸宽门槛都是按**原图像素**标定的。上游「SeedVR2超分」超 N 倍后脸宽也变 N 倍，
+两个脸宽门槛都是按**原图像素**标定的。上游超分把画面放大 N 倍后脸宽也变 N 倍，
 不换算的话 96 会把所有脸都判成「清晰跳过」，一张都不修。
 接上 `放大倍数` 后：`实际门槛 = 门槛 × 放大倍数`。不接 = 1.0，两个门槛按填的原值生效。
 
@@ -128,15 +128,15 @@ class FxAiFaceRestoreLiteV2:
                     "default": 0, "min": 0, "max": 512, "step": 16,
                     "tooltip": "裁切框边长（原图尺度）。**0 = 自动**：每张脸按自己的宽度算，"
                                "取 1.5 倍脸宽并向上对齐到 128/256/512，超分倍数自动配套，"
-                               "保证 裁切框 × 超分倍数 正好 512（VOSR2 训练分辨率）。\n"
+                               "保证 裁切框 × 超分倍数 正好 512（超分模型训练分辨率）。\n"
                                "手填时所有脸共用一个框，只允许 128/256/512。"}),
                 "超分倍数": ("INT", {
                     "default": 4, "min": 1, "max": 4, "step": 1,
                     "tooltip": "超分倍数。有效放大倍数 = 512 / 裁切框边长。"
                                "裁切框边长 = 0（自动）时由程序配套设定，这一项不生效。"}),
-                "超分引擎": (["自研超分 (VOSR2)", "纯插值 (Lanczos)"], {
-                    "default": "自研超分 (VOSR2)",
-                    "tooltip": "自研超分 (VOSR2) = 生成式超分，能把糊掉的五官重建出来；\n"
+                "超分引擎": (["自研超分", "纯插值 (Lanczos)"], {
+                    "default": "自研超分",
+                    "tooltip": "自研超分 = 生成式超分，能把糊掉的五官重建出来；\n"
                                "纯插值 (Lanczos) = 只放大不救细节（没装模型时用）。"}),
                 "遮罩比例": ("FLOAT", {
                     "default": 0.70, "min": 0.40, "max": 1.20, "step": 0.05,
@@ -212,7 +212,7 @@ class FxAiFaceRestoreLiteV2:
                     "forceInput": True,
                     "tooltip": "**上游超分的实际倍数**，用来把脸宽门槛换算回原图尺度。\n"
                                "不接 = 1.0，两个门槛按填的原值生效（老行为，完全不变）。\n"
-                               "接了「SeedVR2超分」节点的「放大倍数」输出后：\n"
+                               "接了上游超分节点的「放大倍数」输出后：\n"
                                "  实际处理脸宽上限 = 处理脸宽上限 × 放大倍数\n"
                                "  实际换脸脸宽上限 = 换脸脸宽上限 × 放大倍数\n"
                                "**为什么需要**：这两个门槛是按**原图像素**标定的。"
@@ -244,7 +244,7 @@ class FxAiFaceRestoreLiteV2:
     )
 
     def run(self, 输入帧=None, 处理脸宽上限=96, 裁切框边长=0, 超分倍数=4,
-            超分引擎="自研超分 (VOSR2)", 遮罩比例=0.70, 羽化半径=0.045,
+            超分引擎="自研超分", 遮罩比例=0.70, 羽化半径=0.045,
             身份相似度阈值=0.10, 默认人物=1,
             换脸脸宽上限=96, 换脸强度=1.0, 肤色回拉=0.60, 纹理保留=0.90,
             随机种子=42, 批大小=4, 显卡编号=0, 参考图=None, 放大倍数=1.0, **legacy):
@@ -294,7 +294,7 @@ class FxAiFaceRestoreLiteV2:
                    if 换脸脸宽上限 > 0 else ""))
 
         # 前面节点（视频采样模型之类）可能还占着显存。启动参数带 --disable-smart-memory 时
-        # ComfyUI 不会自动卸载它们，本节点又要把 VOSR2（1.39B）+ inswapper + buffalo_l
+        # ComfyUI 不会自动卸载它们，本节点又要把自研超分模型（1.39B）+ inswapper + buffalo_l
         # 一起装进来（约 6.5 GiB），撞上就 OOM —— 而且 OOM 时不会崩，是**静默降级**：
         # 超分全部退回插值、换脸直接不初始化，成片糊一大截。
         # 所以加载自己的模型之前先腾一次地方；只有真的不够才动手，免得显存充裕时白卸别人的模型。
@@ -315,13 +315,16 @@ class FxAiFaceRestoreLiteV2:
 
         t0 = time.time()
         h, w = int(images.shape[1]), int(images.shape[2])
+        # 「引擎」只报用户能理解的中文名；内部标识（vosr2 / lanczos）不往外抛，
+        # 免得被误读成在调用第三方节点包。分支判断仍用 engine 原值。
+        engine_label = "自研超分" if engine == "vosr2" else "纯插值"
         msg = (f"人脸精修V2(全脸) 开始执行：{n} 帧 {w}x{h}  "
-               f"参考图 {len(ref_frames)} 张  引擎 {engine}")
+               f"参考图 {len(ref_frames)} 张  引擎 {engine_label}")
         print(f"[凤希AI] {msg}", flush=True)
         _bc(_EVT_START, {
             "message": msg, "阶段": "开始", "版本": "V2全脸",
             "帧数": n, "宽": w, "高": h, "参考图张数": len(ref_frames),
-            "引擎": engine, "处理脸宽上限": eff_lo, "放大倍数": scale,
+            "引擎": engine_label, "处理脸宽上限": eff_lo, "放大倍数": scale,
             "显卡编号": device_id, "批大小": 批大小,
         })
 
@@ -516,7 +519,7 @@ class FxAiFaceRestoreLiteV2:
         if 裁切框边长 > 0:
             cs, up = _snap_crop(裁切框边长)
             if cs != 裁切框边长:
-                notes.append(f"⚠️ 裁切框 {裁切框边长} 不是 VOSR2 原生尺寸，已吸附到 {cs}")
+                notes.append(f"⚠️ 裁切框 {裁切框边长} 不是超分模型原生尺寸，已吸附到 {cs}")
             groups = {(cs, up): tasks}
             crop_desc = f"{cs}x{up}（全部脸共用）"
         else:
@@ -529,7 +532,7 @@ class FxAiFaceRestoreLiteV2:
                 for (c, u), g in sorted(groups.items()))
 
         notes.insert(0, (f"帧数 {n}   裁切 {crop_desc} = 512px"
-                         + ("  （命中 VOSR2 原生 512）" if all(c * u == fx_vosr.NATIVE
+                         + ("  （命中原生 512）" if all(c * u == fx_vosr.NATIVE
                                                              for c, u in groups) else "")))
 
         # ---- 4) 分批超分 + 逐张羽化贴回 ----
@@ -582,7 +585,7 @@ class FxAiFaceRestoreLiteV2:
         n_swap = sum(1 for (_i, _f, r) in tasks if r >= 0)
         rep = notes + [
             f"链路：裁 {crop_desc} -> "
-            f"{'自研 VOSR2' if sr_engine else 'lanczos'} -> 逐张羽化贴回",
+            f"{'自研超分' if sr_engine else '纯插值'} -> 逐张羽化贴回",
             f"共修 {len(tasks)} 张脸（{n} 帧，平均 {len(tasks) / n:.2f} 张/帧）",
         ]
         if skip_clear:

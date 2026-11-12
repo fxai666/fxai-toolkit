@@ -29,7 +29,7 @@
 
 因此身份与纹理分开处理（`texture_keep` 参数）：
     final = 换脸结果 + (超分结果 - 低频(超分结果)) × texture_keep
-身份由换脸模型决定，纹理由 VOSR2 决定，两者互不覆盖。texture_keep=0 为不注入。
+身份由换脸模型决定，纹理由自研超分决定，两者互不覆盖。texture_keep=0 为不注入。
 """
 
 import os

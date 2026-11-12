@@ -2411,7 +2411,7 @@
         "Node name for S&R": "BasicScheduler"
       },
       "widgets_values": [
-        "simple",
+        "beta57",
         8,
         1
       ],
@@ -3034,15 +3034,15 @@
         "Node name for S&R": "FxAiScreenManager"
       },
       "widgets_values": [
-        "[[10,\"主体定义\\n<Subject 1> 是 <Picture 1> 中的古装中国年轻女子，两条细眉、细长的丹凤眼，月白窄袖劲装配束腰短甲，黑发高挽并坠一支断纹素银簪，右手持一柄窄刃长剑。\\n<Subject 2> 是 <Picture 2> 中的古装中国年轻男子，剑眉、狭长凤眼，鸦青长衫外罩一层银线暗纹短褂，黑发以乌木簪束起，左手持一柄乌木骨铁面折扇（扇骨九节，第三节上有一道旧裂纹）。\\n<Subject 3> 是 <Picture 3> 中的临水木构戏台，台心一根朱漆立柱撑起藻井，台面高出水面约一人，台沿一侧通向水面的石阶、回廊转角一扇花窗，梁上悬两盏暖光灯笼，青瓦顶，台下水面把暖光打成晃动的碎片，夜色偏冷。\\n\\n摘要\\n[reference generation] <Subject 1> (S1) 站在画面正中偏左、侧身朝右，<Subject 2> (S2) 站在画面右前方两步外、三分之四侧身朝左，两人正对；<Subject 3> (S3) 的朱漆立柱立在画面左后方。<Picture 1> 作为 <Subject 1> 的人物外观参考，<Picture 2> 作为 <Subject 2> 的人物外观参考，<Picture 3> 作为 <Subject 3> 的场景背景参考。目标视频是折扇对长剑的第二轮交锋，主角挑崩对手扇骨并绕柱错身，随即被对手的扇面卸力与扇尖连点逼到台沿。\\n\\n延续分析\\n<Subject 1> (appears in [Shot 1]): fully_preserved - 保留月白窄袖劲装、束腰短甲、高挽黑发、断纹素银簪与窄刃长剑。\\n<Subject 2> (appears in [Shot 1]): fully_preserved - 保留鸦青长衫、银线暗纹短褂、乌木簪束发与乌木骨折扇（含第三节的旧裂纹）。\\n<Subject 3> (appears in [Shot 1]): fully_preserved - 保留台心朱漆立柱、藻井、台沿石阶、回廊花窗、暖光灯笼与台下水面反光。\\n\\n详细描述\\ncamera motion, prfight1\\n夜戏台，灯笼暖光与冷调夜色对撞，写实利落的近身对招氛围。\\n[Shot 1] 中近景镜头，机位与两人胸线齐平，镜头以缓慢的横移跟拍（slow tracking shot）跟住两人的错身方向，幅度小、速度慢。0.00 秒到 2.50 秒，<Subject 2> (S2) 收扇回防、以扇骨压住 <Subject 1> (S1) 的剑脊往下压，<Subject 1> (S1) 借这股压劲把剑尖往上一挑，正挑中 <Subject 2> (S2) 折扇的扇骨的第三节，那道旧裂纹当场崩开，一节乌木扇骨弹起、打着旋落在台板上滚了两圈；<Subject 1> (S1) 顺势侧身步切进 <Subject 2> (S2) 的左侧、绕台心的朱漆立柱换了位；2.50 秒到 6.00 秒，<Subject 2> (S2) 反手把扇面重新抖开、以扇面斜抹偏转 <Subject 1> (S1) 的一记直刺，扇面兜住剑尖把方向带偏，随即合扇、以扇尖连点 <Subject 1> (S1) 的右肘与右腕两处关节，<Subject 1> (S1) 格挡不及、被连点逼得一步步后退，后脚退到台沿、重心压在支撑腿上，画面里台下水面把灯笼的暖光晃成一片碎影。\\n\\n整体音效\\n夜色里的水声与虫鸣铺底，木台在脚步下发出轻微的吱呀声，折扇开合的纸木声、兵器相击的一声脆响与剑刃震颤的余音，水面把声音荡开一层。\\n\\n非叙事音乐\\n一支极简的箫声，低音量，只在兵器相击的两处轻点一记，其余留白。\",\"avatar/000.png,avatar/001.png,scene/040.png\"]]",
+        "[[10,\"主体定义\\n<Subject 1> 是 <Picture 1> 中的古装年轻女子。\n<Subject 2> 是 <Picture 2> 中的古装年轻男子。\n<Subject 3> 是 <Picture 3> 中的临水木构戏台。\n\\n摘要\\n[reference generation] <Subject 1> (S1) 站在画面正中偏左、侧身朝右，<Subject 2> (S2) 站在画面右前方两步外、三分之四侧身朝左，两人正对；<Subject 3> (S3) 的朱漆立柱立在画面左后方。<Picture 1> 作为 <Subject 1> 的人物外观参考，<Picture 2> 作为 <Subject 2> 的人物外观参考，<Picture 3> 作为 <Subject 3> 的场景背景参考。目标视频是折扇对长剑的第二轮交锋，主角挑崩对手扇骨并绕柱错身，随即被对手的扇面卸力与扇尖连点逼到台沿。\\n\\n延续分析\\n<Subject 1> (appears in [Shot 1]): fully_preserved - 保留人物身份、发型发色、服装样式与颜色、裤装、鞋履。\n<Subject 2> (appears in [Shot 1]): fully_preserved - 保留人物身份、发型发色、服装样式与颜色、裤装、鞋履。\n<Subject 3> (appears in [Shot 1]): fully_preserved - 保留场景的建筑、陈设与物品。\n\\n详细描述\\ncamera motion, prfight1\\n夜戏台，灯笼暖光与冷调夜色对撞，写实利落的近身对招氛围。\\n[Shot 1] 中近景镜头，机位与两人胸线齐平，镜头以缓慢的横移跟拍（slow tracking shot）跟住两人的错身方向，幅度小、速度慢。0.00 秒到 2.50 秒，<Subject 2> (S2) 收扇回防、以扇骨压住 <Subject 1> (S1) 的剑脊往下压，<Subject 1> (S1) 借这股压劲把剑尖往上一挑，正挑中 <Subject 2> (S2) 折扇的扇骨的第三节，那道旧裂纹当场崩开，一节乌木扇骨弹起、打着旋落在台板上滚了两圈；<Subject 1> (S1) 顺势侧身步切进 <Subject 2> (S2) 的左侧、绕台心的朱漆立柱换了位；2.50 秒到 6.00 秒，<Subject 2> (S2) 反手把扇面重新抖开、以扇面斜抹偏转 <Subject 1> (S1) 的一记直刺，扇面兜住剑尖把方向带偏，随即合扇、以扇尖连点 <Subject 1> (S1) 的右肘与右腕两处关节，<Subject 1> (S1) 格挡不及、被连点逼得一步步后退，后脚退到台沿、重心压在支撑腿上，画面里台下水面把灯笼的暖光晃成一片碎影。\\n\\n整体音效\\n夜色里的水声与虫鸣铺底，木台在脚步下发出轻微的吱呀声，折扇开合的纸木声、兵器相击的一声脆响与剑刃震颤的余音，水面把声音荡开一层。\\n\\n非叙事音乐\\n一支极简的箫声，低音量，只在兵器相击的两处轻点一记，其余留白。\",\"avatar/000.png,avatar/001.png,scene/040.png\"]]",
         "",
         {
           "name": "lines_data",
-          "value": "[[10,\"主体定义\\n<Subject 1> 是 <Picture 1> 中的古装中国年轻女子，两条细眉、细长的丹凤眼，月白窄袖劲装配束腰短甲，黑发高挽并坠一支断纹素银簪，右手持一柄窄刃长剑。\\n<Subject 2> 是 <Picture 2> 中的古装中国年轻男子，剑眉、狭长凤眼，鸦青长衫外罩一层银线暗纹短褂，黑发以乌木簪束起，左手持一柄乌木骨铁面折扇（扇骨九节，第三节上有一道旧裂纹）。\\n<Subject 3> 是 <Picture 3> 中的临水木构戏台，台心一根朱漆立柱撑起藻井，台面高出水面约一人，台沿一侧通向水面的石阶、回廊转角一扇花窗，梁上悬两盏暖光灯笼，青瓦顶，台下水面把暖光打成晃动的碎片，夜色偏冷。\\n\\n摘要\\n[reference generation] <Subject 1> (S1) 站在画面正中偏左、侧身朝右，<Subject 2> (S2) 站在画面右前方两步外、三分之四侧身朝左，两人正对；<Subject 3> (S3) 的朱漆立柱立在画面左后方。<Picture 1> 作为 <Subject 1> 的人物外观参考，<Picture 2> 作为 <Subject 2> 的人物外观参考，<Picture 3> 作为 <Subject 3> 的场景背景参考。目标视频是折扇对长剑的第二轮交锋，主角挑崩对手扇骨并绕柱错身，随即被对手的扇面卸力与扇尖连点逼到台沿。\\n\\n延续分析\\n<Subject 1> (appears in [Shot 1]): fully_preserved - 保留月白窄袖劲装、束腰短甲、高挽黑发、断纹素银簪与窄刃长剑。\\n<Subject 2> (appears in [Shot 1]): fully_preserved - 保留鸦青长衫、银线暗纹短褂、乌木簪束发与乌木骨折扇（含第三节的旧裂纹）。\\n<Subject 3> (appears in [Shot 1]): fully_preserved - 保留台心朱漆立柱、藻井、台沿石阶、回廊花窗、暖光灯笼与台下水面反光。\\n\\n详细描述\\ncamera motion, prfight1\\n夜戏台，灯笼暖光与冷调夜色对撞，写实利落的近身对招氛围。\\n[Shot 1] 中近景镜头，机位与两人胸线齐平，镜头以缓慢的横移跟拍（slow tracking shot）跟住两人的错身方向，幅度小、速度慢。0.00 秒到 2.50 秒，<Subject 2> (S2) 收扇回防、以扇骨压住 <Subject 1> (S1) 的剑脊往下压，<Subject 1> (S1) 借这股压劲把剑尖往上一挑，正挑中 <Subject 2> (S2) 折扇的扇骨的第三节，那道旧裂纹当场崩开，一节乌木扇骨弹起、打着旋落在台板上滚了两圈；<Subject 1> (S1) 顺势侧身步切进 <Subject 2> (S2) 的左侧、绕台心的朱漆立柱换了位；2.50 秒到 6.00 秒，<Subject 2> (S2) 反手把扇面重新抖开、以扇面斜抹偏转 <Subject 1> (S1) 的一记直刺，扇面兜住剑尖把方向带偏，随即合扇、以扇尖连点 <Subject 1> (S1) 的右肘与右腕两处关节，<Subject 1> (S1) 格挡不及、被连点逼得一步步后退，后脚退到台沿、重心压在支撑腿上，画面里台下水面把灯笼的暖光晃成一片碎影。\\n\\n整体音效\\n夜色里的水声与虫鸣铺底，木台在脚步下发出轻微的吱呀声，折扇开合的纸木声、兵器相击的一声脆响与剑刃震颤的余音，水面把声音荡开一层。\\n\\n非叙事音乐\\n一支极简的箫声，低音量，只在兵器相击的两处轻点一记，其余留白。\",\"avatar/000.png,avatar/001.png,scene/040.png\"]]"
+          "value": "[[10,\"主体定义\\n<Subject 1> 是 <Picture 1> 中的古装年轻女子。\n<Subject 2> 是 <Picture 2> 中的古装年轻男子。\n<Subject 3> 是 <Picture 3> 中的临水木构戏台。\n\\n摘要\\n[reference generation] <Subject 1> (S1) 站在画面正中偏左、侧身朝右，<Subject 2> (S2) 站在画面右前方两步外、三分之四侧身朝左，两人正对；<Subject 3> (S3) 的朱漆立柱立在画面左后方。<Picture 1> 作为 <Subject 1> 的人物外观参考，<Picture 2> 作为 <Subject 2> 的人物外观参考，<Picture 3> 作为 <Subject 3> 的场景背景参考。目标视频是折扇对长剑的第二轮交锋，主角挑崩对手扇骨并绕柱错身，随即被对手的扇面卸力与扇尖连点逼到台沿。\\n\\n延续分析\\n<Subject 1> (appears in [Shot 1]): fully_preserved - 保留人物身份、发型发色、服装样式与颜色、裤装、鞋履。\n<Subject 2> (appears in [Shot 1]): fully_preserved - 保留人物身份、发型发色、服装样式与颜色、裤装、鞋履。\n<Subject 3> (appears in [Shot 1]): fully_preserved - 保留场景的建筑、陈设与物品。\n\\n详细描述\\ncamera motion, prfight1\\n夜戏台，灯笼暖光与冷调夜色对撞，写实利落的近身对招氛围。\\n[Shot 1] 中近景镜头，机位与两人胸线齐平，镜头以缓慢的横移跟拍（slow tracking shot）跟住两人的错身方向，幅度小、速度慢。0.00 秒到 2.50 秒，<Subject 2> (S2) 收扇回防、以扇骨压住 <Subject 1> (S1) 的剑脊往下压，<Subject 1> (S1) 借这股压劲把剑尖往上一挑，正挑中 <Subject 2> (S2) 折扇的扇骨的第三节，那道旧裂纹当场崩开，一节乌木扇骨弹起、打着旋落在台板上滚了两圈；<Subject 1> (S1) 顺势侧身步切进 <Subject 2> (S2) 的左侧、绕台心的朱漆立柱换了位；2.50 秒到 6.00 秒，<Subject 2> (S2) 反手把扇面重新抖开、以扇面斜抹偏转 <Subject 1> (S1) 的一记直刺，扇面兜住剑尖把方向带偏，随即合扇、以扇尖连点 <Subject 1> (S1) 的右肘与右腕两处关节，<Subject 1> (S1) 格挡不及、被连点逼得一步步后退，后脚退到台沿、重心压在支撑腿上，画面里台下水面把灯笼的暖光晃成一片碎影。\\n\\n整体音效\\n夜色里的水声与虫鸣铺底，木台在脚步下发出轻微的吱呀声，折扇开合的纸木声、兵器相击的一声脆响与剑刃震颤的余音，水面把声音荡开一层。\\n\\n非叙事音乐\\n一支极简的箫声，低音量，只在兵器相击的两处轻点一记，其余留白。\",\"avatar/000.png,avatar/001.png,scene/040.png\"]]"
         }
       ],
       "widgets_values_named": {
-        "lines_data": "[[10,\"主体定义\\n<Subject 1> 是 <Picture 1> 中的古装中国年轻女子，两条细眉、细长的丹凤眼，月白窄袖劲装配束腰短甲，黑发高挽并坠一支断纹素银簪，右手持一柄窄刃长剑。\\n<Subject 2> 是 <Picture 2> 中的古装中国年轻男子，剑眉、狭长凤眼，鸦青长衫外罩一层银线暗纹短褂，黑发以乌木簪束起，左手持一柄乌木骨铁面折扇（扇骨九节，第三节上有一道旧裂纹）。\\n<Subject 3> 是 <Picture 3> 中的临水木构戏台，台心一根朱漆立柱撑起藻井，台面高出水面约一人，台沿一侧通向水面的石阶、回廊转角一扇花窗，梁上悬两盏暖光灯笼，青瓦顶，台下水面把暖光打成晃动的碎片，夜色偏冷。\\n\\n摘要\\n[reference generation] <Subject 1> (S1) 站在画面正中偏左、侧身朝右，<Subject 2> (S2) 站在画面右前方两步外、三分之四侧身朝左，两人正对；<Subject 3> (S3) 的朱漆立柱立在画面左后方。<Picture 1> 作为 <Subject 1> 的人物外观参考，<Picture 2> 作为 <Subject 2> 的人物外观参考，<Picture 3> 作为 <Subject 3> 的场景背景参考。目标视频是折扇对长剑的第二轮交锋，主角挑崩对手扇骨并绕柱错身，随即被对手的扇面卸力与扇尖连点逼到台沿。\\n\\n延续分析\\n<Subject 1> (appears in [Shot 1]): fully_preserved - 保留月白窄袖劲装、束腰短甲、高挽黑发、断纹素银簪与窄刃长剑。\\n<Subject 2> (appears in [Shot 1]): fully_preserved - 保留鸦青长衫、银线暗纹短褂、乌木簪束发与乌木骨折扇（含第三节的旧裂纹）。\\n<Subject 3> (appears in [Shot 1]): fully_preserved - 保留台心朱漆立柱、藻井、台沿石阶、回廊花窗、暖光灯笼与台下水面反光。\\n\\n详细描述\\ncamera motion, prfight1\\n夜戏台，灯笼暖光与冷调夜色对撞，写实利落的近身对招氛围。\\n[Shot 1] 中近景镜头，机位与两人胸线齐平，镜头以缓慢的横移跟拍（slow tracking shot）跟住两人的错身方向，幅度小、速度慢。0.00 秒到 2.50 秒，<Subject 2> (S2) 收扇回防、以扇骨压住 <Subject 1> (S1) 的剑脊往下压，<Subject 1> (S1) 借这股压劲把剑尖往上一挑，正挑中 <Subject 2> (S2) 折扇的扇骨的第三节，那道旧裂纹当场崩开，一节乌木扇骨弹起、打着旋落在台板上滚了两圈；<Subject 1> (S1) 顺势侧身步切进 <Subject 2> (S2) 的左侧、绕台心的朱漆立柱换了位；2.50 秒到 6.00 秒，<Subject 2> (S2) 反手把扇面重新抖开、以扇面斜抹偏转 <Subject 1> (S1) 的一记直刺，扇面兜住剑尖把方向带偏，随即合扇、以扇尖连点 <Subject 1> (S1) 的右肘与右腕两处关节，<Subject 1> (S1) 格挡不及、被连点逼得一步步后退，后脚退到台沿、重心压在支撑腿上，画面里台下水面把灯笼的暖光晃成一片碎影。\\n\\n整体音效\\n夜色里的水声与虫鸣铺底，木台在脚步下发出轻微的吱呀声，折扇开合的纸木声、兵器相击的一声脆响与剑刃震颤的余音，水面把声音荡开一层。\\n\\n非叙事音乐\\n一支极简的箫声，低音量，只在兵器相击的两处轻点一记，其余留白。\",\"avatar/000.png,avatar/001.png,scene/040.png\"]]",
+        "lines_data": "[[10,\"主体定义\\n<Subject 1> 是 <Picture 1> 中的古装年轻女子。\n<Subject 2> 是 <Picture 2> 中的古装年轻男子。\n<Subject 3> 是 <Picture 3> 中的临水木构戏台。\n\\n摘要\\n[reference generation] <Subject 1> (S1) 站在画面正中偏左、侧身朝右，<Subject 2> (S2) 站在画面右前方两步外、三分之四侧身朝左，两人正对；<Subject 3> (S3) 的朱漆立柱立在画面左后方。<Picture 1> 作为 <Subject 1> 的人物外观参考，<Picture 2> 作为 <Subject 2> 的人物外观参考，<Picture 3> 作为 <Subject 3> 的场景背景参考。目标视频是折扇对长剑的第二轮交锋，主角挑崩对手扇骨并绕柱错身，随即被对手的扇面卸力与扇尖连点逼到台沿。\\n\\n延续分析\\n<Subject 1> (appears in [Shot 1]): fully_preserved - 保留人物身份、发型发色、服装样式与颜色、裤装、鞋履。\n<Subject 2> (appears in [Shot 1]): fully_preserved - 保留人物身份、发型发色、服装样式与颜色、裤装、鞋履。\n<Subject 3> (appears in [Shot 1]): fully_preserved - 保留场景的建筑、陈设与物品。\n\\n详细描述\\ncamera motion, prfight1\\n夜戏台，灯笼暖光与冷调夜色对撞，写实利落的近身对招氛围。\\n[Shot 1] 中近景镜头，机位与两人胸线齐平，镜头以缓慢的横移跟拍（slow tracking shot）跟住两人的错身方向，幅度小、速度慢。0.00 秒到 2.50 秒，<Subject 2> (S2) 收扇回防、以扇骨压住 <Subject 1> (S1) 的剑脊往下压，<Subject 1> (S1) 借这股压劲把剑尖往上一挑，正挑中 <Subject 2> (S2) 折扇的扇骨的第三节，那道旧裂纹当场崩开，一节乌木扇骨弹起、打着旋落在台板上滚了两圈；<Subject 1> (S1) 顺势侧身步切进 <Subject 2> (S2) 的左侧、绕台心的朱漆立柱换了位；2.50 秒到 6.00 秒，<Subject 2> (S2) 反手把扇面重新抖开、以扇面斜抹偏转 <Subject 1> (S1) 的一记直刺，扇面兜住剑尖把方向带偏，随即合扇、以扇尖连点 <Subject 1> (S1) 的右肘与右腕两处关节，<Subject 1> (S1) 格挡不及、被连点逼得一步步后退，后脚退到台沿、重心压在支撑腿上，画面里台下水面把灯笼的暖光晃成一片碎影。\\n\\n整体音效\\n夜色里的水声与虫鸣铺底，木台在脚步下发出轻微的吱呀声，折扇开合的纸木声、兵器相击的一声脆响与剑刃震颤的余音，水面把声音荡开一层。\\n\\n非叙事音乐\\n一支极简的箫声，低音量，只在兵器相击的两处轻点一记，其余留白。\",\"avatar/000.png,avatar/001.png,scene/040.png\"]]",
         "lines_container": ""
       }
     },
@@ -4143,10 +4143,10 @@
         "secondTabWidth": 65
       },
       "widgets_values": [
-        "0.9035, 0.8000, 0.6316, 0.3158, 0.0000"
+        "0.9035, 0.6316, 0.3158, 0.0000"
       ],
       "widgets_values_named": {
-        "sigmas": "0.9035, 0.8000, 0.6316, 0.3158, 0.0000"
+        "sigmas": "0.9035, 0.6316, 0.3158, 0.0000"
       }
     },
     {
@@ -4249,11 +4249,11 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "minimax_h3_singularity_ref2va_int8.safetensors",
+        "prism_dmad_pdmd_int8.safetensors",
         "default"
       ],
       "widgets_values_named": {
-        "unet_name": "minimax_h3_singularity_ref2va_int8.safetensors",
+        "unet_name": "prism_dmad_pdmd_int8.safetensors",
         "weight_dtype": "default"
       }
     },

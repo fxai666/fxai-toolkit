@@ -2064,7 +2064,7 @@
         }
       },
       "widgets_values": [
-        "WHY THIS EXISTS\n\nMiniMax H3 renders faces poorly when the head is a SMALL FRACTION OF THE FRAME. That is a property of head-size-in-frame, not of resolution - it persists at 720p and above.\n\nSo no upscaler fixes it. SeedVR2 and friends sharpen what is already there; they cannot synthesise facial structure that was never generated.\n\nThe fix: crop to the face so it fills the frame, let H3 re-generate it at LOW denoise so it stays frame-aligned, then composite back."
+        "WHY THIS EXISTS\n\nMiniMax H3 renders faces poorly when the head is a SMALL FRACTION OF THE FRAME. That is a property of head-size-in-frame, not of resolution - it persists at 720p and above.\n\nSo no upscaler fixes it. Upscalers only sharpen what is already there; they cannot synthesise facial structure that was never generated.\n\nThe fix: crop to the face so it fills the frame, let H3 re-generate it at LOW denoise so it stays frame-aligned, then composite back."
       ],
       "color": "#432",
       "bgcolor": "#653",

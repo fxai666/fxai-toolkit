@@ -275,7 +275,7 @@ class AutoencoderKLQwenImage2D(nn.Module):
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if missing or unexpected:
             raise RuntimeError(
-                f"VOSR2 VAE checkpoint at {weight_path} does not match the expected "
+                f"Super-resolution VAE checkpoint at {weight_path} does not match the expected "
                 f"architecture (missing={missing}, unexpected={unexpected})."
             )
         return model

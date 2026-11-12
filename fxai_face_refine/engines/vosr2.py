@@ -2,13 +2,12 @@
 # Licensed under MIT License
 
 """
-凤希AI 自研 VOSR2 超分引擎
+凤希AI 自研生成式超分引擎
 ===========================
 
-这不是把 ComfyUI-VOSR2 的节点包 import 进来用，而是从权重加载到推理链路
-全部自己实现，只保留它的模型结构定义（那部分是公开论文架构，不是一次训练的产物）。
-原先的 `fxai_vosr2_bridge` 伪包导入已彻底移除 —— 删掉 `custom_nodes/ComfyUI-VOSR2`
-这个节点包，本引擎照样能跑。
+不依赖任何第三方节点包：从权重加载到推理链路全部自己实现，只沿用公开的
+模型结构定义。原先的伪包桥接导入已彻底移除 —— 本机不装第三方节点包，
+本引擎照样能跑。权重为公开下载的 1.39B 生成式 DiT（目录见 paths.py）。
 
 为什么可以做到「一样的效果、更快的速度」
 ----------------------------------------
@@ -24,7 +23,7 @@
    加载期间内存里只留一份权重。
 
 2. **命中训练分辨率，不吃外推**
-   VOSR2 的原生训练分辨率就是 512。上游默认让它跑 768，那已经是外推，
+   该权重的原生训练分辨率就是 512。上游默认让它跑 768，那已经是外推，
    而且 768 超过 512 后还必须开 16 个 tile 补丁，既慢又有接缝风险。
    本引擎让调用方按 `crop_size * upscale == 512` 配参，正好落在训练分布上：
    单次前向、无 tile、无 padding，还顺带命中预计算的 RoPE
@@ -36,7 +35,7 @@
    GPU 利用率从三成多提到七成以上。
 
 4. **去掉每帧重复的常量计算**
-   VOSR2 是 one-step，去噪时间步恒为 t=1.0。`t_embedder`、`t_block`、
+   该模型是 one-step，去噪时间步恒为 t=1.0。`t_embedder`、`t_block`、
    `final_layer` 的 adaLN 调制、DINOv2 的时间步频率表、非训练分辨率的 RoPE ——
    这些量跟画面无关，上游每帧重算一遍，本引擎算一次整批复用。
 
@@ -70,8 +69,8 @@ AE_FACTOR = 8           # Qwen VAE 空间压缩比
 DIT_PATCH = 2
 PAD_MULTIPLE = AE_FACTOR * DIT_PATCH      # 16
 DINOV2_SIZE = 448       # DINOv2-L/14 的固定输入边长
-DINOV2_LAYER = 17       # VOSR2 取第 17 层特征
-NATIVE = 512            # VOSR2 的训练分辨率，命中它质量最稳
+DINOV2_LAYER = 17       # 超分模型取第 17 层特征
+NATIVE = 512            # 训练分辨率，命中它质量最稳
 
 _IMAGENET_MEAN = (0.485, 0.456, 0.406)
 _IMAGENET_STD = (0.229, 0.224, 0.225)
@@ -124,7 +123,7 @@ def _load_state(module, path, device, dtype, tag=""):
 def _read_args(model_dir):
     p = os.path.join(model_dir, "args.json")
     if not os.path.isfile(p):
-        raise FileNotFoundError(f"VOSR2 缺 args.json：{p}")
+        raise FileNotFoundError(f"自研超分引擎缺 args.json：{p}")
     with open(p, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -163,7 +162,7 @@ def _wavelet_align(target, source):
 # 引擎
 # ---------------------------------------------------------------------------
 class Vosr2Engine:
-    """VOSR2 三件套（DiT / VAE / DINOv2）常驻显存，正方形裁切块批量超分。"""
+    """超分三件套（DiT / VAE / DINOv2）常驻显存，正方形裁切块批量超分。"""
 
     def __init__(self, model_dir, device="cuda", dtype=torch.bfloat16, verbose=True):
         self.device = torch.device(device)
@@ -176,7 +175,7 @@ class Vosr2Engine:
         for p, what in ((dit_path, "DiT 权重"), (vis_path, "DINOv2 权重"),
                         (os.path.join(vae_dir, "config.json"), "VAE 配置")):
             if not os.path.isfile(p):
-                raise FileNotFoundError(f"VOSR2 缺{what}：{p}")
+                raise FileNotFoundError(f"自研超分引擎缺{what}：{p}")
 
         a = self.args
         # 骨架建在 meta 上：零内存占用，等 assign 权重时再真正落盘到显存
@@ -239,7 +238,7 @@ class Vosr2Engine:
         if verbose:
             n = sum(p.numel() for p in dit.parameters()) / 1e9
             vdt = str(next(vae.parameters()).dtype).split(".")[-1]
-            print(f"[凤希AI] VOSR2 自研引擎就绪  DiT {n:.2f}B/{str(dtype).split('.')[-1]}  "
+            print(f"[凤希AI] 自研超分引擎就绪  DiT {n:.2f}B/{str(dtype).split('.')[-1]}  "
                   f"VAE {vdt}  显存 {torch.cuda.memory_allocated(self.device)/2**30:.2f} GiB")
 
     # ---- 内部 ----
@@ -251,7 +250,7 @@ class Vosr2Engine:
             p = os.path.join(model_dir, *rel.split("/"))
             if os.path.isfile(p):
                 return p
-        raise FileNotFoundError(f"VOSR2 找不到 DiT 权重（{model_dir}/checkpoints/）")
+        raise FileNotFoundError(f"自研超分引擎找不到 DiT 权重（{model_dir}/checkpoints/）")
 
     def _encode(self, x):
         """x: [B,3,H,W] in [-1,1] -> 归一化 latent"""
@@ -305,7 +304,7 @@ class Vosr2Engine:
         target = h * int(factor)
         if native_only and target > NATIVE:
             raise ValueError(
-                f"crop {h} x factor {factor} = {target}px，超过 VOSR2 的原生 512。\n"
+                f"crop {h} x factor {factor} = {target}px，超过超分模型的原生 512。\n"
                 f"请把 crop_size 调小（512/{factor} = {NATIVE // int(factor)}）"
             )
 
@@ -412,8 +411,8 @@ def get_engine(device="cuda", dtype=None, verbose=True):
         mdir = paths.vosr2_dir()
         if not os.path.isdir(mdir):
             raise RuntimeError(
-                f"找不到 VOSR2 模型：{mdir}\n"
-                f"需要把模型放到 models/vosr2/（含 args.json、checkpoints/、"
+                f"找不到自研超分模型权重：{mdir}\n"
+                f"需要把权重放到上面这个目录（含 args.json、checkpoints/、"
                 f"Qwen-Image-vae-2d/、dinov2_vitl14.safetensors）"
             )
         if dtype is None:

@@ -19,13 +19,13 @@ V1 的节点类和相关辅助函数已删除，只留 V2 需要的底层实现�
     _resolve_device                                      显卡编号校验
     _crop_square / _auto_crop / _snap_crop               裁切框（保证 crop × 倍数 = 512）
     _ellipse_mask / _ellipse_mask_hw / _paste            椭圆羽化贴回
-    _superres_batch                                      超分（VOSR2 或纯插值）
+    _superres_batch                                      超分（自研引擎或纯插值）
     _apply_swap / _paste_scaled / _color_match / _inject_texture   换脸合成
     _bc / _bc_done                                       执行状态广播
 
 关键约束（别改）
 ----------------
-`裁切框边长 × 超分倍数` 必须落在 **512**（VOSR2 训练分辨率）：
+`裁切框边长 × 超分倍数` 必须落在 **512**（超分模型训练分辨率）：
 
     裁 128 × 4 = 512   ← 默认，脸 40~85px
     裁 256 × 2 = 512   ← 脸 85~170px
@@ -208,9 +208,9 @@ def _auto_crop(max_face_w):
 
 
 def _snap_crop(crop_size):
-    """把手填的裁切框吸附到 VOSR2 的原生尺寸，并返回配套的放大倍数。
+    """把手填的裁切框吸附到超分模型的原生尺寸，并返回配套的放大倍数。
 
-    只有 128 / 256 / 512 三个尺寸能命中 VOSR2 的 latent 对齐
+    只有 128 / 256 / 512 三个尺寸能命中超分模型的 latent 对齐
     （patch 16，512/16=32 是 patch 的整数倍）。非原生配比（如 192 x3）会让
     细节重建明显变差，画质掉一档。
 

@@ -37,6 +37,9 @@ from . import fxai_character_profile_manager
 from . import fxai_assets_ui
 from . import fxai_video_picker_api
 
+# 无节点，仅 import 时注册自定义采样调度器
+from . import fxai_schedulers
+
 def install_package(package):
     try:
         importlib.import_module(package)
@@ -156,7 +159,6 @@ NODE_REGISTRY = [
     ("FxAiVideoSegmentLoad",      "fxai_video_segment_load",    "凤希AI - 视频分段加载"),
     ("FxAiSeamColorMatch",        "fxai_seam_color_match",      "凤希AI - 接缝色彩对齐"),
     ("FxAiToneMatch",             "fxai_tone_match",            "凤希AI - 影调对齐（背景亮度）"),
-    ("FxAiSeedVR2Upscale",        "fxai_seedvr2_upscale",       "凤希AI - SeedVR2超分"),
     ("FxAiVideoUpscale",          "fxai_video_upscale_node",    "凤希AI - 视频超分放大"),
 
     # 控制/工具类
@@ -192,6 +194,7 @@ NODE_REGISTRY = [
     ("FxAiH3RegionMask",          "fxai_h3_region_mask",        "凤希AI - H3区域蒙版"),
     ("FxAiLTX23Sampler",          "fxai_ltx23_sampler",         "凤希AI - LTX2.3采集器"),
     ("FxAiMiniMaxUpscaler",       "fxai_minimax_upscaler",      "凤希AI - MiniMax放大器"),
+    ("FxAiH3ProgressiveSampler",  "fxai_h3_progressive_sampler", "凤希AI - H3渐进采样"),
 	
     # 模型/LoRA
     ("FxAiLoraLoader",            "fxai_lora_loader",           "凤希AI - LoRa加载器"),
@@ -211,7 +214,7 @@ NODE_REGISTRY = [
     ("H3FaceStitch",              "fxai_face_refine",        "凤希AI - H3人脸精修 - 贴回原片"),
     ("H3FaceTransformInfo",       "fxai_face_refine",        "凤希AI - H3人脸精修 - 变换信息"),
 
-    # 人脸精修 · 轻量链 V2（自研：参考图多角色匹配 + inswapper 换脸 + VOSR2 超分 + 羽化贴回）
+    # 人脸精修 · 轻量链 V2（自研：参考图多角色匹配 + inswapper 换脸 + 自研超分 + 羽化贴回）
     # V1 与「参考脸提取预览」已于 2026-10-24 下线，能力全部并入 V2。
     ("FxAiFaceRestoreLiteV2",     "fxai_face_refine",        "凤希AI - 人脸精修 · 轻量链 V2（全脸）"),
 

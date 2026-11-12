@@ -53,11 +53,11 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "minimax_h3_singularity_ref2va_int8.safetensors",
+        "prism_dmad_pdmd_int8.safetensors",
         "default"
       ],
       "widgets_values_named": {
-        "unet_name": "minimax_h3_singularity_ref2va_int8.safetensors",
+        "unet_name": "prism_dmad_pdmd_int8.safetensors",
         "weight_dtype": "default"
       }
     },
@@ -877,7 +877,7 @@
         "Node name for S&R": "BasicScheduler"
       },
       "widgets_values": [
-        "simple",
+        "beta57",
         8,
         1
       ],
