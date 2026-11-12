@@ -452,7 +452,7 @@
           "label": "INT",
           "name": "INT",
           "type": "INT",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -503,7 +503,7 @@
           "label": "INT",
           "name": "INT",
           "type": "INT",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -608,7 +608,7 @@
           "label": "VAE",
           "name": "VAE",
           "type": "VAE",
-          "links": null
+          "links": []
         }
       ],
       "title": "Set_video_vae",
@@ -712,7 +712,7 @@
           "label": "VAE",
           "name": "VAE",
           "type": "VAE",
-          "links": null
+          "links": []
         }
       ],
       "title": "Set_audio_vae",
@@ -1094,7 +1094,7 @@
           "label": "STRING",
           "name": "STRING",
           "type": "STRING",
-          "links": null
+          "links": []
         }
       ],
       "title": "Set_分段提示词",
@@ -1144,7 +1144,7 @@
           "label": "MODEL",
           "name": "MODEL",
           "type": "MODEL",
-          "links": null
+          "links": []
         }
       ],
       "title": "Set_主模型",
@@ -1326,7 +1326,6 @@
           "name": "AUDIO",
           "type": "AUDIO",
           "links": [
-            2299,
             2588,
             2595
           ]
@@ -1618,7 +1617,6 @@
           "name": "INT",
           "type": "INT",
           "links": [
-            2270,
             2589
           ]
         }
@@ -1665,7 +1663,6 @@
           "name": "INT",
           "type": "INT",
           "links": [
-            2271,
             2590
           ]
         }
@@ -2559,7 +2556,7 @@
           "label": "INT",
           "name": "INT",
           "type": "INT",
-          "links": null
+          "links": []
         }
       ],
       "title": "Set_生成帧数",
@@ -2611,7 +2608,7 @@
           "label": "AUDIO",
           "name": "AUDIO",
           "type": "AUDIO",
-          "links": null
+          "links": []
         }
       ],
       "title": "Set_剪切音频",
@@ -3133,7 +3130,7 @@
           "localized_name": "总数量",
           "name": "总数量",
           "type": "INT",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -3194,13 +3191,13 @@
           "localized_name": "宽度",
           "name": "宽度",
           "type": "INT",
-          "links": null
+          "links": []
         },
         {
           "localized_name": "高度",
           "name": "高度",
           "type": "INT",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -3901,7 +3898,7 @@
           "localized_name": "索引",
           "name": "index",
           "type": "INT",
-          "links": null
+          "links": []
         },
         {
           "label": "value1",
@@ -4099,7 +4096,7 @@
         {
           "name": "value3",
           "type": "*",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -4219,7 +4216,7 @@
           "localized_name": "触发输出",
           "name": "触发输出",
           "type": "*",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -4346,7 +4343,7 @@
           "localized_name": "output",
           "name": "output",
           "type": "*",
-          "links": null
+          "links": []
         }
       ],
       "properties": {

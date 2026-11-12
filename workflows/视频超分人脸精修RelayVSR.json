@@ -449,7 +449,7 @@
           "localized_name": "分段信息",
           "name": "分段信息",
           "type": "STRING",
-          "links": null
+          "links": []
         },
         {
           "localized_name": "音频",
@@ -569,7 +569,7 @@
           "localized_name": "value2",
           "name": "value2",
           "type": "*",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -980,7 +980,6 @@
           "name": "视频帧",
           "type": "IMAGE",
           "links": [
-            36,
             203
           ]
         },
@@ -996,7 +995,7 @@
           "localized_name": "本段帧数",
           "name": "本段帧数",
           "type": "INT",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -1751,7 +1750,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 36
+          "link": null
         }
       ],
       "outputs": [
@@ -1967,14 +1966,6 @@
       113,
       2,
       "INT"
-    ],
-    [
-      36,
-      113,
-      0,
-      132,
-      0,
-      "IMAGE"
     ],
     [
       37,
