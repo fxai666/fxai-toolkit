@@ -23,7 +23,7 @@ function fetchFileList(subdir, callback) {
         });
 }
 
-// 视频上传逻辑
+// 视频上传逻辑（上传与 H265→H264 转码都在后端同步完成，前端只等这一个请求返回）
 function uploadFiles(files, subdir, onProgress, callback) {
     var index = 0;
     function uploadNext() {
@@ -44,6 +44,9 @@ function uploadFiles(files, subdir, onProgress, callback) {
             if (!response.ok) {
                 throw new Error("上传失败: " + response.status);
             }
+            return response.json();
+        })
+        .then(function (data) {
             if (onProgress) {
                 onProgress(index, 1);
             }
@@ -148,11 +151,11 @@ function addUI(node) {
         }
 
         var originalText = uploadBtn.textContent;
-        uploadBtn.textContent = "上传中...";
+        uploadBtn.textContent = "上传并转码中...";
         uploadBtn.disabled = true;
 
         uploadFiles(videoFiles, subdirWidget.value, function (idx, prog) {
-            uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + videoFiles.length + " " + Math.round(prog * 100) + "%";
+            uploadBtn.textContent = "上传并转码中 " + (idx + 1) + "/" + videoFiles.length + " " + Math.round(prog * 100) + "%";
         }, function (err) {
             if (err) {
                 alert("上传失败: " + err.message);
@@ -226,11 +229,11 @@ function addUI(node) {
             }
 
             var originalText = uploadBtn.textContent;
-            uploadBtn.textContent = "上传中...";
+            uploadBtn.textContent = "上传并转码中...";
             uploadBtn.disabled = true;
 
             uploadFiles(videoFiles, subdirWidget.value, function (idx, prog) {
-                uploadBtn.textContent = "上传中 " + (idx + 1) + "/" + videoFiles.length + " " + Math.round(prog * 100) + "%";
+                uploadBtn.textContent = "上传并转码中 " + (idx + 1) + "/" + videoFiles.length + " " + Math.round(prog * 100) + "%";
             }, function (err) {
                 if (err) {
                     alert("上传失败: " + err.message);

@@ -169,47 +169,8 @@ async def apply_changes(request):
     except Exception as e:
         return web.json_response({"error": f"应用失败：{str(e)}"}, status=500)
 
-# 视频上传
-async def upload_video_custom(request):
-    try:
-        data = await request.post()
-        videos = data.getall("video")
-        subdir = data.get("subdir", "")
-
-        if not videos:
-            return web.json_response({"error": "未上传有效视频"}, status=400)
-
-        target_dir = get_video_dir(subdir)
-        results = []
-        for video in videos:
-            if not video or not hasattr(video, 'file'):
-                continue
-
-            original_filename = sanitize_filename(video.filename)
-            if not original_filename:
-                continue
-
-            file_list = list_videos(target_dir)
-            next_num = len(file_list)
-
-            new_filename = f"{next_num:03d}_{original_filename}"
-
-            save_path = safe_path_join(target_dir, new_filename)
-            with open(save_path, "wb") as f:
-                f.write(video.file.read())
-
-            results.append(new_filename)
-
-        if not results:
-            return web.json_response({"error": "未上传有效视频"}, status=400)
-
-        if len(results) == 1:
-            return web.json_response({"success": True, "name": results[0]})
-        return web.json_response({"success": True, "names": results, "count": len(results)})
-    except Exception as e:
-        return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
-
-# 路由已统一注册在 fxai_api_utils.py
+# 视频上传逻辑已统一迁移到 fxai_api_utils.video_upload（路由 /fxai/video/upload），
+# 此处的重复实现已删除，避免两份上传逻辑对不上。
 
 # ComfyUI节点定义
 class FxAiVideoManager:

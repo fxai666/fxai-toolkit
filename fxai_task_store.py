@@ -1,7 +1,6 @@
 import datetime
 import os
 import sqlite3
-import threading
 import folder_paths
 from aiohttp import web
 from server import PromptServer

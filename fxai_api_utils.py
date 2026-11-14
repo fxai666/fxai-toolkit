@@ -1274,6 +1274,49 @@ async def video_upload(request):
             with open(save_path, "wb") as f:
                 f.write(video.file.read())
 
+            # ---- H265(HEVC) → H264 预转码：上传后同步转码，存储为兼容性更好的 H264 mp4 ----
+            # 唯一入口封装：先验证编码（ffprobe），是 H265 才转；转码在请求内完成
+            # （丢线程池跑不阻塞事件循环，但请求会等转码结束才返回前端），转码失败或
+            # ffprobe 缺失一律保留原文件，绝不丢上传。产物走临时文件 → 原子替换 → 删原
+            # H265，文件名沿用命名规则（同序号、同主体名，容器统一成 .mp4）。
+            try:
+                _codec = detect_video_codec(save_path)
+                if _codec == 'hevc':
+                    _stem = os.path.splitext(new_filename)[0]
+                    _final_name = f"{_stem}.mp4"
+                    _final_path = _safe_path_join(target_dir, _final_name)
+                    _tmp_path = _safe_path_join(target_dir, f"_h264_{os.urandom(4).hex()}.mp4")
+                    _ok = await asyncio.get_event_loop().run_in_executor(
+                        None, transcode_hevc_to_h264, save_path, _tmp_path)
+                    if _ok:
+                        try:
+                            if os.path.exists(_final_path):
+                                os.remove(_final_path)
+                            os.replace(_tmp_path, _final_path)
+                            # 原 H265 文件（扩展名不同时）删除，避免同槽位留两份
+                            if os.path.abspath(_final_path) != os.path.abspath(save_path):
+                                try:
+                                    os.remove(save_path)
+                                except OSError:
+                                    pass
+                            new_filename = _final_name
+                            save_path = _final_path
+                            print(f"[凤希AI] 上传视频检测到 H265，已转码为 H264 存储：{new_filename}")
+                        except OSError as _e:
+                            print(f"[凤希AI] H265 转码产物替换失败，保留原始文件：{_e}")
+                            try:
+                                os.remove(_tmp_path)
+                            except OSError:
+                                pass
+                    else:
+                        try:
+                            os.remove(_tmp_path)
+                        except OSError:
+                            pass
+                        print(f"[凤希AI] H265 转码失败，保留原始文件：{new_filename}")
+            except Exception as _e:
+                print(f"[凤希AI] 上传后 H265 检测/转码异常，保留原始文件：{_e}")
+
             results.append(new_filename)
 
         if not results:
@@ -1973,6 +2016,8 @@ from .fxai_video_utils import (
     probe_video,
     rel_video_path,
     resolve_video_path,
+    detect_video_codec,
+    transcode_hevc_to_h264,
 )
 
 async def video_segments_v2_info(request):

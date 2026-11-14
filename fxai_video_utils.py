@@ -245,6 +245,128 @@ def probe_video(video_path):
     }
 
 
+# ===================== H265(HEVC) → H264 预转码（上传入口统一调用） =====================
+
+def get_ffmpeg_bin():
+    """优先取 ComfyUI 模型目录里的 ffmpeg，否则回退系统 PATH。"""
+    try:
+        p = folder_paths.get_full_path("ffmpeg", "ffmpeg")
+        if p and os.path.exists(p):
+            return p
+    except Exception:
+        pass
+    return "ffmpeg"
+
+
+def get_ffprobe_bin():
+    try:
+        p = folder_paths.get_full_path("ffmpeg", "ffprobe")
+        if p and os.path.exists(p):
+            return p
+    except Exception:
+        pass
+    return "ffprobe"
+
+
+def detect_video_codec(video_path):
+    """读首个视频流的编码名（hevc / h264 / vp9 ...）；读不到返回 None。
+
+    仅用于上传后的「验证」：确认是不是 H265，不是就不动它。
+    """
+    cmd = [
+        get_ffprobe_bin(), video_path,
+        '-hide_banner', '-loglevel', 'error',
+        '-select_streams', 'v:0',
+        '-show_entries', 'stream=codec_name',
+        '-of', 'json',
+    ]
+    try:
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, shell=os.name == 'nt')
+    except Exception as e:
+        print(f"[凤希AI] ffprobe 执行异常，跳过 H265 检测：{e}")
+        return None
+    if not result.stdout:
+        return None
+    try:
+        streams = json.loads(result.stdout).get('streams', [])
+        if streams:
+            return (streams[0].get('codec_name') or '').lower()
+    except Exception:
+        return None
+    return None
+
+
+def _nvenc_available():
+    """懒检测：本机 ffmpeg 是否带 NVIDIA NVENC H264 硬件编码器（需 nvidia 显卡 + 编译支持）。"""
+    if not hasattr(_nvenc_available, "_cached"):
+        try:
+            out = subprocess.run([get_ffmpeg_bin(), '-hide_banner', '-encoders'],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, shell=os.name == 'nt')
+            _nvenc_available._cached = 'h264_nvenc' in out.stdout
+        except Exception:
+            _nvenc_available._cached = False
+    return _nvenc_available._cached
+
+
+def transcode_hevc_to_h264(src_path, dst_path):
+    """把 H265(hevc) 源转成 H264 的 mp4，成功返回 True。
+
+    优先用 NVIDIA NVENC 硬件编码（cuda 硬解 H265 → nvenc 硬编 H264，几乎不吃 CPU、
+    比 libx264 快数倍）；不可用时或失败时自动回退 CPU libx264（保留 -pix_fmt yuv420p
+    以兼容 4:4:4 源）。输出统一为 H264 / yuv420p / aac / +faststart。
+
+    GPU 流水线用 -hwaccel cuda，少数 H265 源（特殊 profile / 10bit 边缘情况）硬解会
+    失败 → 直接回退 CPU，不影响上传。
+    """
+    if _nvenc_available():
+        # 全 GPU 流水线：硬件解 H265 → nvenc 编码 H264。
+        # 硬件解码只产出 yuv420，自动规避 high profile 不支持 4:4:4 的问题。
+        cmd = [
+            get_ffmpeg_bin(), '-y',
+            '-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda',
+            '-i', src_path,
+            '-c:v', 'h264_nvenc', '-profile:v', 'high', '-preset', 'p4', '-cq', '23',
+            '-c:a', 'aac', '-movflags', '+faststart',
+            dst_path,
+        ]
+        try:
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  text=True, shell=os.name == 'nt')
+        except Exception as e:
+            print(f"[凤希AI] NVENC 转码执行异常，回退 CPU：{e}")
+            return _transcode_cpu(src_path, dst_path)
+        if proc.returncode == 0 and os.path.exists(dst_path) and os.path.getsize(dst_path) > 0:
+            print(f"[凤希AI] H265→H264 已用 GPU(NVENC) 转码：{dst_path}")
+            return True
+        print(f"[凤希AI] NVENC 转码失败（ffmpeg 返回 {proc.returncode}），回退 CPU libx264：{proc.stderr.strip()[:300]}")
+        return _transcode_cpu(src_path, dst_path)
+    return _transcode_cpu(src_path, dst_path)
+
+
+def _transcode_cpu(src_path, dst_path):
+    """CPU 软编码兜底（libx264）。保留 -pix_fmt yuv420p 兼容 4:4:4 源。"""
+    cmd = [
+        get_ffmpeg_bin(), '-y',
+        '-i', src_path,
+        '-c:v', 'libx264', '-profile:v', 'high', '-preset', 'medium', '-crf', '23',
+        '-pix_fmt', 'yuv420p',   # 强制 4:2:0：兼容所有播放器，且避开 high profile 不支持 4:4:4 的报错
+        '-c:a', 'aac', '-movflags', '+faststart',
+        dst_path,
+    ]
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, shell=os.name == 'nt')
+    except Exception as e:
+        print(f"[凤希AI] H265→H264 转码执行异常：{e}")
+        return False
+    if proc.returncode != 0:
+        print(f"[凤希AI] H265→H264 转码失败（ffmpeg 返回 {proc.returncode}）：{proc.stderr.strip()[:500]}")
+        return False
+    return os.path.exists(dst_path) and os.path.getsize(dst_path) > 0
+
+
 def _start_seconds(start_frame, fps):
     """帧号 → ffmpeg 定位秒数。
 
