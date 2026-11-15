@@ -1883,10 +1883,10 @@
         "tabXOffset": 10
       },
       "widgets_values": [
-        "euler_ancestral"
+        "res_multistep"
       ],
       "widgets_values_named": {
-        "sampler_name": "euler_ancestral"
+        "sampler_name": "res_multistep"
       }
     },
     {
