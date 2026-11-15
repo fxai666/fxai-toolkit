@@ -1883,10 +1883,10 @@
         "tabXOffset": 10
       },
       "widgets_values": [
-        "er_sde"
+        "euler_ancestral"
       ],
       "widgets_values_named": {
-        "sampler_name": "er_sde"
+        "sampler_name": "euler_ancestral"
       }
     },
     {
@@ -3747,12 +3747,12 @@
         "ver": "0.30.1"
       },
       "widgets_values": [
-        "normal",
+        "simple",
         8,
         1
       ],
       "widgets_values_named": {
-        "scheduler": "normal",
+        "scheduler": "simple",
         "steps": 8,
         "denoise": 1
       }
