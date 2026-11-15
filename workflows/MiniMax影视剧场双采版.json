@@ -591,10 +591,10 @@
         "tabXOffset": 10
       },
       "widgets_values": [
-        "res_multistep"
+        "er_sde"
       ],
       "widgets_values_named": {
-        "sampler_name": "res_multistep"
+        "sampler_name": "er_sde"
       }
     },
     {
@@ -2448,12 +2448,12 @@
         "ver": "0.30.1"
       },
       "widgets_values": [
-        "beta57",
+        "normal",
         8,
         1
       ],
       "widgets_values_named": {
-        "scheduler": "beta57",
+        "scheduler": "normal",
         "steps": 8,
         "denoise": 1
       }
@@ -4261,11 +4261,11 @@
         "ver": "0.32.0"
       },
       "widgets_values": [
-        "prism_dmad_pdmd_int8.safetensors",
+        "minimax_h3_singularity_ref2va_int8.safetensors",
         "default"
       ],
       "widgets_values_named": {
-        "unet_name": "prism_dmad_pdmd_int8.safetensors",
+        "unet_name": "minimax_h3_singularity_ref2va_int8.safetensors",
         "weight_dtype": "default"
       }
     },
@@ -4405,11 +4405,11 @@
         "ver": "d82d27971005419a2a39bbbe49cd45f3edeedb68"
       },
       "widgets_values": [
-        "[{\"lora_name\": \"H3人脸去油.safetensors\", \"model_strength\": 0.7, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": false, \"invert\": false, \"fade_start\": 1, \"fade_end\": 1}, {\"lora_name\": \"Motion_Repair.safetensors\", \"model_strength\": 0.45, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1, \"fade_end\": 1}]",
+        "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"H3人脸去油.safetensors\",\"model_strength\":0.7,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":false,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]",
         "",
         {
           "name": "lora_data",
-          "value": "[{\"lora_name\": \"H3人脸去油.safetensors\", \"model_strength\": 0.7, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": false, \"invert\": false, \"fade_start\": 1, \"fade_end\": 1}, {\"lora_name\": \"Motion_Repair.safetensors\", \"model_strength\": 0.45, \"clip_strength\": -1, \"trigger_words\": [], \"enabled\": true, \"invert\": false, \"fade_start\": 1, \"fade_end\": 1}]"
+          "value": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"H3人脸去油.safetensors\",\"model_strength\":0.7,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":false,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]"
         }
       ],
       "widgets_values_named": {
