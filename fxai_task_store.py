@@ -140,6 +140,150 @@ def get_tasks(prompt_ids):
         for row in rows
     }
 
+def list_tasks(limit=50, offset=0, category="", keyword="", since="", until=""):
+    """按条件分页列出任务库（持久化历史，ComfyUI 重启不丢）。
+
+    ComfyUI 官方 /history 是 PromptServer 内存里的字典，进程一重启就清空；
+    本表是落盘记录，供控制台「任务记录」页翻页 / 各生成服务查自己那类记录。
+
+    Args:
+        category: image / audio / video，空 = 全部（按 url 令牌的类别前缀过滤）
+        keyword:  关键字，匹配「子目录/文件名」
+        since / until: 时间范围（"YYYY-MM-DD" 或 "YYYY-MM-DD HH:MM:SS"），闭区间
+
+    Returns: {"total": 命中条数, "limit":, "offset":, "tasks": [...]}
+    """
+    try:
+        limit = max(1, min(int(limit or 50), 500))
+    except (TypeError, ValueError):
+        limit = 50
+    try:
+        offset = max(0, int(offset or 0))
+    except (TypeError, ValueError):
+        offset = 0
+
+    where, args = [], []
+    category = (category or "").strip()
+    if category in ("image", "audio", "video"):
+        where.append("url LIKE ?")
+        args.append(category + "/%")
+    keyword = (keyword or "").strip()
+    if keyword:
+        where.append("url LIKE ?")
+        args.append("%" + keyword + "%")
+    since = (since or "").strip()
+    if since:
+        where.append("created_at >= ?")
+        args.append(since)
+    until = (until or "").strip()
+    if until:
+        where.append("created_at <= ?")
+        args.append(until + (" 23:59:59" if len(until) == 10 else ""))
+    sql_where = (" WHERE " + " AND ".join(where)) if where else ""
+
+    conn = _get_conn()
+    total = conn.execute("SELECT COUNT(*) FROM completed_tasks" + sql_where, args).fetchone()[0]
+    cur = conn.execute(
+        "SELECT prompt_id, workflow_id, url, created_at FROM completed_tasks" + sql_where +
+        " ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?",
+        args + [limit, offset],
+    )
+    tasks = [{
+        "prompt_id": row[0],
+        "workflow_id": row[1] or "",
+        "url": row[2] or "",
+        "created_at": row[3] or "",
+    } for row in cur.fetchall()]
+    return {"total": total, "limit": limit, "offset": offset, "tasks": tasks}
+
+
+def _fxai_root():
+    return os.path.abspath(os.path.join(folder_paths.base_path, "fxai"))
+
+
+def _split_url(url):
+    """令牌 "image/子目录|a.png,b.png" -> (category, subdir, [文件名])"""
+    left, _, files = (url or "").partition("|")
+    category, _, subdir = left.partition("/")
+    names = [f.strip() for f in files.split(",") if f.strip()]
+    return category, subdir, names
+
+
+def _task_path(category, subdir, name):
+    """解析产物绝对路径；越界或类别不支持返回 None（与 /fxai/down/file 同一套防护）。"""
+    if category not in ("image", "audio", "video"):
+        return None
+    root = _fxai_root()
+    full = os.path.abspath(os.path.join(root, category, subdir, os.path.basename(name)))
+    if not full.startswith(root + os.sep):
+        return None
+    return full
+
+
+def clean_tasks(dry_run=False):
+    """清理失效记录：产物在磁盘上已经不存在的，把整条记录删掉。
+
+    部分文件还在的，只把 url 里已消失的文件名剔掉（记录留着，点开不会 404）。
+    解析不出类别/文件名的记录一律不动——宁可留着，也不误删。
+    """
+    conn = _get_conn()
+    rows = conn.execute("SELECT prompt_id, url FROM completed_tasks").fetchall()
+    drop, trim = [], []
+    for pid, url in rows:
+        category, subdir, names = _split_url(url)
+        if not names or category not in ("image", "audio", "video"):
+            continue
+        alive = []
+        for n in names:
+            p = _task_path(category, subdir, n)
+            if p and os.path.isfile(p):
+                alive.append(n)
+        if not alive:
+            drop.append(pid)
+        elif len(alive) != len(names):
+            trim.append((category + ("/" + subdir if subdir else "") + "|" + ",".join(alive), pid))
+    if not dry_run:
+        if drop:
+            conn.executemany("DELETE FROM completed_tasks WHERE prompt_id=?", [(p,) for p in drop])
+        if trim:
+            conn.executemany("UPDATE completed_tasks SET url=? WHERE prompt_id=?", trim)
+        conn.commit()
+    return {
+        "checked": len(rows),
+        "removed": len(drop),
+        "trimmed": len(trim),
+        "kept": len(rows) - len(drop),
+        "dry_run": bool(dry_run),
+    }
+
+
+def delete_task(prompt_id):
+    """删除一条任务记录，连同它的全部产物文件。"""
+    if not prompt_id:
+        return {"ok": False, "error": "缺少 prompt_id"}
+    conn = _get_conn()
+    row = conn.execute("SELECT url FROM completed_tasks WHERE prompt_id=?", (prompt_id,)).fetchone()
+    if row is None:
+        return {"ok": False, "error": "记录不存在"}
+    category, subdir, names = _split_url(row[0] or "")
+    deleted, failed = [], []
+    for n in names:
+        p = _task_path(category, subdir, n)
+        if not p:
+            failed.append(n)
+            continue
+        if not os.path.isfile(p):
+            continue                                   # 本来就没有，不算失败
+        try:
+            os.remove(p)
+            deleted.append(n)
+        except OSError:
+            failed.append(n)
+    conn.execute("DELETE FROM completed_tasks WHERE prompt_id=?", (prompt_id,))
+    conn.commit()
+    return {"ok": True, "prompt_id": prompt_id, "deleted_files": len(deleted), "failed": failed}
+
+
 async def handle_query_task(request):
     if request.method == "POST":
         try:

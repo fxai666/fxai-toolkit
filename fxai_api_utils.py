@@ -1380,6 +1380,50 @@ async def task_query(request):
     return web.json_response(get_tasks(prompt_ids))
 
 
+async def task_list(request):
+    """按条件分页列出持久任务库（控制台「任务记录」页 / 各生成服务查自己那类记录）。
+
+    参数：limit, offset, category(image|audio|video，空=全部), kw, since, until
+    /history 是内存数据，重启即空；这里读 fxai.db，重启不丢。
+    """
+    from fxai_task_store import list_tasks
+    q = request.query
+    return web.json_response(list_tasks(
+        q.get("limit", "50"), q.get("offset", "0"),
+        category=q.get("category", ""), keyword=q.get("kw", ""),
+        since=q.get("since", ""), until=q.get("until", ""),
+    ))
+
+
+async def task_clean(request):
+    """清理失效记录：产物文件已不在磁盘上的任务，整条从库里删掉。
+
+    参数：dry_run=1 只统计不动库（控制台先试算再确认）。
+    """
+    from fxai_task_store import clean_tasks
+    dry = str(request.query.get("dry_run", "0")).lower() in ("1", "true", "yes")
+    return web.json_response(clean_tasks(dry_run=dry))
+
+
+async def task_delete(request):
+    """删除一条任务记录及其全部产物文件。参数：prompt_id。
+
+    走 query 而不是 JSON body，前端 POST 时不触发跨域预检。
+    """
+    from fxai_task_store import delete_task
+    prompt_id = request.query.get("prompt_id", "")
+    if not prompt_id and request.method == "POST":
+        try:
+            body = await request.json()
+            prompt_id = (body or {}).get("prompt_id", "")
+        except Exception:
+            prompt_id = ""
+    if not prompt_id:
+        return web.json_response({"ok": False, "error": "缺少 prompt_id"}, status=400)
+    result = delete_task(prompt_id)
+    return web.json_response(result, status=200 if result.get("ok") else 404)
+
+
 # ===================== 统一文件下载（按令牌，本地/远端通用） =====================
 # 配合客户端「全部走 HTTP 接口」模式：不再让客户端直接读 <ComfyUI>/fxai 本地目录，
 # 而是把 /fxai/tasks/result 返回的 url 令牌（如 "image/mv_scene|scene1.png"）原样传回，
@@ -2173,6 +2217,11 @@ try:
 
     # 任务查询
     PromptServer.instance.routes.post("/fxai/tasks/result")(task_query)
+    # 任务历史（持久库，按时间倒序分页；/history 是内存的，重启即空）
+    PromptServer.instance.routes.get("/fxai/tasks/list")(task_list)
+    # 清理失效记录（产物文件没了就删记录）/ 删除单条任务连同产物
+    PromptServer.instance.routes.post("/fxai/tasks/clean")(task_clean)
+    PromptServer.instance.routes.post("/fxai/tasks/delete")(task_delete)
     # 统一文件下载（按令牌，本地/远端通用）：/fxai/down/file?url=image/sub|file.png
     PromptServer.instance.routes.get("/fxai/down/file")(task_file)
 
