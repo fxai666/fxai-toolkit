@@ -5,7 +5,13 @@ from PIL import Image
 import folder_paths
 import hashlib
 
-CACHE_DIR = folder_paths.temp_directory
+
+def _get_temp_dir():
+    """运行时取 temp 目录（兼容 --temp-directory / set_temp_directory），不存在则自动创建。"""
+    temp_dir = folder_paths.get_temp_directory()
+    if not os.path.isdir(temp_dir):
+        os.makedirs(temp_dir, exist_ok=True)
+    return temp_dir
 
 class FxAiImagePreview:
     def __init__(self):
@@ -34,6 +40,7 @@ class FxAiImagePreview:
         ui = {}
         images = []
         img_index = 0
+        cache_dir = _get_temp_dir()
 
         tensor_list = []
         if isinstance(图片, list):
@@ -48,7 +55,7 @@ class FxAiImagePreview:
                 raw_str = f"{unique_id}_{img_index}"
                 md5_hash = hashlib.md5(raw_str.encode("utf-8")).hexdigest()
                 img_filename = f"{md5_hash}.png"
-                img_path = os.path.join(CACHE_DIR, img_filename)
+                img_path = os.path.join(cache_dir, img_filename)
 
                 np_img = single_img_tensor.cpu().numpy()
                 np_img = (np.clip(np_img, 0, 1) * 255).astype(np.uint8)

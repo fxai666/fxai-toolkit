@@ -29,7 +29,10 @@ def _save_audio_to_temp(audio, index):
         audio_np = audio_np[:, :2]
 
     filename = f"fxai_audio_list_{int(time.time())}_{index:03d}.wav"
-    full_path = os.path.join(folder_paths.get_temp_directory(), filename)
+    temp_dir = folder_paths.get_temp_directory()
+    if not os.path.isdir(temp_dir):
+        os.makedirs(temp_dir, exist_ok=True)
+    full_path = os.path.join(temp_dir, filename)
     sf.write(full_path, audio_np, sample_rate)
     return filename
 
