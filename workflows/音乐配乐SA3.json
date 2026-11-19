@@ -1,0 +1,730 @@
+{
+  "id": "b7c4e19a-2d3f-4a58-9c61-7e05a3f8d214",
+  "revision": 0,
+  "last_node_id": 60,
+  "last_link_id": 90,
+  "nodes": [
+    {
+      "id": 44,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        780,
+        525
+      ],
+      "size": [
+        480,
+        98
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "showAdvanced": false,
+      "inputs": [
+        {
+          "name": "ckpt_name",
+          "type": "COMBO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            90
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [],
+          "slot_index": 1
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            76
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "stable_audio_3_medium.safetensors"
+      ]
+    },
+    {
+      "id": 45,
+      "type": "CLIPLoader",
+      "pos": [
+        780,
+        680
+      ],
+      "size": [
+        480,
+        120
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_name",
+          "type": "COMBO",
+          "link": null
+        },
+        {
+          "name": "type",
+          "type": "COMBO",
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            64,
+            65
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "t5gemma_b_b_ul2.safetensors",
+        "stable_audio",
+        "default"
+      ]
+    },
+    {
+      "id": 51,
+      "type": "SeedNode",
+      "pos": [
+        989.7557318745813,
+        1028.6986449689343
+      ],
+      "size": [
+        270,
+        90
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "种子",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "种子",
+          "name": "seed",
+          "type": "INT",
+          "links": [
+            73,
+            74
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "SeedNode"
+      },
+      "widgets_values": [
+        188280047825405,
+        "randomize"
+      ]
+    },
+    {
+      "id": 55,
+      "type": "MarkdownNote",
+      "pos": [
+        369.2546121353894,
+        534.2185344575454
+      ],
+      "size": [
+        400,
+        560
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "凤希AI友情提示 使用前必看",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "【凤希AI · 音乐配乐工作流（Stable Audio 3）】\n\n用途：给短剧 / 口播 / MV 生成纯器乐背景音乐（BGM），时长精确、无人声。\n\n怎么用：\n1. 中间「配乐描述」填英文提示词（这个模型对英文最敏感），中文写完可让 AI 翻译；\n2. 写清四件事：曲风 / 情绪 / 配器 / 使用场景。示例已填国风电影配乐；\n3. 左侧「配乐时长」的 seconds = 你要的精确秒数（1~1000，出片严格等长）；\n4. 采样器固定 8 步 + lcm，别改步数（改大只会更慢，音质无提升）；\n5. 点运行，音频在右侧音频管理器里。\n\n中文模板：温暖抒情的国风电影配乐，纯器乐无人声，BPM 68，古筝主奏、竹笛点缀、弦乐铺底、轻柔钢琴、极轻低频鼓点；宁静悠远带思念感，适合情感独白与回忆闪回场景，结尾渐弱收束。\n\n换风格只改「国风」：悬疑惊悚 / 都市轻快 / 史诗大编制 / 电子氛围 / 治愈钢琴。"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 49,
+      "type": "KSampler",
+      "pos": [
+        1880,
+        908
+      ],
+      "size": [
+        210,
+        262
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 90
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 68
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 69
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 70
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "link": 74
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "link": null
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "link": null
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "link": null
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "link": null
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "Latent",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            75
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        1111111112,
+        "fixed",
+        8,
+        1.0,
+        "lcm",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 52,
+      "type": "VAEDecodeAudio",
+      "pos": [
+        1880,
+        700
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 75
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 76
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            82
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "VAEDecodeAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 48,
+      "type": "EmptyLatentAudio",
+      "pos": [
+        1310,
+        990
+      ],
+      "size": [
+        320,
+        82
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "seconds",
+          "type": "FLOAT",
+          "link": null
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            70
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "EmptyLatentAudio"
+      },
+      "widgets_values": [
+        60,
+        1
+      ],
+      "title": "配乐时长（秒，出片严格等长）"
+    },
+    {
+      "id": 56,
+      "type": "FxAiAudioManager",
+      "pos": [
+        2126.2685781892646,
+        531.1060530923479
+      ],
+      "size": [
+        1130,
+        540
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "音频",
+          "name": "音频",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 82
+        },
+        {
+          "localized_name": "目录",
+          "name": "目录",
+          "type": "STRING",
+          "widget": {
+            "name": "目录"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文件夹路径",
+          "name": "文件夹路径",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "localized_name": "音频总数",
+          "name": "音频总数",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "localized_name": "音频",
+          "name": "音频",
+          "type": "AUDIO",
+          "links": [
+            81
+          ]
+        },
+        {
+          "localized_name": "分段列表",
+          "name": "分段列表",
+          "type": "LIST",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "fxai-toolkit",
+        "ver": "ae58547dba1ea9803f3594300158aef1abf8cbe9",
+        "Node name for S&R": "FxAiAudioManager"
+      },
+      "widgets_values": [
+        "音乐配乐",
+        ""
+      ]
+    },
+    {
+      "id": 57,
+      "type": "PreviewAudio",
+      "pos": [
+        2128.378881768007,
+        1128.337024952741
+      ],
+      "size": [
+        847.214889720783,
+        88
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "音频",
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 81
+        },
+        {
+          "localized_name": "音频UI",
+          "name": "audioUI",
+          "type": "AUDIO_UI",
+          "widget": {
+            "name": "audioUI"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "audio",
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.27.0",
+        "Node name for S&R": "PreviewAudio"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 54,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1310,
+        525
+      ],
+      "size": [
+        520,
+        420
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "showAdvanced": true,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 64
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            68
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "Warm lyrical Chinese cinematic score, instrumental only, no vocals, no lyrics, no humming. BPM 68. Guzheng lead melody, bamboo flute accents, sustained string bed, gentle piano, very light low percussion. Serene, nostalgic, spacious and transparent mood. Suitable as background music under emotional monologue and memory flashback scenes. Continuous flow with a gentle build, then a soft fade-out at the end."
+      ],
+      "title": "配乐描述（英文提示词：曲风/情绪/配器/场景）"
+    },
+    {
+      "id": 59,
+      "type": "CLIPTextEncode",
+      "title": "负向提示词（留空）",
+      "pos": [
+        780,
+        850
+      ],
+      "size": [
+        480,
+        120
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 65
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            69
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.31.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 60,
+      "type": "LoadImage",
+      "pos": [
+        1012.8,
+        277.0
+      ],
+      "size": [
+        1600,
+        188.0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "凤希AI · 音乐配乐 SA3",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "fxai_banner": true
+      },
+      "widgets_values": [
+        "fxai_workflow_banner.png",
+        "image"
+      ]
+    }
+  ],
+  "links": [
+    [
+      64,
+      45,
+      0,
+      54,
+      0,
+      "CLIP"
+    ],
+    [
+      65,
+      45,
+      0,
+      59,
+      0,
+      "CLIP"
+    ],
+    [
+      68,
+      54,
+      0,
+      49,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      69,
+      59,
+      0,
+      49,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      70,
+      48,
+      0,
+      49,
+      3,
+      "LATENT"
+    ],
+    [
+      74,
+      51,
+      0,
+      49,
+      4,
+      "INT"
+    ],
+    [
+      75,
+      49,
+      0,
+      52,
+      0,
+      "LATENT"
+    ],
+    [
+      76,
+      44,
+      2,
+      52,
+      1,
+      "VAE"
+    ],
+    [
+      81,
+      56,
+      2,
+      57,
+      0,
+      "AUDIO"
+    ],
+    [
+      82,
+      52,
+      0,
+      56,
+      0,
+      "AUDIO"
+    ],
+    [
+      90,
+      44,
+      0,
+      49,
+      0,
+      "MODEL"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.7948315677966118,
+      "offset": [
+        -685.5772003740435,
+        -183.86891848114064
+      ]
+    },
+    "frontendVersion": "1.48.7",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
