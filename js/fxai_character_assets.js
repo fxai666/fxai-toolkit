@@ -67,6 +67,70 @@ function applyChanges(subdir, orderedFilenames) {
     });
 }
 
+// 自绘确认对话框（不可逆操作专用）：返回 Promise<boolean>，点确定才 resolve(true)
+function showConfirmDialog(options) {
+    var opts = options || {};
+    return new Promise(function(resolve) {
+        var mask = document.createElement("div");
+        mask.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;" +
+            "background:rgba(0,0,0,0.65);z-index:100000;" +
+            "display:flex;align-items:center;justify-content:center;";
+
+        var card = document.createElement("div");
+        card.style.cssText = "width:480px;max-width:calc(100vw - 40px);box-sizing:border-box;" +
+            "background:#1f2227;border:1px solid #4a8fff;border-radius:10px;" +
+            "box-shadow:0 14px 44px rgba(0,0,0,0.65);padding:20px 22px;" +
+            "color:#e8e8e8;font-size:13px;line-height:1.75;";
+
+        var titleEl = document.createElement("div");
+        titleEl.textContent = opts.title || "请确认";
+        titleEl.style.cssText = "font-size:16px;font-weight:700;margin-bottom:12px;color:#ffb64d;";
+
+        var bodyEl = document.createElement("div");
+        bodyEl.textContent = opts.message || "";
+        bodyEl.style.cssText = "white-space:pre-line;margin-bottom:18px;color:#d6d6d6;";
+
+        var btnRow = document.createElement("div");
+        btnRow.style.cssText = "display:flex;justify-content:flex-end;gap:10px;";
+
+        var cancelBtn = document.createElement("button");
+        cancelBtn.textContent = opts.cancelText || "取消";
+        cancelBtn.style.cssText = "padding:6px 14px;border-radius:6px;border:1px solid #6b6b6b;" +
+            "background:#3a3f47;color:#e0e0e0;cursor:pointer;font-size:13px;";
+
+        var okBtn = document.createElement("button");
+        okBtn.textContent = opts.confirmText || "确定";
+        okBtn.style.cssText = "padding:6px 14px;border-radius:6px;border:1px solid #d9534f;" +
+            "background:#c0392b;color:#fff;cursor:pointer;font-size:13px;font-weight:600;";
+
+        function close(result) {
+            document.removeEventListener("keydown", onKey, true);
+            if (mask.parentNode) mask.parentNode.removeChild(mask);
+            resolve(result);
+        }
+        function onKey(e) {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                close(false);
+            }
+        }
+
+        cancelBtn.onclick = function() { close(false); };
+        okBtn.onclick = function() { close(true); };
+        document.addEventListener("keydown", onKey, true);
+
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(okBtn);
+        card.appendChild(titleEl);
+        card.appendChild(bodyEl);
+        card.appendChild(btnRow);
+        mask.appendChild(card);
+        document.body.appendChild(mask);
+        okBtn.focus();
+    });
+}
+
 function deleteImage(subdir, filename) {
     return new Promise(function(resolve, reject) {
         var url = api.apiURL("/fxai/image/v2/delete?subdir=" + encodeURIComponent(subdir) + "&filename=" + encodeURIComponent(filename));
@@ -165,7 +229,7 @@ function addUI(node) {
     dropArea.style.borderRadius = "6px";
     dropArea.style.textAlign = "center";
     dropArea.style.color = "#ccc";
-    dropArea.textContent = "📥 拖拽图片到这里上传（支持多图）";
+    dropArea.textContent = "📥 拖拽图片到这里上传（支持多图，按上传时间自动命名）";
     container.appendChild(dropArea);
 
     // 按钮区域
@@ -177,10 +241,12 @@ function addUI(node) {
 
     var uploadBtn = document.createElement("button");
     uploadBtn.textContent = "📤 选择图片上传";
+    uploadBtn.title = "上传后自动以上传时刻命名（yyyyMMddHHmmss，如 20261123063012.png）";
     var refreshBtn = document.createElement("button");
     refreshBtn.textContent = "🔄 刷新";
     var applyBtn = document.createElement("button");
-    applyBtn.textContent = "✅ 确认操作";
+    applyBtn.textContent = "🔢 按顺序重命名";
+    applyBtn.title = "按当前排列顺序重命名本目录文件（不可逆）";
     btnDiv.appendChild(uploadBtn);
     btnDiv.appendChild(refreshBtn);
     btnDiv.appendChild(applyBtn);
@@ -342,13 +408,46 @@ function addUI(node) {
 
     refreshBtn.onclick = updateList;
 
-    // 应用排序
+    // 按顺序重命名（不可逆，操作前必须二次确认）
     applyBtn.onclick = function() {
         var items = listDiv.querySelectorAll(".image-item");
+        if (!items.length) {
+            alert("当前目录没有文件，无需重命名。");
+            return;
+        }
+
+        var targetSubdir = currentSubdir;
         var ordered = Array.from(items).map(i => i.dataset.filename);
-        applyChanges(currentSubdir, ordered)
-        .then(() => updateList())
-        .catch(err => alert("应用失败: " + err.message));
+
+        var dirLabel = targetSubdir;
+        Object.entries(CATEGORY_CONFIG).forEach(([label, dir]) => {
+            if (dir === targetSubdir) dirLabel = label;
+        });
+
+        showConfirmDialog({
+            title: "⚠️ 确认按顺序重命名？",
+            message: "此操作将对当前目录「" + dirLabel + "」（" + targetSubdir + "）的 " + ordered.length + " 个文件，\n" +
+                     "按当前排列顺序重新命名（依次编号 000、001、002…）。\n\n" +
+                     "是否确认操作？\n\n" +
+                     "此操作不可逆，原始文件名将不再保留。\n" +
+                     "如果要保持当前目录下的原始文件名，请不要点「确定重命名」。",
+            confirmText: "确定重命名",
+            cancelText: "取消，保留原名"
+        }).then(function(ok) {
+            if (!ok) return;
+
+            var originalText = applyBtn.textContent;
+            applyBtn.textContent = "重命名中...";
+            applyBtn.disabled = true;
+
+            applyChanges(targetSubdir, ordered)
+            .then(() => updateList())
+            .catch(err => alert("重命名失败，原文件名未改变：" + err.message))
+            .finally(() => {
+                applyBtn.textContent = originalText;
+                applyBtn.disabled = false;
+            });
+        });
     };
 
     setTimeout(() => updateList(), 0);
