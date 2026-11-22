@@ -6,11 +6,12 @@ import logging
 import asyncio
 import subprocess
 import mimetypes
+import uuid
 import folder_paths
 import aiohttp
 from aiohttp import web
 from server import PromptServer
-from datetime import datetime
+from datetime import datetime, timedelta
 try:
     from fxai_sort_utils import natural_key as _natural_key   # 全包统一的自然排序键
 except ImportError:   # 兜底：__init__ 还没把本目录注入 sys.path 时自愈，避免整个包加载失败
@@ -796,17 +797,32 @@ async def image_v1_upload(request):
         return web.json_response({"error": f"上传失败：{str(e)}"}, status=500)
 
 # ===================== 图片管理 - V2 API =====================
-def _image_v2_get_next_number(target_dir):
-    files = _image_v1_list_images(target_dir)
-    used = set()
-    for f in files:
-        m = re.match(r'^(\d+)', f)
-        if m:
-            used.add(int(m.group(1)))
-    n = 0
-    while n in used:
-        n += 1
-    return n
+def _image_v2_free_timestamp(base_dt=None, offset=0, used=None):
+    """生成 yyyyMMddHHmmss 形式的文件名主干，保证不与 used 里的名字冲突。
+
+    base_dt：基准时间（默认当前时间）；offset：先向后偏移的秒数；
+    冲突时逐秒顺延，最长顺延一天。
+    """
+    base_dt = base_dt or datetime.now()
+    used = used or set()
+    for step in range(0, 86400):
+        stem = (base_dt + timedelta(seconds=offset + step)).strftime("%Y%m%d%H%M%S")
+        if stem not in used:
+            return stem
+    return base_dt.strftime("%Y%m%d%H%M%S")
+
+
+def _image_v2_used_stems(target_dir):
+    """目录内已占用的文件名主干（不含扩展名），用于时间戳去重。
+
+    扫全部文件而非只扫图片，避免与同名不同扩展名的文件相撞。
+    """
+    if not os.path.isdir(target_dir):
+        return set()
+    try:
+        return {os.path.splitext(f)[0] for f in os.listdir(target_dir)}
+    except OSError:
+        return {os.path.splitext(f)[0] for f in _image_v1_list_images(target_dir)}
 
 async def image_v2_preview(request):
     subdir = request.query.get("subdir", "")
@@ -840,29 +856,33 @@ async def image_v2_apply(request):
         if not ordered_filenames:
             return web.json_response({"files": _image_v1_list_images(target_dir), "success": True, "msg": "无需修改"})
 
+        # 1) 先全部改成唯一的临时名，避免「A→B、B→C」互相踩名（临时名无扩展名，不会被当成图片列出）
+        staged = []
         for idx, old_name in enumerate(ordered_filenames):
             old_path = _safe_path_join(target_dir, old_name)
             if not old_path or not os.path.exists(old_path):
                 continue
-            temp_name = f"{idx:03d}_{old_name}"
+            temp_name = f".fxai_tmp_{idx:04d}_{uuid.uuid4().hex[:8]}"
             temp_path = _safe_path_join(target_dir, temp_name)
+            if not temp_path:
+                continue
             os.rename(old_path, temp_path)
+            staged.append((temp_name, old_name))
 
-        for idx, old_name in enumerate(ordered_filenames):
-            temp_name = f"{idx:03d}_{old_name}"
+        # 2) 按排列顺序重命名为 000、001、002…（拖拽排序的落点，序号不随时间变）
+        for idx, (temp_name, old_name) in enumerate(staged):
             temp_path = _safe_path_join(target_dir, temp_name)
             if not temp_path or not os.path.exists(temp_path):
                 continue
 
             ext = old_name.split(".")[-1]
-            final_name = f"{idx:03d}.{ext}"
-            final_path = _safe_path_join(target_dir, final_name)
+            final_path = _safe_path_join(target_dir, f"{idx:03d}.{ext}")
             os.rename(temp_path, final_path)
 
         new_files = _image_v1_list_images(target_dir)
         return web.json_response({"files": new_files, "success": True})
     except Exception as e:
-        return web.json_response({"error": f"应用失败：{str(e)}"}, status=500)
+        return web.json_response({"error": f"重命名失败：{str(e)}"}, status=500)
 
 async def image_v2_upload(request):
     try:
@@ -896,11 +916,12 @@ async def image_v2_upload(request):
                 # 覆盖模式：用调用方指定的文件名（剥离非法字符，保留扩展名），直接覆盖同名文件
                 _base = re.sub(r'[\\/*?:"<>|]', "", os.path.splitext(filename_arg)[0])
                 if not _base:
-                    _base = f"{_image_v2_get_next_number(target_dir):03d}"
+                    _base = _image_v2_free_timestamp(datetime.now(), used=_image_v2_used_stems(target_dir))
                 new_filename = f"{_base}.{ext}"
             else:
-                next_num = _image_v2_get_next_number(target_dir)
-                new_filename = f"{next_num:03d}.{ext}"
+                # 普通上传：按上传时刻命名 yyyyMMddHHmmss（同秒冲突自动顺延到下一空闲秒）
+                stem = _image_v2_free_timestamp(datetime.now(), used=_image_v2_used_stems(target_dir))
+                new_filename = f"{stem}.{ext}"
             save_path = _safe_path_join(target_dir, new_filename)
 
             with open(save_path, "wb") as f:
