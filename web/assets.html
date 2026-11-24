@@ -14,9 +14,12 @@
   }
   *{box-sizing:border-box}
   [hidden]{display:none !important}
-  html,body{margin:0; padding:0}
+  html,body{margin:0; padding:0; height:100%}
+  /* 整个页面就是一屏：外框不滚，滚动条只出现在「文件夹列表」和「文件列表」两个独立的框里 */
   body{
-    background:var(--bg); color:var(--ink); min-height:100vh;
+    background:var(--bg); color:var(--ink);
+    height:100vh; height:100dvh; overflow:hidden;
+    display:flex; flex-direction:column;
     font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
   }
   a{color:inherit; text-decoration:none}
@@ -24,7 +27,7 @@
 
   /* ---------------------------- 顶栏 ---------------------------- */
   .topbar{
-    position:sticky; top:0; z-index:60; background:rgba(255,255,255,.92);
+    position:relative; flex:none; z-index:60; background:rgba(255,255,255,.92);
     backdrop-filter:saturate(180%) blur(12px);
     border-bottom:1px solid var(--line);
   }
@@ -56,15 +59,25 @@
        stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
 
   /* ---------------------------- 工具栏 ---------------------------- */
-  .wrap{max-width:1320px; margin:0 auto; padding:18px 22px 90px}
+  /* 外框占满剩余高度且自身不滚，只把中间的内容区分给两个列表去滚 */
+  .wrap{max-width:1320px; width:100%; margin:0 auto; padding:16px 22px 10px;
+        flex:1; min-height:0; display:flex; flex-direction:column}
   .crumbs{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; color:var(--ink2);
-          margin-bottom:14px; min-height:26px}
+          margin-bottom:14px; min-height:26px; flex:none}
   .crumbs .cp{display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:7px; cursor:pointer}
   .crumbs .cp:hover{background:#fff; color:var(--ink)}
   .crumbs .cp.cur{color:var(--ink); font-weight:600; background:#fff; border:1px solid var(--line)}
   .crumbs .sep{color:var(--ink3); font-size:11px}
+  /* 面包屑里的分类切换：点一下直接换分类目录 */
+  .crumbs .topsw{display:inline-flex; align-items:center; gap:2px; padding:3px;
+    background:rgba(120,130,180,.10); border-radius:9px}
+  .crumbs .ttab{border:0; background:transparent; color:var(--ink2); font-family:inherit; font-size:12.5px;
+    line-height:1; padding:5px 9px; border-radius:7px; cursor:pointer; transition:.15s;
+    display:inline-flex; align-items:center; gap:4px; white-space:nowrap}
+  .crumbs .ttab:hover{background:#fff; color:var(--ink)}
+  .crumbs .ttab.on{background:#fff; color:var(--brand-d); font-weight:600; box-shadow:0 1px 3px rgba(40,50,90,.12)}
 
-  .toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px}
+  .toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; flex:none}
   .search{position:relative; flex:1; min-width:220px; max-width:420px}
   .search input{
     width:100%; padding:8px 34px 8px 33px; border-radius:10px; border:1px solid var(--line);
@@ -77,20 +90,7 @@
   .search .clear:hover{background:#f1f3f9; color:var(--ink)}
   .search.has .clear{display:block}
 
-  .chips{display:flex; gap:6px; flex-wrap:wrap}
-  .chip{border:1px solid var(--line); background:#fff; color:var(--ink2); font-size:12.5px;
-        padding:5px 11px; border-radius:999px; cursor:pointer; transition:.15s; display:inline-flex;
-        align-items:center; gap:5px}
-  .chip:hover{border-color:#cfd4e6; color:var(--ink)}
-  .chip.on{background:var(--brand-l); border-color:#c9cffa; color:var(--brand-d); font-weight:600}
-
-  /* 筛选条：只作用于当前目录，和上面的「素材分类」是两回事 */
-  .subbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px;
-          background:#fff; border:1px solid var(--line); border-radius:11px; margin-bottom:14px}
-  .subbar .sblabel{font-size:12px; color:var(--ink3); font-weight:600; letter-spacing:.3px; flex:none}
-  .subbar .chip{padding:4px 10px; font-size:12px}
-  .sbcount{font-size:12px; color:var(--ink3); margin-left:auto; white-space:nowrap}
-  .subbar .btn.mini{padding:4px 9px; font-size:11.5px}
+  /* 类型筛选整条已移除：顶层目录本身就是图片/视频/音频的分类维度，多筛一层是重复的 */
 
   select.sortsel, .viewtoggle{
     border:1px solid var(--line); background:#fff; border-radius:9px; padding:7px 10px;
@@ -102,7 +102,7 @@
   .viewtoggle button.on{background:var(--brand-l); color:var(--brand-d)}
 
   /* ---------------------------- 分类总览 ---------------------------- */
-  .ovwrap{margin-bottom:20px}
+  .ovwrap{flex:none; max-height:46%; overflow:auto; margin-bottom:20px}
   .ovhead{display:flex; align-items:baseline; gap:8px; font-size:12.5px; color:var(--ink2);
           font-weight:650; margin:0 0 10px; letter-spacing:.3px}
   .ovhead span{font-weight:400; color:var(--ink3); font-size:11.5px; letter-spacing:0}
@@ -115,8 +115,6 @@
   .ov .ovs{font-size:11.5px; color:var(--ink3); margin-top:2px}
   .ov .ovsub{font-size:10.5px; color:var(--ink3); margin-top:5px; padding-right:58px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; opacity:.9}
-  .fnote{margin-top:10px; padding:10px 14px; border:1px dashed var(--line); border-radius:10px;
-    font-size:12.5px; color:var(--ink3); background:rgba(120,130,180,.05)}
   .ov .dot{width:8px; height:8px; border-radius:50%; flex:none}
   .ov .enter{position:absolute; right:14px; bottom:13px; font-size:11.5px; color:var(--ink3);
              display:flex; align-items:center; gap:2px; opacity:0; transform:translateX(-3px); transition:.18s}
@@ -134,6 +132,61 @@
   .secttl .lnk:hover{text-decoration:underline}
 
   .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:14px}
+
+  /* ---------------------------- 内容区：两个独立滚动的框 ---------------------------- */
+  #content{flex:1; min-height:0; display:flex; flex-direction:column}
+  /* 文件夹框：目录少时自然矮，多了才在框里滚，最多占一半高 */
+  .dirs-pane{display:flex; flex-direction:column; min-height:0;
+             flex:0 1 auto; max-height:48%; margin-bottom:14px}
+  /* 文件框：吃掉剩下的高度，自己在框里滚 */
+  .files-pane{display:flex; flex-direction:column; min-height:0; flex:1 1 auto}
+  #content.only-dirs .dirs-pane{flex:1 1 auto; max-height:none; margin-bottom:0}
+  #content.only-dirs .files-pane{display:none}
+  #content.only-files .dirs-pane{display:none}
+  #content.only-files .files-pane{flex:1 1 auto}
+  .files-pane > .secttl{flex:none}
+  /* 滚动交给外层 scrollbox：grid 自己当滚动容器会被 flex 挤压，卡片高度被压扁 */
+  .files-pane > .scrollbox{flex:1 1 auto; min-height:0; overflow:auto; padding-right:2px}
+  .files-pane > .scrollbox > .grid{align-content:start}
+  .files-pane > .rows{flex:1 1 auto; min-height:0; overflow:auto}
+  /* 空状态撑满内容区并居中 */
+  #content > .empty{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center}
+  /* 多选时底部选择条是浮层，给它留出位置，别压住文件列表最后一行 */
+  body.selecting .wrap{padding-bottom:74px}
+
+  /* 文件夹：紧凑条目（几十上百个目录时，卡片样式要滚很久） */
+  .dirhead{display:flex; align-items:center; gap:10px; margin:4px 0 9px; flex:none;
+    font-size:12.5px; color:var(--ink2); font-weight:600; letter-spacing:.3px}
+  .dirhead .cnt{font-weight:400; color:var(--ink3)}
+  /* 当前路径（放在「文件夹」标题后面）：每段可点，回到上级 */
+  .ptrail{display:inline-flex; align-items:center; gap:2px; min-width:0; max-width:52%;
+    font-weight:400; font-size:12.5px; color:var(--ink3); overflow:hidden; white-space:nowrap;
+    padding-left:9px; margin-left:2px; border-left:1px solid var(--line)}
+  .ptrail .ptseg{cursor:pointer; padding:1px 4px; border-radius:5px; max-width:190px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:.12s}
+  .ptrail .ptseg:hover{background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(40,50,90,.1)}
+  .ptrail .ptseg.cur{color:var(--ink); font-weight:600}
+  .ptrail .ptsep{color:#c8cde2; flex:none}
+  .ptrow{margin:0 0 10px; padding-left:14px; font-size:12px}
+  .ptrow .ptrail{max-width:100%}
+  .dirqin{margin-left:auto; width:190px; border:1px solid var(--line); border-radius:8px;
+    padding:5px 9px; font-size:12px; outline:none; background:#fff; color:var(--ink); font-weight:400}
+  .dirqin:focus{border-color:#b9c0ea; box-shadow:0 0 0 3px rgba(79,91,213,.1)}
+  .dirlist{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:0 14px;
+    background:#fff; border:1px solid var(--line); border-radius:12px; padding:5px 10px;
+    flex:1 1 auto; min-height:0; overflow:auto}
+  .dirrow{display:flex; align-items:center; gap:8px; padding:7px 7px; border-radius:7px;
+    border-bottom:1px solid rgba(30,35,80,.045); cursor:pointer; font-size:13px; min-width:0}
+  .dirrow:hover{background:#f5f7fd}
+  .dirrow.sel{background:var(--brand-l)}
+  .dirrow .dn{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink)}
+  .dirrow .dc{flex:none; font-size:11px; color:var(--ink3)}
+  .dirrow .dops{flex:none; width:22px; height:22px; padding:0; border:0; border-radius:5px; background:none;
+    color:var(--ink3); cursor:pointer; opacity:0; display:flex; align-items:center; justify-content:center}
+  .dirrow:hover .dops,.dirrow.sel .dops{opacity:1}
+  body.selecting .dirrow .dops{opacity:0}
+  .dirnone{padding:16px 8px; font-size:12.5px; color:var(--ink3); grid-column:1/-1}
+  .btn.dim{opacity:.55}
 
   .card{
     background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;
@@ -180,9 +233,9 @@
   .meta .sp{color:#d5d9e8}
 
   /* 列表视图 */
-  .rows{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden}
-  .row{display:grid; grid-template-columns:30px 1fr 90px 100px 130px 44px; gap:10px; align-items:center;
-       padding:9px 14px; border-bottom:1px solid var(--line2); cursor:pointer; font-size:13px}
+  .rows{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:auto}
+  .row{display:grid; grid-template-columns:30px 1fr 90px 100px 44px; gap:10px; align-items:center;
+       padding:7px 14px; border-bottom:1px solid var(--line2); cursor:pointer; font-size:13px}
   .row:last-child{border-bottom:0}
   .row:hover{background:#fafbff}
   .row.sel{background:var(--brand-l)}
@@ -223,7 +276,7 @@
   .selbar .x:hover{color:#fff}
   .selbar .sep{width:1px; height:16px; background:rgba(255,255,255,.16)}
 
-  .pager{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:22px; font-size:13px; color:var(--ink2)}
+  .pager{flex:none; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:10px; font-size:13px; color:var(--ink2)}
   .pager button{border:1px solid var(--line); background:#fff; border-radius:8px; padding:5px 11px;
     cursor:pointer; color:var(--ink2); font-size:12.5px}
   .pager button:hover:not(:disabled){border-color:#cfd4e6; color:var(--ink)}
@@ -235,11 +288,17 @@
   .empty p{margin:0 0 4px; font-size:13.5px; color:var(--ink2)}
   .empty small{font-size:12px}
   .empty .acts{margin-top:14px; display:flex; gap:8px; justify-content:center}
+  /* 极简空态：只有一句话。入口（上传/新建）都在右上角工具栏，底部不再重复摆按钮 */
+  .empty.quiet{padding:30px 20px}
+  .empty.quiet p{margin:0; color:var(--ink3)}
 
   /* ---------------------------- 弹层 ---------------------------- */
   .mask{position:fixed; inset:0; background:rgba(18,20,36,.46); display:none; z-index:100;
         align-items:center; justify-content:center; padding:22px; backdrop-filter:blur(2px)}
   .mask.show{display:flex}
+  /* 确认框永远压在最上层：它常常从别的弹层（回收站、预览）里弹出，同 z-index 会被后面那个盖住。
+     底色也调淡一点，压在别的遮罩上时不至于叠得发黑。 */
+  #mConfirm{z-index:400; background:rgba(18,20,36,.32)}
   .dlg{background:#fff; border-radius:16px; width:100%; max-width:460px;
        box-shadow:0 24px 60px rgba(16,20,50,.26); overflow:hidden; animation:pop .16s ease-out}
   .dlg.wide{max-width:920px}
@@ -297,8 +356,8 @@
     text-align:left; background:#0f111a;
   }
 
-  /* 目录选择 */
-  .dirlist{max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:10px}
+  /* 目录选择（移动弹窗；注意别和内容区的 .dirlist 撞名） */
+  .mvlist{max-height:320px; overflow:auto; border:1px solid var(--line); border-radius:10px}
   .diritem{display:flex; align-items:center; gap:9px; padding:9px 12px; cursor:pointer;
            border-bottom:1px solid var(--line2); font-size:13px}
   .diritem:last-child{border-bottom:0}
@@ -360,7 +419,7 @@
   @media (max-width:720px){
     .tbin{padding:10px 14px; gap:10px}
     .brand .sub{display:none}
-    .wrap{padding:14px 12px 96px}
+    .wrap{padding:12px 12px 8px}
     .grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:10px}
     .thumb{height:104px}
     .pickbtn,.morebtn{opacity:1}
@@ -459,19 +518,7 @@
     </div>
   </div>
 
-  <!-- 筛选条：只筛当前目录里的文件，和下面的分类导航不是一回事 -->
-  <div class="subbar" id="subbar" hidden>
-    <span class="sblabel">只显示</span>
-    <div class="chips" id="chips">
-      <button class="chip on" data-kind="">全部类型</button>
-      <button class="chip" data-kind="image">图片</button>
-      <button class="chip" data-kind="video">视频</button>
-      <button class="chip" data-kind="audio">音频</button>
-      <button class="chip" data-kind="text">文本</button>
-    </div>
-    <button class="btn mini" id="btnClearFilter" hidden>清除筛选</button>
-    <span class="sbcount" id="sbCount"></span>
-  </div>
+  <!-- 不再有「类型筛选」：顶层目录本身就是按图片/视频/音频分的，目录内再筛类型是重复的一层 -->
 
   <div class="ovwrap" id="ovwrap">
     <div class="ovhead">素材分类 <span>点卡片进入对应目录</span></div>
@@ -564,7 +611,7 @@
     </div>
     <div class="bd">
       <div class="pathnow" id="mvPath">/</div>
-      <div class="dirlist" id="mvList"></div>
+      <div class="mvlist" id="mvList"></div>
       <div class="hint">点文件夹进入，选好后点「移动到这里」。同名文件会自动加序号。</div>
     </div>
     <div class="ft">
@@ -647,8 +694,8 @@
   function basename(p) { return String(p || "").split("/").pop(); }
 
   var state = {
-    path: "", q: "", kind: "", sort: "name", order: "asc", page: 1, size: 60,
-    view: "grid", data: null, stat: null, sel: {}, cfg: null,
+    path: "", q: "", dirq: "", sort: "name", order: "asc", page: 1, size: 60,
+    view: "grid", data: null, stat: null, tops: [], sel: {}, cfg: null,
     movePaths: [], movePath: "", prev: null, selectMode: false,
     token: localStorage.getItem("fxai_token") || ""
   };
@@ -710,16 +757,25 @@
   function hide(id) { $(id).classList.remove("show"); }
 
   document.querySelectorAll("[data-close]").forEach(function (b) {
-    b.addEventListener("click", function () { hide(b.getAttribute("data-close")); });
+    b.addEventListener("click", function () {
+      var id = b.getAttribute("data-close");
+      if (id === "mPrev") closePreview(); else hide(id);
+    });
   });
   document.querySelectorAll(".mask").forEach(function (m) {
-    m.addEventListener("click", function (e) { if (e.target === m) m.classList.remove("show"); });
+    m.addEventListener("click", function (e) {
+      if (e.target !== m) return;
+      if (m.id === "mPrev") closePreview(); else m.classList.remove("show");
+    });
   });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       if (!$("ctxmenu").hidden) { closeMenu(); return; }
       var open = document.querySelectorAll(".mask.show");
-      if (open.length) open[open.length - 1].classList.remove("show");
+      if (open.length) {
+        var top = open[open.length - 1];
+        if (top.id === "mPrev") closePreview(); else top.classList.remove("show");
+      }
       else if (state.selectMode) setSelectMode(false);
     }
   });
@@ -744,12 +800,16 @@
   /* ============================ 列表 ============================ */
   function load() {
     var query = qs({
-      // 根目录不放类型筛选：那里只有文件夹，筛了只会把入口藏起来
-      path: state.path, q: state.q, type: state.path === "" ? "" : state.kind,
+      // 不再按类型筛：目录本身就是类型维度
+      path: state.path, q: state.q,
       sort: state.sort, order: state.order, page: state.page, size: state.size
     });
     return api("/fxweb/api/list?" + query).then(function (d) {
       state.data = d;
+      // 根目录的目录清单就是顶层分类，缓存下来供面包屑上的分类标签使用
+      if (state.path === "" && !d.search && (d.dirs || []).length) {
+        state.tops = d.dirs.map(function (x) { return x.name; });
+      }
       render();
     }).catch(function (e) {
       $("content").innerHTML = '<div class="empty"><svg class="ico"><use href="#i-box"/></svg>' +
@@ -774,6 +834,16 @@
     loras: { label: "LoRA", icon: "i-file", color: "#d89b1f" }
   };
 
+  /* 顶层分类是固定的四个（图片/音频/视频/提示词），顺序也固定。
+     不从实际目录列表生成，否则 lora_test、api 这类临时目录会混进来。 */
+  var FIXED_TOPS = ["image", "audio", "video", "prompts"];
+
+  function orderedTops() {
+    var known = (state.tops && state.tops.length) ? state.tops : null;
+    if (!known) return FIXED_TOPS.slice();
+    return FIXED_TOPS.filter(function (k) { return known.indexOf(k) >= 0; });
+  }
+
   /* 分类导航：只在根目录出现，点卡片 = 进入目录（不是筛选）。
      不再要求「有子目录才显示」——根目录本来就没有散文件，筛类型会把文件夹全滤掉，页面就空了。 */
   function overviewVisible(d) {
@@ -797,45 +867,55 @@
       (st ? "个文件" : "个目录") + '</span></div>' +
       '<div class="ovs">' + esc(totalSize) + '</div>' +
       '<span class="enter">看看全部<svg class="ico" style="width:12px;height:12px"><use href="#i-chevron"/></svg></span></div>';
-    (d.dirs || []).forEach(function (it) {
-      var meta = TOP_META[it.name] || { label: it.name, icon: "i-folder", color: "#7c86ad" };
-      var s = (st && st.by_top && st.by_top[it.name]) || null;
-      var fileN = s ? s.count : it.files;
-      var dirN = (s && s.dirs != null) ? s.dirs : it.subdirs;
-      var samples = (s && s.samples && s.samples.length) ? s.samples : [];
-      var meta1 = [dirN ? dirN + " 个子目录" : "没有子目录"];
-      if (s && s.size_str) meta1.push(s.size_str);
-      html += '<div class="ov" data-go="' + esc(it.path) + '" title="进入 /' + esc(it.name) + '">' +
-        '<div class="ovt"><span class="dot" style="background:' + meta.color + '"></span>' +
-        '<svg class="ico" style="width:14px;height:14px;color:' + meta.color + '"><use href="#' + meta.icon + '"/></svg>' +
-        esc(meta.label) + "</div>" +
-        '<div class="ovn">' + fileN + ' <span style="font-size:12px;font-weight:500;color:var(--ink3)">个文件</span></div>' +
-        '<div class="ovs">' + esc(meta1.join(" · ")) + "</div>" +
-        (samples.length ? '<div class="ovsub" title="前几个子目录">' + esc(samples.join(" · ")) + "…</div>" : "") +
-        '<span class="enter">进入<svg class="ico" style="width:12px;height:12px"><use href="#i-chevron"/></svg></span></div>';
-    });
+    var allDirs = d.dirs || [];
+    // 首页只认这四个固定分类，别的目录（api、lora_test…）不在这里露脸
+    var mainDirs = FIXED_TOPS.map(function (k) {
+      return allDirs.filter(function (x) { return x.name === k; })[0];
+    }).filter(Boolean);
+
+    mainDirs.forEach(function (it) { html += ovCard(it, st); });
     box.innerHTML = html;
   }
 
+  function ovCard(it, st) {
+    var meta = TOP_META[it.name] || { label: it.name, icon: "i-folder", color: "#7c86ad" };
+    var s = (st && st.by_top && st.by_top[it.name]) || null;
+    var fileN = s ? s.count : it.files;
+    var dirN = (s && s.dirs != null) ? s.dirs : it.subdirs;
+    var samples = (s && s.samples && s.samples.length) ? s.samples : [];
+    var meta1 = [dirN ? dirN + " 个子目录" : "没有子目录"];
+    if (s && s.size_str) meta1.push(s.size_str);
+    return '<div class="ov" data-go="' + esc(it.path) + '" title="进入 /' + esc(it.name) + '">' +
+      '<div class="ovt"><span class="dot" style="background:' + meta.color + '"></span>' +
+      '<svg class="ico" style="width:14px;height:14px;color:' + meta.color + '"><use href="#' + meta.icon + '"/></svg>' +
+      esc(meta.label) + "</div>" +
+      '<div class="ovn">' + fileN + ' <span style="font-size:12px;font-weight:500;color:var(--ink3)">个文件</span></div>' +
+      '<div class="ovs">' + esc(meta1.join(" · ")) + "</div>" +
+      (samples.length ? '<div class="ovsub" title="前几个子目录">' + esc(samples.join(" · ")) + "…</div>" : "") +
+      '<span class="enter">进入<svg class="ico" style="width:12px;height:12px"><use href="#i-chevron"/></svg></span></div>';
+  }
+
   function renderCrumbs(d) {
-    // 搜索结果的 crumbs 由后端给；万一缺了，用 path 兜一层，别让整页渲染挂掉
-    var crumbs = d.crumbs;
-    if (!crumbs || !crumbs.length) {
-      crumbs = [{ name: "素材根目录", path: "" }];
-      var acc = "";
-      String(d.path || "").split("/").forEach(function (seg) {
-        if (!seg) return;
-        acc = acc ? acc + "/" + seg : seg;
-        crumbs.push({ name: seg, path: acc });
-      });
+    var SEP = '<span class="sep"><svg class="ico" style="width:11px;height:11px"><use href="#i-chevron"/></svg></span>';
+
+    // 分类标签常驻：一开始就四项全显示，不做「点了才出现」的显隐切换。
+    // 位置固定在路径末尾——根目录时接在根目录后面，进了子目录就接在当前文件夹后面。
+    var top = String(d.path || "").split("/")[0];
+    var tops = orderedTops();
+    var tabs = "";
+    if (tops.length) {
+      tabs = '<span class="topsw" role="tablist">' + tops.map(function (name) {
+        var m = TOP_META[name] || { label: name, icon: "i-folder", color: "#7c86ad" };
+        return '<button type="button" class="ttab' + (name === top ? " on" : "") +
+          '" data-go="' + esc(name) + '" title="切到 /' + esc(name) + '">' +
+          '<svg class="ico" style="width:12px;height:12px;color:' + m.color + '"><use href="#' + m.icon + '"/></svg>' +
+          esc(m.label) + "</button>";
+      }).join("") + "</span>";
     }
-    var html = "";
-    crumbs.forEach(function (c, i) {
-      if (i) html += '<span class="sep"><svg class="ico" style="width:11px;height:11px"><use href="#i-chevron"/></svg></span>';
-      html += '<span class="cp' + (i === crumbs.length - 1 ? " cur" : "") + '" data-go="' + esc(c.path) + '">' +
-        (i === 0 ? '<svg class="ico" style="width:13px;height:13px"><use href="#i-box"/></svg>' : "") +
-        esc(c.name) + "</span>";
-    });
+
+    // 顶部这一行只放「根目录 + 分类标签」；具体目录路径挪到下面「文件夹」标题行里（pathTrail）
+    var html = '<span class="cp" data-go=""><svg class="ico" style="width:13px;height:13px"><use href="#i-box"/></svg>素材根目录</span>';
+    if (tabs) html += SEP + tabs;
     if (d.search) {
       html += '<span class="sep">·</span><span style="color:#4f5bd5">含子目录搜索「' + esc(d.search) + "」</span>";
     }
@@ -917,52 +997,69 @@
       '<div class="rn"><svg class="ico"><use href="#' + icon + '"/></svg><span title="' + esc(it.name) + '">' + esc(it.name) + "</span></div>" +
       '<div class="rd">' + kindName + "</div>" +
       '<div class="rd">' + (it.is_dir ? (it.count + " 项") : esc(it.size_str)) + "</div>" +
-      '<div class="rd">' + esc(it.mtime_str) + "</div>" +
       '<div class="ro"><button class="btn mini" data-op="menu" title="更多操作">' +
       '<svg class="ico" style="width:14px;height:14px"><use href="#i-dots"/></svg></button></div>' +
       "</div>";
   }
 
-  function headCell(label, key) {
-    var on = state.sort === key;
+  /* 文件夹用紧凑条目，不用大缩略图卡片：几十上百个目录时卡片太占纵向空间。
+     不显示修改时间——一屏放不下那么多列，日期在这里没用。 */
+  function dirRowHtml(it) {
+    var sel = !!state.sel[it.path];
+    return '<div class="dirrow' + (sel ? " sel" : "") + '" data-path="' + esc(it.path) + '" data-dir="1" title="进入 /' + esc(it.path) + '">' +
+      '<span class="dn">' + esc(it.name) + "</span>" +
+      '<span class="dc">' + (it.count || 0) + " 项</span>" +
+      '<button class="dops" data-op="menu" title="更多操作"><svg class="ico" style="width:14px;height:14px"><use href="#i-dots"/></svg></button>' +
+      "</div>";
+  }
+
+  /* 当前所在路径：顶部面包屑只留「根目录 + 分类标签」，
+     真正的目录路径放在下面「文件夹」标题行的后面，点任意一段都能跳回去。 */
+  function pathTrail(d) {
+    var crumbs = (d && d.crumbs) || [];
+    if (!crumbs.length) {
+      // 搜索接口万一没给 crumbs，用 path 兜一层
+      crumbs = [{ name: "素材根目录", path: "" }];
+      var acc = "";
+      String((d && d.path) || "").split("/").forEach(function (seg) {
+        if (!seg) return;
+        acc = acc ? acc + "/" + seg : seg;
+        crumbs.push({ name: seg, path: acc });
+      });
+    }
+    if (crumbs.length <= 1) return "";
+    var segs = [];
+    for (var i = 1; i < crumbs.length; i++) {
+      // 顶层分类用中文显示，跟上面那排分类标签保持一致；真实目录名留在 title 里
+      var tm = (i === 1) ? TOP_META[crumbs[i].path] : null;
+      var nm = tm ? tm.label : crumbs[i].name;
+      segs.push('<span class="ptseg' + (i === crumbs.length - 1 ? " cur" : "") +
+        '" data-go="' + esc(crumbs[i].path) + '" title="进入 /' + esc(crumbs[i].path) + '">' +
+        esc(nm) + "</span>");
+    }
+    return '<span class="ptrail" title="/' + esc((d && d.path) || "") + '">' +
+      '<span class="ptsep">/</span>' + segs.join('<span class="ptsep">/</span>') + "</span>";
+  }
+
+  function dirsHeadHtml(total, d) {
+    return '<div class="dirhead"><span class="dttl">文件夹 <span class="cnt" id="dirHeadCnt">(' + total + ")</span></span>" +
+      pathTrail(d) +
+      (total > 8 ? '<input class="dirqin" id="dirq" placeholder="按名字找目录" value="' + esc(state.dirq || "") + '">' : "") +
+      "</div>";
+  }
+
+  function headCell(label, key) {    var on = state.sort === key;
     return '<div data-sort="' + key + '" class="' + (on ? "on" : "") + '" title="按' + label + '排序">' + label +
       '<svg class="ico sarr"><use href="#' + (state.order === "desc" ? "i-down" : "i-up") + '"/></svg></div>';
   }
 
-  /* 筛选条只跟「当前目录里的文件」有关。
-     根目录用分类卡片导航，不再叠一层同名的类型筛选；只有文件夹时也不出现，避免筛完一片空白。 */
-  function updateFilterBar(d) {
-    var bar = $("subbar");
-    if (!d) { bar.hidden = true; return; }
-    var fileTotal = d.total != null ? d.total : (d.files || []).length;
-    var show = !overviewVisible(d) && (!!state.kind || !!d.search || fileTotal > 0);
-    bar.hidden = !show;
-    if (!show) return;
-    $("btnClearFilter").hidden = !state.kind;
-    syncChips();
-    if (d.search) {
-      $("sbCount").textContent = "搜到 " + (d.files || []).length + " 个文件 · " +
-        (d.dirs || []).length + " 个文件夹" + (d.truncated ? "（已达上限）" : "");
-    } else {
-      var dirPart = d.dir_count ? " · " + d.dir_count + " 个文件夹" : "";
-      $("sbCount").textContent = state.kind
-        ? "只显示" + kindLabel(state.kind) + "：本目录 " + fileTotal + " 个文件" + (d.dir_count ? " · " + d.dir_count + " 个文件夹照常显示" : "")
-        : "本目录 " + fileTotal + " 个文件" + dirPart;
-    }
-  }
-
-  function syncChips() {
-    $("chips").querySelectorAll(".chip").forEach(function (x) {
-      x.classList.toggle("on", (x.getAttribute("data-kind") || "") === state.kind);
-    });
-  }
+  /* 目录列表的高度现在由 flex 布局自己算（.dirs-pane 内 flex:1），不再按窗口高度改 inline max-height */
 
   function render() {
     var d = state.data;
     if (!d) return;
     renderCrumbs(d);
     renderOverview();
-    updateFilterBar(d);
 
     var dirs = d.dirs || [];
     var files = d.files || [];
@@ -971,32 +1068,37 @@
     var isSearch = !!d.search;
     // 根目录的文件夹已经用「素材分类」卡片表达了，内容区不再重复列一遍
     var dirsShownAbove = overviewVisible(d);
+    // 分类根目录（/image、/video…）只当导航层：往下钻子目录就行，散落的文件不在这里列
+    var isTopRoot = !isSearch && FIXED_TOPS.indexOf(state.path) >= 0;
+    if (isTopRoot) files = [];
 
     // 根目录只有分类目录时，导航在上方卡片里，内容区不必再报「这个目录还是空的」
     var nothingToShow = dirsShownAbove ? !files.length : (!dirs.length && !files.length);
     if (nothingToShow) {
+      c.className = "";
       if (dirsShownAbove && dirs.length) {
         c.innerHTML = "";
         $("pager").innerHTML = "";
         syncSelBar();
         return;
       }
+      // 空目录也要保住「文件夹 + 当前路径」这行头。
+      // 否则钻进一个空子目录，路径就没了，用户不知道自己站在哪一层。
+      var emptyHead = '<div class="dirhead"><span class="dttl">文件夹 <span class="cnt">(0)</span></span>' +
+        pathTrail(d) + "</div>";
+      // 空目录只说「这里是空的」就够了：右上角本来就有「上传」「新建文件夹」，
+      // 底下再摆一遍按钮和「点右上角上传」的指路话，纯属重复。
+      if (isTopRoot) {
+        c.innerHTML = emptyHead + '<div class="empty quiet"><p>这个分类下还没有子目录</p></div>';
+        $("pager").innerHTML = "";
+        syncSelBar();
+        return;
+      }
       if (isSearch) {
-        c.innerHTML = '<div class="empty"><svg class="ico"><use href="#i-search"/></svg>' +
-          "<p>没找到匹配「" + esc(d.search) + "」的文件</p>" +
-          '<small>搜索范围是当前目录及其子目录</small>' +
-          '<div class="acts"><button class="btn mini" data-act="clearq">清空搜索</button>' +
-          (state.kind ? '<button class="btn mini" data-act="clearkind">清除类型筛选</button>' : "") + "</div></div>";
-      } else if (state.kind) {
-        c.innerHTML = '<div class="empty"><svg class="ico"><use href="#i-box"/></svg>' +
-          "<p>这个目录里没有「" + esc(kindLabel(state.kind)) + "」类型的文件</p>" +
-          '<small>当前只显示被筛选的类型</small>' +
-          '<div class="acts"><button class="btn mini primary" data-act="clearkind">看全部类型</button></div></div>';
+        c.innerHTML = emptyHead + '<div class="empty quiet"><p>没找到匹配「' + esc(d.search) + "」的文件</p>" +
+          '<div class="acts"><button class="btn mini" data-act="clearq">清空搜索</button></div></div>';
       } else {
-        c.innerHTML = '<div class="empty"><svg class="ico"><use href="#i-box"/></svg>' +
-          "<p>这个目录还是空的</p><small>点右上角「上传」把素材放进来</small>" +
-          '<div class="acts"><button class="btn mini primary" data-act="upload">上传素材</button>' +
-          '<button class="btn mini" data-act="mkdir">新建文件夹</button></div></div>';
+        c.innerHTML = emptyHead + '<div class="empty quiet"><p>这个目录还是空的</p></div>';
       }
       $("pager").innerHTML = "";
       syncSelBar();
@@ -1005,13 +1107,15 @@
 
     if (dirsShownAbove) dirs = [];
 
+    var hasDirs = dirs.length > 0, hasFiles = files.length > 0;
+
     if (state.view === "grid") {
-      if (dirs.length) {
-        html += '<div class="secttl">文件夹 <span class="cnt">(' + dirs.length + ")</span></div><div class=\"grid\">";
-        dirs.forEach(function (it) { html += cardHtml(it); });
-        html += "</div>";
+      // 文件夹和文件各包一层 pane：两个 pane 各自是独立的滚动框，外框永远不动
+      if (hasDirs) {
+        html += '<div class="dirs-pane">' + dirsHeadHtml(dirs.length, d) +
+          '<div class="dirlist" id="dirlist">' + dirs.map(dirRowHtml).join("") + "</div></div>";
       }
-      if (files.length) {
+      if (hasFiles) {
         var cnt;
         if (isSearch) {
           cnt = files.length + " 个命中" + (d.truncated ? "（已达上限）" : "");
@@ -1019,33 +1123,27 @@
           cnt = (d.total || files.length) + " 个" + (d.pages > 1 ? "，第 " + d.page + "/" + d.pages + " 页" : "") +
             " · " + (d.total_size_str || "");
         }
-        html += '<div class="secttl" style="margin-top:' + (dirs.length ? "22px" : "4px") + '">文件 <span class="cnt">(' +
-          esc(cnt) + ')</span>' +
-          (state.kind && !isSearch ? '<span class="lnk" data-act="clearkind">显示全部类型</span>' : "") + "</div>" +
-          '<div class="grid">';
+        html += '<div class="files-pane"><div class="secttl">文件 <span class="cnt">(' +
+          esc(cnt) + ')</span>' + (hasDirs ? "" : pathTrail(d)) + "</div>" +
+          '<div class="scrollbox"><div class="grid">';
         files.forEach(function (it) { html += cardHtml(it); });
-        html += "</div>";
-      } else if (state.kind && !isSearch && dirs.length) {
-        // 筛类型只筛文件，文件夹还在——明确说清楚，别让人以为内容没了
-        html += '<div class="secttl" style="margin-top:22px">文件 <span class="cnt">(0)</span>' +
-          '<span class="lnk" data-act="clearkind">显示全部类型</span></div>' +
-          '<div class="fnote">这个目录里没有「' + esc(kindLabel(state.kind)) + '」文件；上面的 ' + dirs.length +
-          " 个子目录照常显示，点进去继续找。</div>";
+        html += "</div></div></div>";
       }
+      c.className = hasDirs && hasFiles ? "both" : (hasDirs ? "only-dirs" : "only-files");
     } else {
-      html += '<div class="rows"><div class="row head"><div></div>' +
+      var trailRow = pathTrail(d);
+      html += '<div class="files-pane listmode">' +
+        (trailRow ? '<div class="ptrow">' + trailRow + "</div>" : "") +
+        '<div class="rows"><div class="row head"><div></div>' +
         headCell("名称", "name") + "<div>类型</div>" +
-        headCell("大小", "size") + headCell("修改时间", "time") + "<div></div></div>";
+        headCell("大小", "size") + "<div></div></div>";
       dirs.concat(files).forEach(function (it) { html += rowHtml(it); });
-      html += "</div>";
-      if (!files.length && state.kind && !isSearch) {
-        html += '<div class="fnote">这个目录里没有「' + esc(kindLabel(state.kind)) +
-          "」文件；文件夹不受筛选影响，可以继续进入子目录。</div>";
-      }
+      html += "</div></div>";
+      c.className = "only-files";
     }
     c.innerHTML = html;
 
-    if (d.pages > 1 && !isSearch) {
+    if (d.pages > 1 && !isSearch && !isTopRoot) {
       $("pager").innerHTML = '<button id="pgFirst"' + (d.page <= 1 ? " disabled" : "") + ">首页</button>" +
         '<button id="pgPrev"' + (d.page <= 1 ? " disabled" : "") + ">上一页</button>" +
         "<span>第 " + d.page + " / " + d.pages + " 页 · 共 " + d.total + " 个文件</span>" +
@@ -1058,11 +1156,28 @@
     } else {
       $("pager").innerHTML = "";
     }
+    bindDirFilter();
     syncSelBar();
+    syncUploadBtn();
   }
 
-  function kindLabel(k) {
-    return { image: "图片", video: "视频", audio: "音频", text: "文本" }[k] || k;
+  /* 目录多了（几十上百个）光靠滚动不现实，给一个本地按名字过滤 */
+  function bindDirFilter() {
+    var q = $("dirq");
+    if (!q) return;
+    q.addEventListener("input", function () {
+      state.dirq = this.value;
+      var all = (state.data && state.data.dirs) || [];
+      var kw = state.dirq.trim().toLowerCase();
+      var shown = kw ? all.filter(function (x) { return x.name.toLowerCase().indexOf(kw) >= 0; }) : all;
+      var box = $("dirlist");
+      if (box) {
+        box.innerHTML = shown.length ? shown.map(dirRowHtml).join("")
+          : '<div class="dirnone">没有名字含「' + esc(state.dirq) + "」的目录</div>";
+      }
+      var cnt = $("dirHeadCnt");
+      if (cnt) cnt.textContent = kw ? "(" + shown.length + "/" + all.length + ")" : "(" + all.length + ")";
+    });
   }
 
   /* ============================ 导航 ============================ */
@@ -1070,18 +1185,22 @@
     state.path = path || "";
     state.sel = {};
     state.page = 1;
-    state.kind = "";            // 换目录就清掉类型筛选，避免「进了图片目录却只显示视频」
-    syncChips();
+    state.dirq = "";
+    // 切换目录就离开搜索态：否则从搜索结果点进别的分类，会把搜索词一起带过去
+    if (state.q) {
+      state.q = "";
+      $("q").value = "";
+      $("searchBox").classList.remove("has");
+    }
     if (state.selectMode) setSelectMode(false);
     closeMenu();
     load();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  /* 清掉一切筛选，回到根目录看全部 */
+  /* 清掉搜索，回到根目录看全部 */
   function clearAll() {
     state.q = ""; $("q").value = ""; $("searchBox").classList.remove("has");
-    state.kind = ""; syncChips();
     state.page = 1;
     if (state.path !== "") { go(""); } else { load(); }
   }
@@ -1217,6 +1336,9 @@
 
   /* ============================ 内容区事件 ============================ */
   $("content").addEventListener("click", function (e) {
+    // 标题行里的路径段：点一下跳到对应上级目录
+    var dg = e.target.closest("[data-go]");
+    if (dg) { go(dg.getAttribute("data-go")); return; }
     // 表头排序
     var th = e.target.closest("[data-sort]");
     if (th && !e.target.closest("[data-path]")) {
@@ -1233,7 +1355,6 @@
     if (act && !e.target.closest("[data-path]")) {
       var a = act.getAttribute("data-act");
       if (a === "clearq") { state.q = ""; $("q").value = ""; $("searchBox").classList.remove("has"); state.page = 1; load(); }
-      if (a === "clearkind") { state.kind = ""; syncChips(); state.page = 1; load(); }
       if (a === "upload") $("btnUpload").click();
       if (a === "mkdir") $("btnMkdir").click();
       return;
@@ -1264,12 +1385,8 @@
     else preview(item);
   });
 
-  $("content").addEventListener("contextmenu", function (e) {
-    var holder = e.target.closest("[data-path]");
-    if (!holder) return;
-    e.preventDefault();
-    openMenu(findItem(holder.getAttribute("data-path")), e.clientX, e.clientY);
-  });
+  /* 右键交还给浏览器原生菜单（另存为 / 复制图片地址 / 在新标签打开，这些原生项更有用）。
+     文件操作入口统一走卡片上的「⋯」按钮。不再在 content 上 preventDefault 抢右键。 */
 
   $("overview").addEventListener("click", function (e) {
     var t = e.target.closest("[data-all],[data-go]");
@@ -1376,13 +1493,27 @@
 
   /* ============================ 上传 ============================ */
   var upQueue = [];
+  // 素材是分项目放的，只能传进具体文件夹；分类根目录（/image、/video…）不收文件
+  function canUploadHere() {
+    return (state.path || "").indexOf("/") > 0;
+  }
+  function syncUploadBtn() {
+    var b = $("btnUpload");
+    if (!b) return;
+    var ok = canUploadHere();
+    b.classList.toggle("dim", !ok);
+    b.title = ok ? "上传到 /" + state.path : "先进入一个具体文件夹再上传（分类根目录不收素材）";
+  }
   $("btnUpload").addEventListener("click", function () {
-    $("upWhere").textContent = state.path || "根目录";
-    // 站在根目录上传时，文件其实会按类型落到 /image、/video、/audio，先讲清楚，免得回头找不到
-    var first = (state.path || "").split("/")[0];
-    $("upDestNote").innerHTML = (first === "image" || first === "video" || first === "audio")
-      ? "存到当前目录 <b>/" + esc(state.path) + "</b>"
-      : "你站在根目录，图片会进 <b>/image</b>、音频进 <b>/audio</b>、视频进 <b>/video</b>";
+    if (!canUploadHere()) {
+      toast("请先进入一个具体文件夹再上传，比如 /image/01；分类根目录不放素材", "err");
+      return;
+    }
+    $("upWhere").textContent = state.path;
+    var top = (state.path || "").split("/")[0];
+    var label = { image: "图片", video: "视频", audio: "音频" }[top] || "";
+    $("upDestNote").innerHTML = "只存到当前文件夹 <b>/" + esc(state.path) + "</b>" +
+      (label ? "，这个文件夹只收" + label : "");
     $("uplist").innerHTML = "";
     upQueue = [];
     $("upHint").textContent = "";
@@ -1405,10 +1536,18 @@
 
   function doUpload(files) {
     if (!files || !files.length) return;
+    if (!canUploadHere()) {
+      $("upHint").textContent = "请先关闭弹窗，进入一个具体文件夹再上传";
+      toast("分类根目录不放素材，请先进入具体文件夹", "err");
+      return;
+    }
     var all = Array.prototype.slice.call(files);
     var rows = [], skipped = [];
+    var top = (state.path || "").split("/")[0];
     all.forEach(function (f) {
-      if (!uploadKindOf(f.name)) { skipped.push(f); return; }
+      var k = uploadKindOf(f.name);
+      if (!k) { skipped.push({ file: f, why: "不支持" }); return; }
+      if (top !== k) { skipped.push({ file: f, why: "不属于这个文件夹" }); return; }
       rows.push({ id: "u" + Math.random().toString(36).slice(2, 9), file: f, done: false });
     });
 
@@ -1421,17 +1560,18 @@
     }).join("");
 
     if (skipped.length) {
-      html += skipped.map(function (f) {
+      html += skipped.map(function (s) {
         return '<div class="upitem skip"><div style="flex:1;min-width:0">' +
-          '<div class="un">' + esc(f.name) + "</div></div>" +
-          '<span class="st err">不支持</span></div>';
+          '<div class="un">' + esc(s.file.name) + "</div></div>" +
+          '<span class="st err">' + esc(s.why) + "</span></div>";
       }).join("");
     }
     $("uplist").innerHTML = html;
 
     if (!rows.length) {
-      $("upHint").textContent = "这些文件都不支持：这里只收图片 / 音频 / 视频";
-      toast("这里只收图片 / 音频 / 视频，其他文件请直接放到素材目录", "err");
+      $("upHint").textContent = "没有可上传的文件：这个文件夹只收" +
+        ({ image: "图片", video: "视频", audio: "音频" }[top] || "图片 / 音频 / 视频");
+      toast("这些文件放不进当前文件夹", "err");
       return;
     }
 
@@ -1445,7 +1585,7 @@
         setTimeout(function () { setBar(0); }, 400);
         var where = Object.keys(dests).map(function (k) { return "/" + k; }).join("、");
         $("upHint").textContent = "完成：成功 " + okCount + " 个" + (failCount ? "，失败 " + failCount + " 个" : "") +
-          (where ? " → " + where : "") + (skipped.length ? "；跳过 " + skipped.length + " 个不支持的文件" : "");
+          (where ? " → " + where : "") + (skipped.length ? "；跳过 " + skipped.length + " 个放不进这里的文件" : "");
         if (okCount) { state.page = 1; load(); loadStat(true); }
         if (okCount && !failCount) setTimeout(function () { hide("mUpload"); toast("已上传 " + okCount + " 个文件", "ok"); }, 700);
         return;
@@ -1484,18 +1624,18 @@
     for (var k in UP_EXT) if (UP_EXT[k].split(" ").indexOf(ext) >= 0) return k;
     return "";
   }
-  // 当前目录若已在某个分类里，就传到当前目录；否则落到该分类根目录。
-  function uploadDestFor(cur, kind) {
-    var p = cur || "";
-    var first = p.split("/")[0];
-    if (first === kind) return p === kind ? "" : p.slice(kind.length + 1);
-    return "";
+  // 只能传到当前具体文件夹；subdir 是相对分类根的路径（/image/01 → "01"）
+  function uploadDestFor(cur) {
+    var seg = (cur || "").split("/");
+    if (seg.length < 2) return null;
+    return seg.slice(1).join("/");
   }
   function uploadOne(r, dest) {
     return new Promise(function (resolve, reject) {
       var kind = uploadKindOf(r.file.name);
       if (!kind) { reject(new Error("只有图片 / 音频 / 视频能从这里上传")); return; }
-      var sub = uploadDestFor(dest, kind);
+      var sub = uploadDestFor(dest);
+      if (sub == null) { reject(new Error("分类根目录不收素材，请先进具体文件夹")); return; }
       var fd = new FormData();
       fd.append(kind, r.file, r.file.name);
       fd.append("subdir", sub);
@@ -1595,8 +1735,27 @@
   });
 
   /* ============================ 预览 ============================ */
+  /* 预览里的音视频必须真正停掉：只清 innerHTML 的话播放器有时会继续出声 */
+  function stopStageMedia() {
+    var stage = $("pvStage");
+    if (!stage) return;
+    stage.querySelectorAll("video,audio").forEach(function (m) {
+      try { m.pause(); } catch (e) { }
+      try { m.removeAttribute("src"); m.load(); } catch (e) { }
+      if (m.parentNode) m.parentNode.removeChild(m);
+    });
+  }
+  function closePreview() {
+    stopStageMedia();
+    var stage = $("pvStage");
+    if (stage) stage.innerHTML = "";
+    state.prev = null;
+    hide("mPrev");
+  }
+
   function preview(it) {
     if (!it) return;
+    stopStageMedia();
     state.prev = it;
     $("pvName").textContent = it.name;
     var stage = $("pvStage");
@@ -1633,23 +1792,23 @@
   $("pvDelete").addEventListener("click", function () {
     var it = state.prev;
     if (!it) return;
-    hide("mPrev");
+    closePreview();
     doDelete([it.path]);
   });
   $("pvRename").addEventListener("click", function () {
     var it = state.prev;
     if (!it) return;
-    hide("mPrev");
+    closePreview();
     doRename(it);
   });
   $("pvMove").addEventListener("click", function () {
     var it = state.prev;
     if (!it) return;
-    hide("mPrev");
+    closePreview();
     openMove([it.path]);
   });
   $("mPrev").addEventListener("click", function (e) {
-    if (e.target === $("mPrev")) { $("pvStage").innerHTML = ""; }
+    if (e.target === $("mPrev")) closePreview();
   });
 
   /* ============================ 回收站 ============================ */
@@ -1714,9 +1873,10 @@
   $("trEmpty").addEventListener("click", function () {
     confirmDlg("清空回收站", '<div class="warn">回收站里的所有内容都会被彻底删除，无法恢复。</div>', "清空").then(function (ok) {
       if (!ok) return;
+      // 确认后立刻把回收站关掉，别让两个弹层叠在一起
+      hide("mTrash");
       api("/fxweb/api/trash/empty", { json: {} }).then(function () {
         toast("回收站已清空", "ok");
-        openTrash();
       }).catch(function (e) { toast(e.message, "err"); });
     });
   });
@@ -1738,26 +1898,6 @@
     state.q = "";
     state.page = 1;
     $("searchBox").classList.remove("has");
-    load();
-  });
-  $("chips").addEventListener("click", function (e) {
-    var c = e.target.closest(".chip");
-    if (!c) return;
-    var k = c.getAttribute("data-kind") || "";
-    // 根目录这一排是「分类入口」：点视频 = 进 /video，不能原地筛（根目录没散文件，筛完一片空白）
-    if (state.path === "" && k) {
-      var hit = ((state.data && state.data.dirs) || []).filter(function (x) { return x.name === k; })[0];
-      if (hit) { go(hit.path); return; }
-    }
-    state.kind = k;
-    state.page = 1;
-    syncChips();
-    load();
-  });
-  $("btnClearFilter").addEventListener("click", function () {
-    state.kind = "";
-    state.page = 1;
-    syncChips();
     load();
   });
   $("sort").addEventListener("change", function () {
