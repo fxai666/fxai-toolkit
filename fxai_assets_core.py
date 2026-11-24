@@ -144,16 +144,20 @@ def clean_rel(rel):
 
 
 def resolve(rel):
-    """相对路径 → 绝对路径，且必须落在 ROOT 内（含真实路径校验，防软链逃逸）。"""
+    """相对路径 → 绝对路径。
+
+    只校验「字面路径」不逃出 ROOT（拦 `..`、盘符、非法字符），**不再用 realpath 拦软链**。
+
+    原因：素材库就是为了资源共享，image/pose、image/clothes 这类目录经常是指向别的盘的
+    符号链接 / 目录联接（例如 /i/posegallery/repo/img）。原来的 realpath 校验会把它们
+    全部判成「路径越界」，点进去就报错，等于把挂进来的素材全废了。
+    链接本身是 ROOT 内的一个条目，进不进得去由文件系统决定，不由字符串强度决定。
+    """
     rel = clean_rel(rel)
     target = os.path.abspath(os.path.join(ROOT, *rel.split("/"))) if rel else ROOT
     base = os.path.normcase(os.path.abspath(ROOT))
     cand = os.path.normcase(target)
     if cand != base and not cand.startswith(base + os.sep):
-        raise ValueError("路径越界")
-    real = os.path.normcase(os.path.realpath(target))
-    real_base = os.path.normcase(os.path.realpath(ROOT))
-    if real != real_base and not real.startswith(real_base + os.sep):
         raise ValueError("路径越界")
     if is_protected(os.path.basename(target)):
         raise ValueError("该文件受保护，不能通过素材库操作")
@@ -163,6 +167,47 @@ def resolve(rel):
 def rel_of(abs_path):
     rel = os.path.relpath(abs_path, ROOT)
     return "" if rel == "." else rel.replace("\\", "/")
+
+
+def walk_tree(top):
+    """遍历目录树，**跟随符号链接 / 目录联接**，语义同 os.walk（可改 dirnames 剪枝）。
+
+    为什么不用 os.walk(top, followlinks=True)：外挂素材目录之间可能互指（pose 与
+    pose/costume 挂同一处），一路跟下去会绕圈。这里用 realpath 去重，同一个真实目录
+    只进一次，既能看到外挂内容，又不会死循环。
+    """
+    seen = set()
+
+    def rec(cur):
+        try:
+            real = os.path.normcase(os.path.realpath(cur))
+        except OSError:
+            real = os.path.normcase(os.path.abspath(cur))
+        if real in seen:
+            return
+        seen.add(real)
+        dirs, files = [], []
+        try:
+            with os.scandir(cur) as it:
+                for e in it:
+                    name = e.name
+                    if name.startswith(".") or is_protected(name):
+                        continue
+                    try:
+                        isdir = e.is_dir(follow_symlinks=True)
+                    except OSError:
+                        isdir = False
+                    (dirs if isdir else files).append(name)
+        except OSError:
+            return
+        dirs.sort()
+        yield cur, dirs, files          # 调用方可在 yield 期间原地改 dirs 来剪枝
+        for d in dirs:
+            for item in rec(os.path.join(cur, d)):
+                yield item
+
+    for item in rec(top):
+        yield item
 
 
 def unique_path(target):
@@ -200,7 +245,8 @@ def dir_counters(abs_dir):
                 if e.name.startswith(".") or is_protected(e.name):
                     continue
                 try:
-                    if e.is_dir(follow_symlinks=False):
+                    # 跟随软链：挂进来的素材目录（符号链接 / 目录联接）也要算进数量
+                    if e.is_dir(follow_symlinks=True):
                         subdirs += 1
                     else:
                         files += 1
@@ -236,11 +282,19 @@ def list_dir(rel, keyword="", kind="", sort="name", order="asc", page=1, size=60
             if rel == "" and name in HIDDEN_SKIP:
                 continue
             try:
-                st = e.stat(follow_symlinks=False)
+                st = e.stat(follow_symlinks=True)
             except OSError:
-                continue
+                # 链接指向的盘掉线时，至少把条目列出来，别让整条目录消失
+                try:
+                    st = e.stat(follow_symlinks=False)
+                except OSError:
+                    continue
             rel_path = posixpath.join(rel, name) if rel else name
-            if e.is_dir(follow_symlinks=False):
+            try:
+                is_dir = e.is_dir(follow_symlinks=True)   # 软链/目录联接也算目录
+            except OSError:
+                is_dir = False
+            if is_dir:
                 nf, nd = dir_counters(e.path)
                 dirs.append({
                     "name": name, "path": rel_path, "is_dir": True,
@@ -297,8 +351,8 @@ def search_all(rel, keyword, kind="", limit=800):
     truncated = False
     base_depth = rel.count("/") + (1 if rel else 0)
 
-    for dirpath, dirnames, filenames in os.walk(base):
-        dirnames[:] = [d for d in dirnames if not d.startswith(".") and d not in HIDDEN_SKIP]
+    for dirpath, dirnames, filenames in walk_tree(base):
+        dirnames[:] = [d for d in dirnames if d not in HIDDEN_SKIP]
         cur = rel_of(dirpath)
         if (cur.count("/") + 1 if cur else 0) - base_depth > 6:
             dirnames[:] = []
@@ -347,8 +401,8 @@ def global_stat(force=False):
     for k in ("image", "video", "audio", "text", "other"):
         out["by_kind"][k] = {"count": 0, "size": 0}
 
-    for dirpath, dirnames, filenames in os.walk(ROOT):
-        dirnames[:] = [d for d in dirnames if not d.startswith(".") and d not in HIDDEN_SKIP]
+    for dirpath, dirnames, filenames in walk_tree(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in HIDDEN_SKIP]
         cur = rel_of(dirpath)
         top = cur.split("/")[0] if cur else ""
         if top:
