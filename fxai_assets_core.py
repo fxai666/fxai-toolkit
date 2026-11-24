@@ -182,6 +182,16 @@ def stamp(ts):
 
 
 # ------------------------------------------------------------------ 列目录
+def crumbs_of(rel):
+    """相对路径 → 面包屑。列表和搜索都要用，别只在列表里拼。"""
+    crumbs = [{"name": "素材根目录", "path": ""}]
+    acc = []
+    for seg in (rel.split("/") if rel else []):
+        acc.append(seg)
+        crumbs.append({"name": seg, "path": "/".join(acc)})
+    return crumbs
+
+
 def dir_counters(abs_dir):
     files = subdirs = 0
     try:
@@ -245,10 +255,13 @@ def list_dir(rel, keyword="", kind="", sort="name", order="asc", page=1, size=60
         dirs = [d for d in dirs if kw in d["name"].lower()]
         files = [f for f in files if kw in f["name"].lower()]
     if kind:
-        wanted = {x for x in kind.split(",") if x}
-        if "folder" not in wanted:
-            dirs = []
-        files = [f for f in files if f["kind"] in wanted]
+        # 类型筛选只作用于「文件」：文件夹永远保留。
+        # 素材都是放在子目录里的，筛类型时把文件夹一起藏掉，页面会变成空白，看不出东西在哪。
+        wanted = {x for x in kind.split(",") if x and x != "folder"}
+        if wanted:
+            files = [f for f in files if f["kind"] in wanted]
+        else:
+            files = []
 
     rev = (order == "desc")
     if sort == "size":
@@ -267,14 +280,8 @@ def list_dir(rel, keyword="", kind="", sort="name", order="asc", page=1, size=60
     page = min(page, pages)
     start = (page - 1) * page_size
 
-    crumbs = [{"name": "素材根目录", "path": ""}]
-    acc = []
-    for seg in (rel.split("/") if rel else []):
-        acc.append(seg)
-        crumbs.append({"name": seg, "path": "/".join(acc)})
-
     return {
-        "path": rel, "crumbs": crumbs, "dirs": dirs,
+        "path": rel, "crumbs": crumbs_of(rel), "dirs": dirs,
         "files": files[start:start + page_size],
         "total": total, "total_size": sized, "total_size_str": hsize(sized),
         "page": page, "pages": pages, "size": page_size, "dir_count": len(dirs),
@@ -328,7 +335,7 @@ def search_all(rel, keyword, kind="", limit=800):
 
     hits_files.sort(key=lambda f: f["mtime"], reverse=True)
     hits_dirs.sort(key=lambda d: d["name"].lower())
-    return {"files": hits_files, "dirs": hits_dirs, "truncated": truncated}
+    return {"crumbs": crumbs_of(rel), "files": hits_files, "dirs": hits_dirs, "truncated": truncated}
 
 
 def global_stat(force=False):
@@ -344,6 +351,13 @@ def global_stat(force=False):
         dirnames[:] = [d for d in dirnames if not d.startswith(".") and d not in HIDDEN_SKIP]
         cur = rel_of(dirpath)
         top = cur.split("/")[0] if cur else ""
+        if top:
+            # 分类卡片要讲清「里面还有子目录」，否则只看得到一个总文件数，不知道往里点
+            slot = out["by_top"].setdefault(top, {"count": 0, "size": 0, "dirs": 0, "samples": []})
+            slot["dirs"] += len(dirnames)
+            if cur == top:
+                for d in dirnames[:8]:
+                    slot["samples"].append(d)
         for fn in filenames:
             if fn.startswith(".") or is_protected(fn):
                 continue
@@ -357,7 +371,7 @@ def global_stat(force=False):
             out["by_kind"][k]["count"] += 1
             out["by_kind"][k]["size"] += size
             if top:
-                slot = out["by_top"].setdefault(top, {"count": 0, "size": 0})
+                slot = out["by_top"].setdefault(top, {"count": 0, "size": 0, "dirs": 0, "samples": []})
                 slot["count"] += 1
                 slot["size"] += size
 
@@ -366,6 +380,7 @@ def global_stat(force=False):
         out["by_kind"][k]["size_str"] = hsize(out["by_kind"][k]["size"])
     for k in out["by_top"]:
         out["by_top"][k]["size_str"] = hsize(out["by_top"][k]["size"])
+        out["by_top"][k]["samples"] = sorted(out["by_top"][k]["samples"])[:5]
 
     STAT_CACHE["ts"] = now
     STAT_CACHE["data"] = out
