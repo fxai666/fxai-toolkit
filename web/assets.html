@@ -58,6 +58,35 @@
   .ico{width:15px; height:15px; flex:none; stroke:currentColor; fill:none;
        stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
 
+  /* ---------------- 顶栏 · 服务器地址 ----------------
+     一个圆点看状态、一个输入框填地址、一个「连接」按钮换机器；
+     点输入框弹出「用过的地址」，和云机操作台 console.html 共用同一份 localStorage。 */
+  .srv{position:relative; display:flex; align-items:center; gap:7px; flex:none}
+  .srv .dot{width:8px; height:8px; border-radius:50%; background:#c9cee0; flex:none;
+            box-shadow:0 0 0 3px rgba(201,206,224,.25); transition:.18s}
+  .srv .dot.ok{background:#12a06a; box-shadow:0 0 0 3px rgba(18,160,106,.16)}
+  .srv .dot.bad{background:#d0463f; box-shadow:0 0 0 3px rgba(208,70,63,.15)}
+  .srv .dot.wait{background:#e0a12a; box-shadow:0 0 0 3px rgba(224,161,42,.18)}
+  .srv input{width:132px; min-width:0; padding:6px 9px; border:1px solid var(--line);
+             border-radius:9px; background:#fff; color:var(--ink); font:12.5px/1.5 inherit}
+  .srv input::placeholder{color:var(--ink3)}
+  .srv input:focus{outline:none; border-color:#c3c9f5; box-shadow:0 0 0 3px rgba(79,91,213,.10)}
+  .srv .hostlist{position:absolute; top:calc(100% + 7px); right:0; z-index:200; min-width:100%;
+    width:max-content; max-width:380px; background:#fff; border:1px solid var(--line);
+    border-radius:11px; box-shadow:0 14px 34px rgba(30,40,80,.16); padding:5px;
+    max-height:278px; overflow:auto}
+  .srv .hostlist .hh{font-size:11px; color:var(--ink3); padding:5px 8px 4px}
+  .srv .hostlist .hi{display:flex; align-items:center; gap:8px; padding:6px 8px;
+    border-radius:7px; cursor:pointer}
+  .srv .hostlist .hi:hover{background:#f5f6fb}
+  .srv .hostlist .hi.on{background:var(--brand-l)}
+  .srv .hostlist .hu{flex:1; min-width:0; font-size:12.5px; color:var(--ink2);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .srv .hostlist .hi.on .hu{color:var(--brand-d); font-weight:600}
+  .srv .hostlist .hx{flex:none; width:17px; height:17px; line-height:15px; text-align:center;
+    border-radius:5px; color:var(--ink3); font-size:13px; font-weight:400}
+  .srv .hostlist .hx:hover{background:#eef0f6; color:var(--danger)}
+
   /* ---------------------------- 工具栏 ---------------------------- */
   /* 外框占满剩余高度且自身不滚，只把中间的内容区分给两个列表去滚 */
   .wrap{max-width:1320px; width:100%; margin:0 auto; padding:16px 22px 10px;
@@ -135,12 +164,15 @@
 
   /* ---------------------------- 内容区：两个独立滚动的框 ---------------------------- */
   #content{flex:1; min-height:0; display:flex; flex-direction:column}
-  /* 文件夹框：目录少时自然矮，多了才在框里滚，最多占一半高 */
+  /* 文件夹框：高度跟着目录数量走（行高已被 align-content:start 锁死，不会再被拉伸），
+     最多占内容区 48%。shrink 必须是 0——文件区内容多的时候会把这块挤成十几像素。
+     只有目录时（分类根）直接铺到窗口底边。 */
   .dirs-pane{display:flex; flex-direction:column; min-height:0;
-             flex:0 1 auto; max-height:48%; margin-bottom:14px}
+             flex:0 0 auto; max-height:48%; margin-bottom:14px}
   /* 文件框：吃掉剩下的高度，自己在框里滚 */
   .files-pane{display:flex; flex-direction:column; min-height:0; flex:1 1 auto}
-  #content.only-dirs .dirs-pane{flex:1 1 auto; max-height:none; margin-bottom:0}
+  /* 只有目录时（分类根）没有文件区：列表直接铺到窗口底边，只留主容器的底部内边距 */
+  #content.only-dirs .dirs-pane{flex:1 1 auto; height:auto; max-height:none; margin-bottom:0}
   #content.only-dirs .files-pane{display:none}
   #content.only-files .dirs-pane{display:none}
   #content.only-files .files-pane{flex:1 1 auto}
@@ -173,6 +205,7 @@
     padding:5px 9px; font-size:12px; outline:none; background:#fff; color:var(--ink); font-weight:400}
   .dirqin:focus{border-color:#b9c0ea; box-shadow:0 0 0 3px rgba(79,91,213,.1)}
   .dirlist{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:0 14px;
+    align-content:start;   /* 行靠上按内容高度排，绝不被拉伸填满容器 */
     background:#fff; border:1px solid var(--line); border-radius:12px; padding:5px 10px;
     flex:1 1 auto; min-height:0; overflow:auto}
   .dirrow{display:flex; align-items:center; gap:8px; padding:7px 7px; border-radius:7px;
@@ -416,10 +449,19 @@
         z-index:400; transition:width .2s; opacity:0}
   .pbar.on{opacity:1}
 
+  /* 窄屏：服务器地址再收一点，别把工具栏挤爆（仍要能显示 host:port） */
+  @media (max-width:1100px){
+    .srv input{width:120px}
+  }
+
   @media (max-width:720px){
-    .tbin{padding:10px 14px; gap:10px}
+    .tbin{padding:10px 14px; gap:10px; flex-wrap:wrap}
     .brand .sub{display:none}
-    .wrap{padding:12px 12px 8px}
+    .wrap{padding:12px 12px 12px}
+    /* 小屏放不下一行了：地址框单独占一行，落在图标行下面 */
+    .srv{order:9; flex:1 1 100%}
+    .srv input{flex:1; width:auto}
+    .srv .hostlist{left:0; right:auto; width:100%; max-width:none}
     .grid{grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:10px}
     .thumb{height:104px}
     .pickbtn,.morebtn{opacity:1}
@@ -473,6 +515,12 @@
       <h1>素材库<span class="sub">凤希AI · ComfyUI 内置</span></h1>
     </div>
     <div class="grow"></div>
+    <div class="srv" id="srvBox">
+      <em class="dot" id="srvDot" title="服务器状态"></em>
+      <input id="srvUrl" type="text" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:8188">
+      <button class="btn mini" id="btnConn" title="连到这台服务器">连接</button>
+      <div class="hostlist" id="srvHosts" hidden></div>
+    </div>
     <a class="btn ghost" id="btnComfy" href="/" target="_blank" rel="noopener" title="在新窗口打开 ComfyUI 工作流界面">
       <svg class="ico"><use href="#i-external"/></svg><span class="bt">ComfyUI</span>
     </a>
@@ -693,6 +741,105 @@
   }
   function basename(p) { return String(p || "").split("/").pop(); }
 
+  /* ============================ 服务器地址 ============================ */
+  /* 页面默认连「自己所在的这台 ComfyUI」；填别的地址就连过去（云机 / 另一台机器）。
+     页面上所有请求都拼这个 base，换机器不用改浏览器地址栏。
+     用过的地址存在 localStorage 的 fxai_console_hosts —— 和云机操作台 console.html 是同一个键，
+     两边共用一份：操作台里连过的机器，这里点输入框就能直接选到。 */
+  var SRV = (function () {
+    var LS_HOSTS = "fxai_console_hosts";    // 与云机操作台共用，别改名
+    var LS_CUR = "fxai_assets_srv";         // 本页当前连的地址
+    var MAX_HOSTS = 12;
+    var CLOUD_DOMAIN = "container.x-gpu.com";
+    var cur = "";
+
+    function trimSlash(s) { return String(s == null ? "" : s).trim().replace(/\/+$/, ""); }
+    function isCloudHost(h) {
+      h = String(h || "").trim().toLowerCase().replace(/:\d+$/, "");
+      return h === CLOUD_DOMAIN || h.slice(-(CLOUD_DOMAIN.length + 1)) === "." + CLOUD_DOMAIN;
+    }
+    /* 完整 URL / ws:// / host:port / 裸主机名都认；主机名统一小写、去掉结尾斜杠，
+       免得同一台机器在历史里存成好几种写法 */
+    function norm(u) {
+      var v = trimSlash(u);
+      if (!v) return "";
+      if (/^wss?:\/\//i.test(v)) v = v.replace(/^ws/i, "http");
+      if (!/^https?:\/\//i.test(v)) v = (isCloudHost(v.split("/")[0]) ? "https://" : "http://") + v;
+      try {
+        var x = new URL(v);
+        if (!x.hostname) return "";
+        v = x.protocol + "//" + x.hostname + (x.port ? ":" + x.port : "") + x.pathname.replace(/\/+$/, "");
+      } catch (e) { return ""; }
+      return trimSlash(v);
+    }
+    function hostKey(u) {
+      u = norm(u); if (!u) return "";
+      try {
+        var x = new URL(u), port = x.port;
+        if (!port) port = /^https:$/i.test(x.protocol) ? "443" : "80";
+        return (x.protocol.toLowerCase() + "//" + x.hostname.toLowerCase() + ":" + port + x.pathname)
+          .replace(/\/+$/, "");
+      } catch (e) { return u.toLowerCase(); }
+    }
+    function loadHosts() {
+      var a = [];
+      try { a = JSON.parse(localStorage.getItem(LS_HOSTS) || "[]"); } catch (e) { a = []; }
+      var seen = {}, out = [];
+      (Array.isArray(a) ? a : []).forEach(function (u) {
+        if (typeof u !== "string" || !u) return;
+        var v = norm(u), k = hostKey(v);
+        if (!k || seen[k]) return;
+        seen[k] = 1; out.push(v);
+      });
+      return out.slice(0, MAX_HOSTS);
+    }
+    function saveHosts(a) {
+      try { localStorage.setItem(LS_HOSTS, JSON.stringify(a.slice(0, MAX_HOSTS))); } catch (e) { }
+    }
+    function remember(u) {
+      var v = norm(u); if (!v) return;
+      var k = hostKey(v);
+      var a = loadHosts().filter(function (x) { return hostKey(x) !== k; });
+      a.unshift(v); saveHosts(a);
+    }
+    function forget(u) {
+      var k = hostKey(u);
+      saveHosts(loadHosts().filter(function (x) { return hostKey(x) !== k; }));
+    }
+    function sameOrigin() {
+      var o = location.origin || "";
+      return /^https?:/i.test(o) ? o : "";
+    }
+    /* 优先级：?srv=/?host=/?base=/?url= → ?instance=（云机按子域拼 8188）→ 上次选的 → 同源 */
+    function initial() {
+      var p = null;
+      try { p = new URLSearchParams(location.search); } catch (e) { }
+      var q = p && (p.get("srv") || p.get("host") || p.get("base") || p.get("url") || p.get("server"));
+      var inst = p ? String(p.get("instance") || "").trim().toLowerCase() : "";
+      if (!q && inst && /^[a-z0-9][a-z0-9_-]{3,63}$/.test(inst)) {
+        q = "https://" + inst + "-8188." + CLOUD_DOMAIN;
+      }
+      var fromParam = norm(q);
+      if (fromParam) { remember(fromParam); return fromParam; }
+      var saved = "";
+      try { saved = norm(localStorage.getItem(LS_CUR) || ""); } catch (e) { }
+      return saved || sameOrigin();
+    }
+    function setBase(u) {
+      cur = norm(u) || sameOrigin();
+      try { localStorage.setItem(LS_CUR, cur); } catch (e) { }
+      return cur;
+    }
+    /* 所有接口地址都从这儿拼：base 为空时保持相对路径（等价于连本页所在服务器） */
+    function abs(p) { return cur ? cur + p : p; }
+    /* 输入框里只放主机:端口（去掉 http://），窄窗口也看得全；完整地址放 title */
+    function show(u) { return norm(u).replace(/^https?:\/\//i, ""); }
+    return {
+      norm: norm, hostKey: hostKey, loadHosts: loadHosts, remember: remember, forget: forget,
+      initial: initial, setBase: setBase, base: function () { return cur; }, abs: abs, show: show
+    };
+  })();
+
   var state = {
     path: "", q: "", dirq: "", sort: "name", order: "asc", page: 1, size: 60,
     view: "grid", data: null, stat: null, tops: [], sel: {}, cfg: null,
@@ -722,7 +869,7 @@
       opts.headers["Content-Type"] = "application/json";
       opts.body = JSON.stringify(opts.json);
     }
-    return fetch(path, opts).then(function (r) {
+    return fetch(SRV.abs(path), opts).then(function (r) {
       return r.text().then(function (t) {
         var d;
         try { d = JSON.parse(t); } catch (e) { d = null; }
@@ -738,17 +885,17 @@
   }
 
   function fileUrl(p) {
-    var u = "/fxweb/api/file?path=" + enc(p);
+    var u = SRV.abs("/fxweb/api/file?path=" + enc(p));
     if (state.token) u += "&token=" + enc(state.token);
     return u;
   }
   function thumbUrl(p) {
-    var u = "/fxweb/api/thumb?path=" + enc(p) + "&w=520";
+    var u = SRV.abs("/fxweb/api/thumb?path=" + enc(p) + "&w=520");
     if (state.token) u += "&token=" + enc(state.token);
     return u;
   }
   function dlUrl(p, inline) {
-    var u = (inline ? "/fxweb/api/file?path=" : "/fxweb/api/download?path=") + enc(p);
+    var u = SRV.abs((inline ? "/fxweb/api/file?path=" : "/fxweb/api/download?path=") + enc(p));
     if (state.token) u += "&token=" + enc(state.token);
     return u;
   }
@@ -1030,12 +1177,11 @@
     if (crumbs.length <= 1) return "";
     var segs = [];
     for (var i = 1; i < crumbs.length; i++) {
-      // 顶层分类用中文显示，跟上面那排分类标签保持一致；真实目录名留在 title 里
-      var tm = (i === 1) ? TOP_META[crumbs[i].path] : null;
-      var nm = tm ? tm.label : crumbs[i].name;
+      // 一律显示真实目录名（image / audio / pose…），不做中文化：
+      // 这行是「我在磁盘的哪一层」，得跟实际路径对得上，不能和顶部的分类标签混着用两套名字。
       segs.push('<span class="ptseg' + (i === crumbs.length - 1 ? " cur" : "") +
         '" data-go="' + esc(crumbs[i].path) + '" title="进入 /' + esc(crumbs[i].path) + '">' +
-        esc(nm) + "</span>");
+        esc(crumbs[i].name) + "</span>");
     }
     return '<span class="ptrail" title="/' + esc((d && d.path) || "") + '">' +
       '<span class="ptsep">/</span>' + segs.join('<span class="ptsep">/</span>') + "</span>";
@@ -1385,8 +1531,22 @@
     else preview(item);
   });
 
-  /* 右键交还给浏览器原生菜单（另存为 / 复制图片地址 / 在新标签打开，这些原生项更有用）。
-     文件操作入口统一走卡片上的「⋯」按钮。不再在 content 上 preventDefault 抢右键。 */
+  /* 右键：卡片上 = 操作菜单；空白处 = 浏览器原生菜单（不拦）。
+     Shift+右键 永远放行原生菜单，留给「图片另存为 / 复制图片地址」。
+     注意：拿不到条目时也不 preventDefault——上一版就是拦了右键却弹不出菜单，看着像「右键被禁用」。 */
+  $("content").addEventListener("contextmenu", function (e) {
+    if (e.shiftKey) return;
+    var holder = e.target.closest("[data-path]");
+    if (!holder) return;
+    var path = holder.getAttribute("data-path");
+    var it = findItem(path) || {
+      path: path,
+      name: path.split("/").pop(),
+      is_dir: holder.getAttribute("data-dir") === "1",
+    };
+    e.preventDefault();
+    openMenu(it, e.clientX, e.clientY);
+  });
 
   $("overview").addEventListener("click", function (e) {
     var t = e.target.closest("[data-all],[data-go]");
@@ -1476,7 +1636,7 @@
       hint: "会在 <b>" + esc(state.path || "根目录") + "</b> 下创建。"
     }).then(function (v) {
       if (!v) return;
-      return fetch("/fxai/folders/create?subdir=" + enc(state.path) + "&folder=" + enc(v), { method: "POST" })
+      return fetch(SRV.abs("/fxai/folders/create?subdir=" + enc(state.path) + "&folder=" + enc(v)), { method: "POST" })
         .then(function (r) {
           return r.json().then(function (d) {
             if (!r.ok || (d && d.error)) throw new Error((d && d.error) || ("HTTP " + r.status));
@@ -1640,7 +1800,7 @@
       fd.append(kind, r.file, r.file.name);
       fd.append("subdir", sub);
       var xhr = new XMLHttpRequest();
-      xhr.open("POST", "/fxai/" + kind + "/upload");
+      xhr.open("POST", SRV.abs("/fxai/" + kind + "/upload"));
       xhr.upload.onprogress = function (e) {
         if (!e.lengthComputable) return;
         var el = $(r.id);
@@ -1930,6 +2090,90 @@
   });
   $("btnRefresh").addEventListener("click", function () { load(); loadStat(true); toast("已刷新", "ok"); });
 
+  /* ============================ 服务器地址 UI ============================ */
+  /* 圆点：灰=还没探过 / 黄=正在连 / 绿=已连接 / 红=连不上；详细原因在 title 里 */
+  function srvDot(kind, detail) {
+    var d = $("srvDot");
+    d.className = "dot" + (kind ? " " + kind : "");
+    d.title = detail || "服务器状态";
+  }
+  function srvCloseHosts() {
+    var b = $("srvHosts");
+    if (b) { b.hidden = true; b.innerHTML = ""; }
+  }
+  function srvRenderHosts() {
+    var box = $("srvHosts");
+    var list = SRV.loadHosts(), nowK = SRV.hostKey($("srvUrl").value || SRV.base());
+    if (!list.length) { srvCloseHosts(); return; }
+    var html = '<div class="hh">用过的地址</div>';
+    list.forEach(function (u) {
+      html += '<div class="hi' + (SRV.hostKey(u) === nowK ? " on" : "") + '" data-u="' + esc(u) + '">' +
+        '<span class="hu" title="' + esc(u) + '">' + esc(u) + "</span>" +
+        '<b class="hx" data-x="' + esc(u) + '" title="从列表里删掉">×</b></div>';
+    });
+    box.innerHTML = html;
+    box.hidden = false;
+  }
+  $("srvHosts").addEventListener("click", function (e) {
+    var x = e.target.closest ? e.target.closest(".hx") : null;
+    var r = e.target.closest ? e.target.closest(".hi") : null;
+    if (x) { e.stopPropagation(); SRV.forget(x.getAttribute("data-x")); srvRenderHosts(); return; }
+    if (r) { srvCloseHosts(); srvConnect(r.getAttribute("data-u")); }
+  });
+  $("srvUrl").addEventListener("focus", srvRenderHosts);
+  $("srvUrl").addEventListener("click", function (e) { e.stopPropagation(); srvRenderHosts(); });
+  $("srvUrl").addEventListener("keydown", function (e) {
+    if (e.key === "Escape") { srvCloseHosts(); return; }
+    if (e.key === "Enter") { srvConnect($("srvUrl").value); }
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest(".srv")) srvCloseHosts();
+  });
+
+  /* ComfyUI 按钮跟着当前服务器走，别永远指向本页那台 */
+  function syncComfyLink() { $("btnComfy").href = SRV.abs("/"); }
+
+  /* 探活：/fxai/health 只要有响应就算连上（跨机器时 CORS 由后端放行） */
+  function srvPing(done) {
+    var at = SRV.base() || "本页";
+    srvDot("wait", "正在连接 " + at);
+    fetch(SRV.abs("/fxai/health"), { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (j) {
+        var ver = j && j.version ? "fxai " + j.version : "OK";
+        srvDot("ok", "已连接 · " + at + " · " + ver);
+        if (done) done(true);
+      })
+      .catch(function (e) {
+        srvDot("bad", "连不上 · " + at + " · " + (e && e.message ? e.message : e));
+        if (done) done(false);
+      });
+  }
+
+  /* 换服务器：地址写进输入框和本地记忆，探通后重新拉列表和统计 */
+  function srvConnect(v) {
+    var u = SRV.setBase(v);
+    $("srvUrl").value = SRV.show(u);
+    $("srvUrl").title = u;
+    srvCloseHosts();
+    SRV.remember(u);
+    srvPing(function (ok) {
+      if (!ok) { toast("连不上 " + u + "，检查地址或那台机器是否开着", "err"); return; }
+      syncComfyLink();
+      toast("已连接 " + u, "ok");
+      // 换了机器：上一台的分类清单和统计都不作数，清掉重取
+      state.tops = [];
+      state.stat = null;
+      state.page = 1;
+      load();
+      loadStat(true);
+    });
+  }
+  $("btnConn").addEventListener("click", function () { srvConnect($("srvUrl").value); });
+
   /* ============================ 启动 ============================ */
   var savedView = localStorage.getItem("fxai_view");
   if (savedView === "list") {
@@ -1958,14 +2202,29 @@
         });
       }
     }
-    load().then(function () {
-      var pv = p0 && p0.get("preview");
-      if (pv) {
-        var it = findItem(pv);
-        if (it) preview(it);
+    /* 先定服务器：地址进输入框，探通了再拉数据；连不上就说清是连不上，别让人以为目录空了 */
+    var srvBase = SRV.setBase(SRV.initial());
+    $("srvUrl").value = SRV.show(srvBase);
+    $("srvUrl").title = srvBase;
+    SRV.remember(srvBase);
+    syncComfyLink();
+    srvPing(function (ok) {
+      if (!ok) {
+        $("content").innerHTML = '<div class="empty"><svg class="ico"><use href="#i-box"/></svg>' +
+          "<p>连不上服务器</p><small>" + esc(srvBase || "本页") +
+          "，改右上角地址后点「连接」</small></div>";
+        $("pager").innerHTML = "";
+        return;
       }
+      load().then(function () {
+        var pv = p0 && p0.get("preview");
+        if (pv) {
+          var it = findItem(pv);
+          if (it) preview(it);
+        }
+      });
+      loadStat();
     });
-    loadStat();
   })();
 })();
 </script>

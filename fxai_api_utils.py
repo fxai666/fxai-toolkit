@@ -22,17 +22,21 @@ except ImportError:   # 兜底：__init__ 还没把本目录注入 sys.path 时�
 app = PromptServer.instance.app
 
 # ===================== CORS中间件（绕过 ComfyUI 的 origin_only 检查） =====================
+# /fxweb 是素材库页面自己的接口：页面可能开在 A 机器、数据连到 B 机器，
+# 所以这里一并放行跨域（否则浏览器带 Origin 的请求会被 ComfyUI 的 origin_only 判 403）。
+_CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Token",
+}
+
 @web.middleware
 async def fxai_cors_middleware(request, handler):
-    if not request.path.startswith("/fxai/"):
+    if not (request.path.startswith("/fxai/") or request.path.startswith("/fxweb")):
         return await handler(request)
 
     if request.method == "OPTIONS":
-        return web.Response(headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        })
+        return web.Response(headers=dict(_CORS_HEADERS))
 
     try:
         route_handler = request._match_info.handler
@@ -44,9 +48,7 @@ async def fxai_cors_middleware(request, handler):
         resp = await handler(request)
 
     if not isinstance(resp, web.WebSocketResponse):
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers.update(_CORS_HEADERS)
     return resp
 
 app._middlewares.insert(0, fxai_cors_middleware)
