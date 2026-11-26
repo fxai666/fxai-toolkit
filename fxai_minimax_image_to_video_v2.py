@@ -253,6 +253,19 @@ class FxAiMiniMaxImageToVideoV2:
                                "让分段接缝两侧画面连续（色调/姿态不跳）。\n"
                                "**不占 <Picture N> 序号** —— 提示词里的 <Picture 1> 永远还是角色参考图，\n"
                                "所以段数再多身份也不会逐段漂。不接就是老行为。"}),
+                # ↓ 场景续接：开关 + 段序号，节点内部直接读上一段落盘的续帧。
+                # 追加在最后，老工作流的槽位不受影响。
+                "场景续接": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "开启", "label_off": "关闭",
+                    "tooltip": "开：节点内部读 fxai/video/scene_relay/<续接段序号>.pt，\n"
+                               "取上一段末尾 N 帧 + 音轨（.pt 零损失），做第 0 帧起的引导。\n"
+                               "走磁盘不走循环内存值，单段重跑也能接上。文件不存在自动跳过。\n"
+                               "可接「生成控制器」的场景续接总开关。"}),
+                "续接段序号": ("INT", {
+                    "default": 0, "min": 0,
+                    "tooltip": "当前是第几段（从 0 开始），接循环的 index。\n"
+                               "读写同号：读的就是 <本序号>.mp4（上一段存的）。第 0 段自动跳过。"}),
             }
         }
 
@@ -264,7 +277,7 @@ class FxAiMiniMaxImageToVideoV2:
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
             音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考音频列表=None,
             外置音频=None, 音频模式="音色参考", 参考视频=None, 参考视频音频=None,
-            接缝首帧=None):
+            接缝首帧=None, 场景续接=False, 续接段序号=0):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
         _t0 = time.perf_counter()
         _marks = []
@@ -285,9 +298,14 @@ class FxAiMiniMaxImageToVideoV2:
         ref_blocks = []
         keyframes = []
         ref_images = []
+        # 第 0 帧的几何锚定位只有一个：首帧图先占着，续接帧读到时**替换**它。
+        # ref_images（<Picture N> 图片引用）完全不动 —— 首帧/尾帧/参考图老逻辑照旧，
+        # 续帧只做 keyframes 几何锚定，不占 Picture 序号。
+        frame0_pos = None
         if 首帧图片 is not None:
             src = 首帧图片[:1, ..., :3]
             img = _prepare_image(首帧图片, 宽度, 高度, "disabled")
+            frame0_pos = len(keyframes)
             keyframes.append({"resolved_frame_index": 0, "image": img, "image_src": src, "crop": "disabled"})
             ref_images.append(img)
         if 尾帧图片 is not None:
@@ -295,13 +313,35 @@ class FxAiMiniMaxImageToVideoV2:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img, "image_src": src, "crop": "center"})
             ref_images.append(img)
-        if 接缝首帧 is not None and not any(kf["resolved_frame_index"] == 0 for kf in keyframes):
-            # 分段接缝：把上一段的末帧锚在第 0 帧，两段交界处的色调/姿态就接得住。
-            # 刻意**不**放进 ref_images —— 它一旦进去就成了 <Picture 1>，
-            # 角色参考图会被挤到 <Picture 2>，提示词里的 <Picture 1> 就指错人，
-            # 段数越多身份越漂。这里只走 minimax_keyframes 的几何锚定通道。
+        # 场景续接：节点内部读上一段落盘的续帧（N 帧 + 音轨），直接编码成引导关键帧。
+        # 只走 minimax_keyframes 的几何锚定通道，ref_images 和 <Picture N> 一律不碰。
+        guide_frames, guide_audio = None, None
+        if 场景续接:
+            try:
+                from fxai_scene_relay import load_relay
+                guide_frames, guide_audio = load_relay(int(续接段序号))
+            except Exception as e:
+                print("[凤希AI] 场景续接读取失败（按无引导继续）：%s: %s" % (type(e).__name__, e))
+
+        if guide_frames is not None and guide_frames.shape[0] > 0:
+            guide = _resize(guide_frames[..., :3], 宽度, 高度, "disabled")
+            kf = {"resolved_frame_index": 0, "latent": 视频VAE.encode(guide),
+                  "image_src": guide, "crop": "disabled"}
+            if guide_audio is not None and 音频VAE is not None:
+                audio_latent, _ = _encode_ref_audio(音频VAE, guide_audio)
+                kf["audio_latent"] = audio_latent
+            # 替换首帧图占的第 0 帧几何锚定位；没读过续帧时保持原行为
+            if frame0_pos is not None:
+                keyframes[frame0_pos] = kf
+            else:
+                frame0_pos = len(keyframes)
+                keyframes.append(kf)
+            _mark("续接引导帧VAE编码(%d帧)" % guide.shape[0])
+        elif 接缝首帧 is not None and frame0_pos is None:
+            # 旧的单帧接缝：同样只占第 0 帧，首帧图在时让位给它
             src = 接缝首帧[:1, ..., :3]
             img = _prepare_image(接缝首帧, 宽度, 高度, "disabled")
+            frame0_pos = len(keyframes)
             keyframes.append({"resolved_frame_index": 0, "image": img,
                               "image_src": src, "crop": "disabled"})
         if 参考图片列表 is not None:
@@ -411,6 +451,7 @@ class FxAiMiniMaxImageToVideoV2:
             for kf in keyframes:
                 if "image" in kf:
                     kf["latent"] = 视频VAE.encode(kf["image"])
+                # 多帧引导帧在构造时已编码，且带 image_src 供二采重编码用
             cond = node_helpers.conditioning_set_values(cond, {"minimax_keyframes": keyframes, "minimax_frame_count": frame_count})
             _mark("关键帧VAE编码(%d张)" % len(keyframes))
         if ref_blocks:
@@ -465,8 +506,9 @@ class FxAiMiniMaxResampleCond:
                     img = kf.get("image_src", kf.get("image"))
                     if img is not None:
                         crop = kf.get("crop", "disabled")
+                        # 多帧引导：整批 resize，不能再 [:1] 只留一帧
                         if img.shape[1] != th or img.shape[2] != tw:
-                            img = _resize(img[:1], tw, th, crop)
+                            img = _resize(img, tw, th, crop)
                         kf["latent"] = 视频VAE.encode(img)
                     rebuilt.append(kf)
                 n[1]["minimax_keyframes"] = rebuilt

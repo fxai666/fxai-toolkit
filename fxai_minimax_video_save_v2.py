@@ -232,9 +232,23 @@ class FxAiMiniMaxVideoSaveV2:
                 "音频": ("AUDIO",),
                 "保存目录": ("STRING", {"default": "sucai"}),
             },
+            "optional": {
+                # 场景续接：追加在最后不影响老工作流
+                "场景续接": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "开启", "label_off": "关闭",
+                    "tooltip": "开：本段末尾 N 帧连音轨另存到 fxai/video/scene_relay/<视频序号+1>.pt，\n"
+                               "给下一段 V2 节点的「场景续接」读。落盘传递，单段重跑也在。\n"
+                               "关：老行为，不写额外文件。"}),
+                "续接帧数": ("INT", {
+                    "default": 22, "min": 1, "max": 340, "step": 1,
+                    "tooltip": "可接「生成控制器」的「过渡帧数」。自动向下对齐 17k+5：\n"
+                               "1/5/9→5，25→22，50→39。不接默认 22。"}),
+            },
         }
 
-    def run(self, 图片序列, 视频序号, 音频, 保存目录="sucai"):
+    def run(self, 图片序列, 视频序号, 音频, 保存目录="sucai",
+            场景续接=False, 续接帧数=22):
         if 图片序列 is None:
             return (图片序列, "", "")
 
@@ -252,6 +266,15 @@ class FxAiMiniMaxVideoSaveV2:
             fps=24,
             custom_num=视频序号,
         )
+
+        # 场景续接：本段末尾 N 帧连音轨另存一份，给下一段 V2 内部读。
+        # 必须在 del 之前，落盘失败也不影响成片本身。
+        if 场景续接 and 视频序号 >= 0:
+            try:
+                from fxai_scene_relay import save_relay
+                save_relay(图片序列, 音频, 视频序号, 24, 续接帧数)
+            except Exception as e:
+                print(f"[凤希AI] 续接帧保存失败（不影响成片）：{type(e).__name__}: {e}")
 
         del video_images, 图片序列
         gc.collect()
