@@ -38,7 +38,7 @@ const DEFAULT_CONFIG = {
     ],
     wechat: "微信 fxai168",
     channel: "视频号 凤希AI",
-    notice: "个人/学习：觉得有帮助欢迎赞助，金额任意；商用/对外交付：须先赞助获得授权使用，金额同样任意，付款即生效",
+    notice: "授权：用我方镜像默认授权、免赞助费；或任意金额赞助即授权（商用/对外交付同样金额任意、付款即生效）。未用镜像且未赞助者暂未授权。",
     sponsorTip: "支付宝 · 金额任意",
     qq_qr: QQ_QR,          // data URI 或 http(s) 图片地址
     sponsor_qr: SPONSOR_QR,
