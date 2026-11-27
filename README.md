@@ -5,6 +5,7 @@
 | 常用入口 | 地址 |
 |---|---|
 | 开源仓库（GitHub） | https://github.com/fxai666/fxai-toolkit |
+| 魔搭镜像（国内快） | https://modelscope.cn/models/fxai168/fxai-toolkit |
 | 官网 | https://www.fxai.site |
 | 视频教程（B站） | https://space.bilibili.com/1242183138 |
 | 官方QQ交流群 | 775649071 |
@@ -179,6 +180,7 @@ ctl.cmd where   打印识别到的 ComfyUI 根目录、配置文件、脚本路�
 |---|---|
 | ComfyUI-Manager（推荐） | 装好 [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager)，在节点列表里搜 `fxai-toolkit` / `凤希`，或用「Install via Git URL」填 `https://github.com/fxai666/fxai-toolkit` |
 | Git 克隆（推荐，方便升级） | `cd <ComfyUI>/custom_nodes` 后执行 `git clone https://github.com/fxai666/fxai-toolkit.git` |
+| Git 克隆（国内加速） | 国内 GitHub 慢的话改克隆魔搭镜像：`git clone https://www.modelscope.cn/fxai168/fxai-toolkit.git`；升级同样 `git pull --ff-only`（魔搭与 GitHub 内容保持一致，魔搭 master/main 双分支） |
 | ZIP 解压 | 在仓库页面 Code → Download ZIP（或 [Releases](https://github.com/fxai666/fxai-toolkit/releases) 里已发布的包）下载，解压到 `custom_nodes/`，目录改名为 `fxai-toolkit`；这种方式没有 `.git`，以后升级要删掉重拉 |
 
 装完**重启 ComfyUI**。本包没有 `requirements.txt`，首次启动会自动补 `soundfile`、`psutil`（需要联网）；若启动日志出现 `ModuleNotFoundError: No module named 'xxx'`，用 ComfyUI 那个 Python 环境手动补包再重启：
