@@ -17,7 +17,7 @@ const DEFAULT_CONFIG = {
     site: "www.fxai.site",
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
-    cloudText: "本地算力不够，立即使用云端算力",
+    cloudText: "直接使用云端算力",
     cloudBtn: "填写邀请码送3元赠金",
     cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
     cloudReg: "立即注册",
@@ -200,9 +200,9 @@ app.registerExtension({
             clickable(cloudRegEl).addEventListener("click",
                 () => window.open(cloudHref, "_blank", "noopener"));
             cloudEl.appendChild(cloudTextEl);
+            cloudEl.appendChild(cloudRegEl);
             cloudEl.appendChild(cloudBtnEl);
             cloudEl.appendChild(cloudCodeEl);
-            cloudEl.appendChild(cloudRegEl);
 
             // 教程入口条（可点击打开）
             const tutorialEl = document.createElement("a");

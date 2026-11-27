@@ -11,7 +11,7 @@
   "wechat_qr": "",
   "tutorial": "凤希AI 实操教程",
   "tutorialUrl": "https://www.fxai.site/tutorial/index.html",
-  "cloudText": "本地算力不够，立即使用云端算力",
+  "cloudText": "直接使用云端算力",
   "cloudBtn": "填写邀请码送3元赠金",
   "cloudUrl": "https://www.xiangongyun.com/register/9LWQ36",
   "cloudReg": "立即注册",
@@ -35,6 +35,6 @@
       "color": "#60a5fa"
     }
   ],
-  "version": 18,
+  "version": 19,
   "_note": "文案记录源（节点已改为完全自包含，不再远程拉取；改文案请同步改 js/fxai_brand_notice.js 的 DEFAULT_CONFIG）"
 }
