@@ -34,6 +34,31 @@ const DEFAULT_CONFIG = {
 
 function cssText(pairs) { return pairs.join(";"); }
 
+// 让 DOM 元素可点击：恢复 pointer-events 并阻止事件冒泡到画布（否则会拖动节点）
+function clickable(el) {
+    el.style.pointerEvents = "auto";
+    el.style.cursor = "pointer";
+    for (const ev of ["mousedown", "mouseup", "click", "dblclick"]) {
+        el.addEventListener(ev, (e) => e.stopPropagation());
+    }
+    return el;
+}
+// 点击复制文本（带降级）
+function copyText(text, okEl) {
+    const done = () => { const old = okEl.textContent; okEl.textContent = "已复制 ✓";
+        setTimeout(() => { okEl.textContent = old; }, 1200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallback());
+    } else fallback();
+    function fallback() {
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand("copy"); done(); } catch (e) {}
+        document.body.removeChild(ta);
+    }
+}
+
 // 造一个二维码卡片：标题 + 图片 + 一行说明
 function makeQrCard(title, src, caption, accent) {
     const card = document.createElement("div");
@@ -104,12 +129,17 @@ app.registerExtension({
             sloganEl.textContent = DEFAULT_CONFIG.slogan;
             sloganEl.style.cssText = "font-size:12px;color:rgba(255,255,255,.9);margin-top:2px;";
             headL.appendChild(brandEl); headL.appendChild(sloganEl);
-            const siteEl = document.createElement("div");
+            const siteEl = document.createElement("a");
             siteEl.textContent = DEFAULT_CONFIG.site;
+            siteEl.href = "https://" + DEFAULT_CONFIG.site.replace(/^https?:\/\//, "");
+            siteEl.target = "_blank";
+            siteEl.rel = "noopener noreferrer";
+            siteEl.title = "点击打开官网";
             siteEl.style.cssText = cssText([
-                "font-size:13px", "font-weight:700", "color:#fff",
+                "font-size:13px", "font-weight:700", "color:#fff", "text-decoration:none",
                 "background:rgba(255,255,255,.18)", "padding:5px 10px", "border-radius:20px",
             ]);
+            clickable(siteEl);
             head.appendChild(headL); head.appendChild(siteEl);
 
             // 三二维码并排：QQ群 / 支付宝赞助 / 微信
@@ -138,7 +168,13 @@ app.registerExtension({
                 "font-size:12px", "color:var(--fg-color)", "opacity:.9",
             ]);
             const qqLink = document.createElement("span"); qqLink.textContent = DEFAULT_CONFIG.qq;
+            qqLink.title = "点击复制群号";
+            qqLink.style.textDecoration = "underline dotted";
+            clickable(qqLink).addEventListener("click", () => copyText(DEFAULT_CONFIG.qq.replace(/[^0-9]/g, ""), qqLink));
             const wxLink = document.createElement("span"); wxLink.textContent = DEFAULT_CONFIG.wechat;
+            wxLink.title = "点击复制微信号";
+            wxLink.style.textDecoration = "underline dotted";
+            clickable(wxLink).addEventListener("click", () => copyText(DEFAULT_CONFIG.wechat.replace(/^微信\s*/, ""), wxLink));
             links.appendChild(qqLink); links.appendChild(wxLink);
 
             box.appendChild(head); box.appendChild(row);
@@ -153,7 +189,10 @@ app.registerExtension({
                 if (!cfg || typeof cfg !== "object") return;
                 if (cfg.brand)   brandEl.textContent = cfg.brand;
                 if (cfg.slogan)  sloganEl.textContent = cfg.slogan;
-                if (cfg.site)    siteEl.textContent = cfg.site;
+                if (cfg.site)    {
+                    siteEl.textContent = cfg.site;
+                    siteEl.href = "https://" + String(cfg.site).replace(/^https?:\/\//, "");
+                }
                 if (cfg.qq)      { qqLink.textContent = cfg.qq; qqCard.caption.textContent = cfg.qq; }
                 if (cfg.wechat)  { wxLink.textContent = cfg.wechat; wxCard.caption.textContent = cfg.wechat; }
                 if (cfg.sponsorTip) spCard.caption.textContent = cfg.sponsorTip;
