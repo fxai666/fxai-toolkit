@@ -28,8 +28,9 @@ const DEFAULT_CONFIG = {
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
     cloudText: "本地算力不够，立即使用云端算力",
-    cloudBtn: "点击邀请码送3元定金",
+    cloudBtn: "填写邀请码送3元定金",
     cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
+    cloudReg: "立即注册",
     inviter: "邀请码 9LWQ36",
     downloads: [
         { label: "夸克网盘", url: "https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7", color: "#f59e0b" },
@@ -200,11 +201,18 @@ app.registerExtension({
             const cloudBtnEl = document.createElement("span");
             cloudBtnEl.textContent = DEFAULT_CONFIG.cloudBtn;
             cloudBtnEl.style.cssText = cssText([ "white-space:nowrap" ]);
-            clickable(cloudBtnEl).addEventListener("click",
+            const cloudRegEl = document.createElement("span");
+            cloudRegEl.textContent = DEFAULT_CONFIG.cloudReg;
+            cloudRegEl.style.cssText = cssText([
+                "background:rgba(255,255,255,.9)", "color:#c2410c",
+                "padding:2px 9px", "border-radius:12px", "white-space:nowrap",
+            ]);
+            clickable(cloudRegEl).addEventListener("click",
                 () => window.open(cloudHref, "_blank", "noopener"));
             cloudEl.appendChild(cloudTextEl);
             cloudEl.appendChild(cloudBtnEl);
             cloudEl.appendChild(cloudCodeEl);
+            cloudEl.appendChild(cloudRegEl);
 
             // 教程入口条（可点击打开）
             const tutorialEl = document.createElement("a");
@@ -291,6 +299,7 @@ app.registerExtension({
                 if (cfg.cloudText) cloudTextEl.textContent = "☁️ " + cfg.cloudText;
                 if (cfg.cloudBtn)  cloudBtnEl.textContent = cfg.cloudBtn;
                 if (cfg.cloudUrl)  cloudHref = cfg.cloudUrl;
+                if (cfg.cloudReg)  cloudRegEl.textContent = cfg.cloudReg;
                 if (cfg.inviter)   cloudCodeEl.textContent = String(cfg.inviter).replace(/[^0-9A-Za-z]/g, "");
                 if (cfg.tutorial)    { tutorialEl.textContent = "📚 " + cfg.tutorial + " → 点击打开"; }
                 if (cfg.tutorialUrl) { tutorialEl.href = cfg.tutorialUrl; }
