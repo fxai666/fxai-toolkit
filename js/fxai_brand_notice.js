@@ -17,7 +17,7 @@ const DEFAULT_CONFIG = {
     site: "www.fxai.site",
     tutorial: "从入门到精通实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
-    system: "全自动化创作体系",
+    system: "全自动化创作体系全攻略",
     systemUrl: "https://www.fxai.site/",
     cloudText: "本地算力不够",
     cloudCta: "立即使用云端凤希AI镜像",
