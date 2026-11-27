@@ -28,7 +28,7 @@ const DEFAULT_CONFIG = {
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
     cloudText: "本地算力不够，立即使用云端算力",
-    cloudBtn: "填写邀请码送3元定金",
+    cloudBtn: "填写邀请码送3元赠金",
     cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
     cloudReg: "立即注册",
     inviter: "邀请码 9LWQ36",
