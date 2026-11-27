@@ -15,7 +15,7 @@ const DEFAULT_CONFIG = {
     slogan: "让创作更简单 · 一站式 AIGC 创作",
     qq: "QQ群 775649071",
     site: "www.fxai.site",
-    tutorial: "凤希AI 实操教程",
+    tutorial: "从入门到精通实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
     system: "全自动化创作体系",
     systemUrl: "https://www.fxai.site/",
