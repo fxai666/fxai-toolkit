@@ -152,7 +152,7 @@ app.registerExtension({
             clickable(siteEl);
             head.appendChild(headL); head.appendChild(siteEl);
 
-            // 三二维码并排：QQ群 / 支付宝赞助 / 微信
+            // 四二维码并排：QQ群 / 微信 / 视频号（加好友类在前）/ 赞助（收尾）
             const row = document.createElement("div");
             row.style.cssText = cssText([
                 "display:flex", "gap:6px", "align-items:stretch",
@@ -161,8 +161,8 @@ app.registerExtension({
             const spCard = makeQrCard("赞助", DEFAULT_CONFIG.sponsor_qr, "扫码赞助", "#c084fc");
             const wxCard = makeQrCard("微信", DEFAULT_CONFIG.wechat_qr, "扫码加微信", "#34d399");
             const chCard = makeQrCard("视频号", DEFAULT_CONFIG.channel_qr, DEFAULT_CONFIG.channel, "#fb923c");
-            row.appendChild(qqCard.card); row.appendChild(spCard.card);
-            row.appendChild(wxCard.card); row.appendChild(chCard.card);
+            row.appendChild(qqCard.card); row.appendChild(wxCard.card);
+            row.appendChild(chCard.card); row.appendChild(spCard.card);
 
             // 底部公告条
             const noticeEl = document.createElement("div");
