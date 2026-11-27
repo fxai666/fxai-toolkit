@@ -96,7 +96,11 @@ def save_relay(frames, audio, 段序号, fps=24, count=RELAY_FRAMES, source=""):
     if count < 1:
         print("[凤希AI] 场景续接帧：本段没有可用帧，跳过续帧")
         return ""
-    tail = frames[-count:].detach().cpu()
+    # 🔴 .clone() 一个都不能省：frames[-count:] 是切片**视图**，数据显示只有 count 帧，
+    # 但底层 storage 仍指着整段视频（192 帧 ≈ 1.93GB）。.cpu() 在数据本来就在 CPU 时
+    # 直接返回原对象、不复制，torch.save 又是照 storage 而非照视图写盘 ——
+    # 结果是「只存 1 帧」却写出 1.94GB（实测 2026-11-28）。clone 强制切成独立小块（1 帧约 10MB）。
+    tail = frames[-count:].detach().cpu().clone()
     # 亮度统一移到读入端做（测试阶段只在读入端调整），这里原样落盘 PT。
     # _flatten_luma 保留在此模块，供 V2 读入端 import 调用。
 
@@ -105,7 +109,9 @@ def save_relay(frames, audio, 段序号, fps=24, count=RELAY_FRAMES, source=""):
         sr = int(audio.get("sample_rate") or 32000)
         samples = int(round(count / float(fps) * sr))
         waveform = audio["waveform"]
-        wav = waveform[..., -samples:].detach().cpu() if waveform.shape[-1] > samples else waveform.detach().cpu()
+        # 同理必须 clone：切片音轨背后是整条 waveform，不切断会把整段音轨打包进 pt
+        _wav_src = waveform[..., -samples:] if waveform.shape[-1] > samples else waveform
+        wav = _wav_src.detach().cpu().clone()
         tail_audio = {"waveform": wav, "sample_rate": sr}
 
     # +1：这份是给下一段（序号 N+1）用的，读端直接用当前段序号
