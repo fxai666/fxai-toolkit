@@ -17,7 +17,8 @@ const DEFAULT_CONFIG = {
     site: "www.fxai.site",
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
-    cloudText: "本地算力不够，立即使用云端镜像算力",
+    cloudText: "本地算力不够",
+    cloudCta: "立即使用云端凤希AI镜像",
     cloudBtn: "填写邀请码送3元赠金",
     cloudUrl: "https://www.xiangongyun.com/image/detail/9463d4ca-2f86-45cf-b0a3-a81ba6f3b27c?r=9LWQ36",
     inviter: "邀请码 9LWQ36",
@@ -28,7 +29,7 @@ const DEFAULT_CONFIG = {
     ],
     wechat: "微信 fxai168",
     channel: "视频号 凤希AI",
-    notice: "授权：个人/学习觉得有用欢迎任意金额赞助；商用/对外交付须先获得授权，金额任意、付款即生效；用我方镜像、或任意渠道付费（含本地部署）即视为授权。",
+    notice: "授权：个人/学习觉得有用欢迎任意金额赞助；商用/对外交付须先获得授权，金额任意、付款即生效；用我方镜像或任意渠道付费（含本地部署）即视为授权。",
     sponsorTip: "支付宝 · 金额任意",
     qq_qr: QQ_QR,          // data URI 或 http(s) 图片地址
     sponsor_qr: SPONSOR_QR,
@@ -178,8 +179,13 @@ app.registerExtension({
             ]);
             const cloudTextEl = document.createElement("span");
             cloudTextEl.textContent = "☁️ " + DEFAULT_CONFIG.cloudText;
-            cloudTextEl.title = "点击进入云端镜像详情页";
-            clickable(cloudTextEl).addEventListener("click",
+            const cloudCtaEl = document.createElement("span");
+            cloudCtaEl.textContent = DEFAULT_CONFIG.cloudCta;
+            cloudCtaEl.style.cssText = cssText([
+                "background:rgba(255,255,255,.92)", "color:#c2410c",
+                "padding:3px 10px", "border-radius:12px", "white-space:nowrap",
+            ]);
+            clickable(cloudCtaEl).addEventListener("click",
                 () => window.open(cloudHref, "_blank", "noopener"));
             const cloudCodeEl = document.createElement("span");
             cloudCodeEl.textContent = String(DEFAULT_CONFIG.inviter).replace(/[^0-9A-Za-z]/g, "");
@@ -194,6 +200,7 @@ app.registerExtension({
             cloudBtnEl.textContent = DEFAULT_CONFIG.cloudBtn;
             cloudBtnEl.style.cssText = cssText([ "white-space:nowrap", "color:#fff" ]);
             cloudEl.appendChild(cloudTextEl);
+            cloudEl.appendChild(cloudCtaEl);
             cloudEl.appendChild(cloudBtnEl);
             cloudEl.appendChild(cloudCodeEl);
 
