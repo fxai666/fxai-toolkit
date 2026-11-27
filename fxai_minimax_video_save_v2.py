@@ -236,12 +236,12 @@ class FxAiMiniMaxVideoSaveV2:
                 # 场景续接：勾在「接缝的前一段」上。本段勾了 → 存 <视频序号+1>.pt，下一段自动接上；
                 # 本段不勾 → 删掉 <视频序号+1>.pt，下一段硬切。接缝只有一个判断点，就在这一行。
                 "场景续接": ("BOOLEAN", {
-                    "default": True,
+                    "default": False,
                     "label_on": "续下一段", "label_off": "断开",
                     "tooltip": "勾上 = 本段末尾 1 帧连音轨写到 scene_relay/<视频序号+1>.pt，下一段自动接着它生成。\n"
                                "不勾 = 断开：删掉本段本该留的接点，下一段硬切（不影响上一段的接缝）。\n"
                                "接「影视剧场数据解析 / 场景加载器」的「场景续接」，按行跟着勾选走；\n"
-                               "不接线 = 一直勾（每段都往后续）。"}),
+                               "不接线 = 断开（默认不写续接帧）。"}),
                 "续接帧数": ("INT", {
                     "default": 1, "min": 1, "max": 340, "step": 1,
                     "tooltip": "本段末尾存几帧给下一段做接点（每段覆盖写 scene_relay/<段号+1>.pt）。\n"
@@ -250,7 +250,7 @@ class FxAiMiniMaxVideoSaveV2:
             },
         }
 
-    def run(self, 图片序列, 视频序号, 音频, 保存目录="sucai", 场景续接=True, 续接帧数=1):
+    def run(self, 图片序列, 视频序号, 音频, 保存目录="sucai", 场景续接=False, 续接帧数=1):
         if 图片序列 is None:
             return (图片序列, "", "")
 
