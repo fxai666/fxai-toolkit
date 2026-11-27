@@ -269,7 +269,7 @@
           "label": "INT",
           "name": "INT",
           "type": "INT",
-          "links": []
+          "links": null
         }
       ],
       "properties": {
@@ -648,7 +648,7 @@
           "localized_name": "value1",
           "name": "value1",
           "type": "*",
-          "links": []
+          "links": null
         },
         {
           "label": "输出值2",
@@ -748,7 +748,7 @@
           "localized_name": "output",
           "name": "output",
           "type": "*",
-          "links": []
+          "links": null
         }
       ],
       "properties": {
@@ -984,7 +984,7 @@
           "label": "INT",
           "name": "INT",
           "type": "INT",
-          "links": []
+          "links": null
         }
       ],
       "properties": {
@@ -1089,7 +1089,7 @@
           "label": "AUDIO",
           "name": "AUDIO",
           "type": "AUDIO",
-          "links": []
+          "links": null
         }
       ],
       "title": "Set_原始音频",
@@ -2262,7 +2262,7 @@
           "label": "IMAGE",
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": []
+          "links": null
         }
       ],
       "title": "Set_首帧图片",
@@ -2294,7 +2294,7 @@
       ],
       "size": [
         270,
-        480
+        518
       ],
       "flags": {},
       "order": 49,
@@ -2445,8 +2445,8 @@
           "name": "循环数",
           "type": "INT",
           "links": [
-            1996,
-            2119
+            2119,
+            1996
           ]
         },
         {
@@ -2454,7 +2454,7 @@
           "localized_name": "每秒帧数",
           "name": "每秒帧数",
           "type": "INT",
-          "links": []
+          "links": null
         },
         {
           "label": "实际宽度",
@@ -2488,7 +2488,7 @@
           "localized_name": "过渡帧数",
           "name": "过渡帧数",
           "type": "INT",
-          "links": []
+          "links": null
         },
         {
           "label": "实际半宽",
@@ -2538,7 +2538,8 @@
         32,
         9,
         2,
-        false
+        false,
+        true
       ],
       "widgets_values_named": {
         "启用场景分段": false,
@@ -2550,7 +2551,8 @@
         "长宽对齐基数": 32,
         "过渡帧数": 9,
         "采样次数": 2,
-        "自动关机": false
+        "自动关机": false,
+        "场景续接": true
       }
     },
     {
@@ -2628,11 +2630,11 @@
       },
       "widgets_values": [
         1,
-        "0"
+        0
       ],
       "widgets_values_named": {
         "当前索引": 1,
-        "过渡帧数": "0"
+        "过渡帧数": 0
       }
     },
     {
@@ -2691,8 +2693,8 @@
           "type": "INT",
           "links": [
             1456,
-            1565,
-            2120
+            2120,
+            1565
           ]
         }
       ],
@@ -2999,7 +3001,7 @@
           "label": "输出",
           "name": "*",
           "type": "*",
-          "links": []
+          "links": null
         }
       ],
       "properties": {
@@ -3300,13 +3302,6 @@
           "localized_name": "图片",
           "name": "图片",
           "type": "IMAGE",
-          "links": null
-        },
-        {
-          "label": "刷新标记",
-          "localized_name": "刷新标记",
-          "name": "刷新标记",
-          "type": "INT",
           "links": null
         }
       ],
@@ -3748,12 +3743,12 @@
       },
       "widgets_values": [
         "simple",
-        8,
+        1,
         1
       ],
       "widgets_values_named": {
         "scheduler": "simple",
-        "steps": 8,
+        "steps": 1,
         "denoise": 1
       }
     },
@@ -3832,7 +3827,7 @@
       ],
       "size": [
         225.6802734375,
-        122
+        170
       ],
       "flags": {},
       "order": 91,
@@ -3865,6 +3860,26 @@
           "type": "STRING",
           "widget": {
             "name": "保存目录"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "场景续接",
+          "name": "场景续接",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "场景续接"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "续接帧数",
+          "name": "续接帧数",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "续接帧数"
           },
           "link": null
         }
@@ -3903,11 +3918,15 @@
       },
       "widgets_values": [
         -1,
-        "sucai"
+        "sucai",
+        false,
+        5
       ],
       "widgets_values_named": {
         "视频序号": -1,
-        "保存目录": "sucai"
+        "保存目录": "sucai",
+        "场景续接": false,
+        "续接帧数": 5
       }
     },
     {
@@ -4136,7 +4155,7 @@
       ],
       "size": [
         225.6802734375,
-        350
+        398
       ],
       "flags": {},
       "order": 41,
@@ -4259,6 +4278,16 @@
             "name": "音频模式"
           },
           "link": null
+        },
+        {
+          "localized_name": "续接段序号",
+          "name": "续接段序号",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "续接段序号"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -4290,13 +4319,17 @@
         1344,
         768,
         124,
-        "原音频"
+        "原音频",
+        false,
+        0
       ],
       "widgets_values_named": {
         "宽度": 1344,
         "高度": 768,
         "帧数": 124,
-        "音频模式": "原音频"
+        "音频模式": "原音频",
+        "场景续接": false,
+        "续接段序号": 0
       }
     },
     {
@@ -4350,7 +4383,7 @@
           "localized_name": "Latent",
           "name": "output",
           "type": "LATENT",
-          "links": []
+          "links": null
         },
         {
           "localized_name": "降噪Latent",
@@ -4518,7 +4551,7 @@
           "localized_name": "Latent",
           "name": "output",
           "type": "LATENT",
-          "links": []
+          "links": null
         },
         {
           "localized_name": "降噪Latent",
@@ -4692,7 +4725,7 @@
           "label": "IMAGE",
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": []
+          "links": null
         }
       ],
       "title": "Set_设置首帧图片",
@@ -5485,7 +5518,7 @@
           "label": "输出",
           "name": "CLIP",
           "type": "CLIP",
-          "links": []
+          "links": null
         }
       ],
       "title": "Set_clip",
@@ -5569,7 +5602,7 @@
           "localized_name": "CLIP",
           "name": "CLIP",
           "type": "CLIP",
-          "links": []
+          "links": null
         },
         {
           "localized_name": "提示词",
@@ -5596,7 +5629,7 @@
         }
       ],
       "widgets_values_named": {
-        "lora_data": "[{\"lora_name\":\"H3人脸去油.safetensors\",\"model_strength\":0.7,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":false,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]",
+        "lora_data": "[{\"lora_name\":\"minimax_h3_ref2v_turbo_8step_768p_bf16.safetensors\",\"model_strength\":1,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"H3人脸去油.safetensors\",\"model_strength\":0.7,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":false,\"invert\":false,\"fade_start\":1,\"fade_end\":1},{\"lora_name\":\"Motion_Repair.safetensors\",\"model_strength\":0.45,\"clip_strength\":-1,\"trigger_words\":[],\"enabled\":true,\"invert\":false,\"fade_start\":1,\"fade_end\":1}]",
         "lora_wrap": ""
       }
     },
@@ -5809,7 +5842,7 @@
           "label": "INT",
           "name": "INT",
           "type": "INT",
-          "links": []
+          "links": null
         }
       ],
       "properties": {
@@ -6015,14 +6048,14 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "slot_index": 0,
-          "links": []
+          "links": null
         },
         {
           "localized_name": "遮罩",
           "name": "MASK",
           "type": "MASK",
           "slot_index": 1,
-          "links": []
+          "links": null
         }
       ],
       "properties": {
@@ -6036,6 +6069,56 @@
       "widgets_values_named": {
         "image": "fxai_workflow_banner.png",
         "upload": "image"
+      }
+    },
+    {
+      "id": 1054,
+      "type": "SetNode",
+      "pos": [
+        3520.0,
+        760.0
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 95,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "BOOLEAN",
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "BOOLEAN",
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": null
+        }
+      ],
+      "title": "Set_场景续接",
+      "properties": {
+        "Node name for S&R": "SetNode",
+        "aux_id": "kijai/ComfyUI-KJNodes",
+        "previousName": "场景续接",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "场景续接"
+      ],
+      "widgets_values_named": {
+        "Constant": "场景续接"
       }
     }
   ],
@@ -6920,8 +7003,8 @@
     "ds": {
       "scale": 0.7247295000000156,
       "offset": [
-        942.0639598588557,
-        614.4131871164844
+        -782.717493083204,
+        564.7394812717529
       ]
     },
     "ue_links": [],
