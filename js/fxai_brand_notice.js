@@ -28,7 +28,7 @@ const DEFAULT_CONFIG = {
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
     cloudText: "本地算力不够，立即使用云端算力",
-    cloudBtn: "点击注册送3元定金 · 填邀请码送3元赠金",
+    cloudBtn: "填写邀请码送3元定金",
     cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
     inviter: "邀请码 9LWQ36",
     downloads: [
@@ -177,28 +177,37 @@ app.registerExtension({
                 "background:rgba(139,92,246,.12)", "border-left:3px solid #8b5cf6",
             ]);
 
-            // 云端算力推广条（可点击注册，邀请码随链接自动带入）
-            const cloudEl = document.createElement("a");
-            cloudEl.href = DEFAULT_CONFIG.cloudUrl;
-            cloudEl.target = "_blank";
-            cloudEl.rel = "noopener noreferrer";
-            cloudEl.title = "注册仙宫云，邀请码 9LWQ36 自动带入";
+            // 云端算力推广条：文案 + 明文邀请码(点击复制) + 按钮(点击打开注册)
+            let cloudHref = DEFAULT_CONFIG.cloudUrl;
+            const cloudEl = document.createElement("div");
             cloudEl.style.cssText = cssText([
-                "display:flex", "align-items:center", "justify-content:center", "gap:8px",
-                "font-size:12px", "font-weight:700", "color:#fff", "text-decoration:none",
+                "display:flex", "align-items:center", "justify-content:center", "gap:6px",
+                "font-size:12px", "font-weight:700", "color:#fff",
                 "padding:8px 12px", "border-radius:8px",
                 "background:linear-gradient(90deg,#f59e0b,#ea580c)",
             ]);
             const cloudTextEl = document.createElement("span");
             cloudTextEl.textContent = "☁️ " + DEFAULT_CONFIG.cloudText;
+            const cloudCodeEl = document.createElement("span");
+            cloudCodeEl.textContent = String(DEFAULT_CONFIG.inviter).replace(/[^0-9A-Za-z]/g, "");
+            cloudCodeEl.title = "点击复制邀请码";
+            cloudCodeEl.style.cssText = cssText([
+                "background:rgba(255,255,255,.24)", "padding:2px 7px",
+                "border-radius:12px", "letter-spacing:.5px",
+            ]);
+            clickable(cloudCodeEl).addEventListener("click",
+                () => copyText(cloudCodeEl.textContent, cloudCodeEl));
             const cloudBtnEl = document.createElement("span");
             cloudBtnEl.textContent = DEFAULT_CONFIG.cloudBtn;
             cloudBtnEl.style.cssText = cssText([
                 "background:rgba(255,255,255,.24)", "padding:3px 8px",
                 "border-radius:20px", "white-space:nowrap",
             ]);
-            cloudEl.appendChild(cloudTextEl); cloudEl.appendChild(cloudBtnEl);
-            clickable(cloudEl);
+            clickable(cloudBtnEl).addEventListener("click",
+                () => window.open(cloudHref, "_blank", "noopener"));
+            cloudEl.appendChild(cloudTextEl);
+            cloudEl.appendChild(cloudCodeEl);
+            cloudEl.appendChild(cloudBtnEl);
 
             // 教程入口条（可点击打开）
             const tutorialEl = document.createElement("a");
@@ -251,14 +260,10 @@ app.registerExtension({
             wxLink.title = "点击复制微信号";
             wxLink.style.textDecoration = "underline dotted";
             clickable(wxLink).addEventListener("click", () => copyText(DEFAULT_CONFIG.wechat.replace(/^微信\s*/, ""), wxLink));
-            const invLink = document.createElement("span"); invLink.textContent = DEFAULT_CONFIG.inviter;
-            invLink.title = "点击复制邀请码（被邀请/自己填写时用）";
-            invLink.style.textDecoration = "underline dotted";
-            clickable(invLink).addEventListener("click", () => copyText(DEFAULT_CONFIG.inviter.replace(/[^0-9A-Za-z]/g, ""), invLink));
-            links.appendChild(qqLink); links.appendChild(wxLink); links.appendChild(invLink);
+            links.appendChild(qqLink); links.appendChild(wxLink);
 
             box.appendChild(head); box.appendChild(row);
-            box.appendChild(noticeEl); box.appendChild(cloudEl); box.appendChild(tutorialEl); box.appendChild(dlRow); box.appendChild(links);
+            box.appendChild(noticeEl); box.appendChild(tutorialEl); box.appendChild(dlRow); box.appendChild(cloudEl); box.appendChild(links);
 
             this.addDOMWidget("brand_notice", "custom", box, { serialize: false });
             this.brandNoticeBox = box;
@@ -288,8 +293,8 @@ app.registerExtension({
                 if (cfg.qq)      { qqLink.textContent = cfg.qq; qqCard.caption.textContent = cfg.qq; }
                 if (cfg.cloudText) cloudTextEl.textContent = "☁️ " + cfg.cloudText;
                 if (cfg.cloudBtn)  cloudBtnEl.textContent = cfg.cloudBtn;
-                if (cfg.cloudUrl)  cloudEl.href = cfg.cloudUrl;
-                if (cfg.inviter)   { invLink.textContent = cfg.inviter; }
+                if (cfg.cloudUrl)  cloudHref = cfg.cloudUrl;
+                if (cfg.inviter)   cloudCodeEl.textContent = String(cfg.inviter).replace(/[^0-9A-Za-z]/g, "");
                 if (cfg.tutorial)    { tutorialEl.textContent = "📚 " + cfg.tutorial + " → 点击打开"; }
                 if (cfg.tutorialUrl) { tutorialEl.href = cfg.tutorialUrl; }
                 if (Array.isArray(cfg.downloads)) {
