@@ -27,6 +27,9 @@ const DEFAULT_CONFIG = {
     site: "www.fxai.site",
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
+    cloudText: "本地算力不够？想学得更快 → 立即使用云端算力",
+    cloudBtn: "点击注册（邀请码 9LWQ36）",
+    cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
     downloads: [
         { label: "夸克网盘", url: "https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7", color: "#f59e0b" },
         { label: "迅雷网盘", url: "https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3", color: "#38bdf8" },
@@ -173,6 +176,29 @@ app.registerExtension({
                 "background:rgba(139,92,246,.12)", "border-left:3px solid #8b5cf6",
             ]);
 
+            // 云端算力推广条（可点击注册，邀请码随链接自动带入）
+            const cloudEl = document.createElement("a");
+            cloudEl.href = DEFAULT_CONFIG.cloudUrl;
+            cloudEl.target = "_blank";
+            cloudEl.rel = "noopener noreferrer";
+            cloudEl.title = "注册仙宫云，邀请码 9LWQ36 自动带入";
+            cloudEl.style.cssText = cssText([
+                "display:flex", "align-items:center", "justify-content:center", "gap:8px",
+                "font-size:12px", "font-weight:700", "color:#fff", "text-decoration:none",
+                "padding:8px 12px", "border-radius:8px",
+                "background:linear-gradient(90deg,#f59e0b,#ea580c)",
+            ]);
+            const cloudTextEl = document.createElement("span");
+            cloudTextEl.textContent = "☁️ " + DEFAULT_CONFIG.cloudText;
+            const cloudBtnEl = document.createElement("span");
+            cloudBtnEl.textContent = DEFAULT_CONFIG.cloudBtn;
+            cloudBtnEl.style.cssText = cssText([
+                "background:rgba(255,255,255,.24)", "padding:3px 8px",
+                "border-radius:20px", "white-space:nowrap",
+            ]);
+            cloudEl.appendChild(cloudTextEl); cloudEl.appendChild(cloudBtnEl);
+            clickable(cloudEl);
+
             // 教程入口条（可点击打开）
             const tutorialEl = document.createElement("a");
             tutorialEl.textContent = "📚 " + DEFAULT_CONFIG.tutorial + " → 点击打开";
@@ -227,7 +253,7 @@ app.registerExtension({
             links.appendChild(qqLink); links.appendChild(wxLink);
 
             box.appendChild(head); box.appendChild(row);
-            box.appendChild(noticeEl); box.appendChild(tutorialEl); box.appendChild(dlRow); box.appendChild(links);
+            box.appendChild(noticeEl); box.appendChild(cloudEl); box.appendChild(tutorialEl); box.appendChild(dlRow); box.appendChild(links);
 
             this.addDOMWidget("brand_notice", "custom", box, { serialize: false });
             this.brandNoticeBox = box;
@@ -255,6 +281,9 @@ app.registerExtension({
                     siteEl.href = "https://" + String(cfg.site).replace(/^https?:\/\//, "");
                 }
                 if (cfg.qq)      { qqLink.textContent = cfg.qq; qqCard.caption.textContent = cfg.qq; }
+                if (cfg.cloudText) cloudTextEl.textContent = "☁️ " + cfg.cloudText;
+                if (cfg.cloudBtn)  cloudBtnEl.textContent = cfg.cloudBtn;
+                if (cfg.cloudUrl)  cloudEl.href = cfg.cloudUrl;
                 if (cfg.tutorial)    { tutorialEl.textContent = "📚 " + cfg.tutorial + " → 点击打开"; }
                 if (cfg.tutorialUrl) { tutorialEl.href = cfg.tutorialUrl; }
                 if (Array.isArray(cfg.downloads)) {
