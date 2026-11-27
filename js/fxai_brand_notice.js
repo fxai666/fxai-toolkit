@@ -39,7 +39,7 @@ const DEFAULT_CONFIG = {
     ],
     wechat: "微信 fxai168",
     channel: "视频号 凤希AI",
-    notice: "授权：个人/学习觉得有用欢迎任意金额赞助；商用/对外交付须先获得授权，金额任意、付款即生效。用我方镜像、或任意渠道付费（含本地部署）即视为授权。",
+    notice: "授权：个人/学习觉得有用欢迎任意金额赞助；商用/对外交付须先获得授权，金额任意、付款即生效；用我方镜像、或任意渠道付费（含本地部署）即视为授权。",
     sponsorTip: "支付宝 · 金额任意",
     qq_qr: QQ_QR,          // data URI 或 http(s) 图片地址
     sponsor_qr: SPONSOR_QR,
@@ -200,7 +200,7 @@ app.registerExtension({
                 () => copyText(cloudCodeEl.textContent, cloudCodeEl));
             const cloudBtnEl = document.createElement("span");
             cloudBtnEl.textContent = DEFAULT_CONFIG.cloudBtn;
-            cloudBtnEl.style.cssText = cssText([ "white-space:nowrap" ]);
+            cloudBtnEl.style.cssText = cssText([ "white-space:nowrap", "color:#fff" ]);
             const cloudRegEl = document.createElement("span");
             cloudRegEl.textContent = DEFAULT_CONFIG.cloudReg;
             cloudRegEl.style.cssText = cssText([
