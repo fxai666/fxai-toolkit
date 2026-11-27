@@ -15,9 +15,9 @@ const DEFAULT_CONFIG = {
     slogan: "让创作更简单 · 一站式 AIGC 创作",
     qq: "QQ群 775649071",
     site: "www.fxai.site",
-    tutorial: "从入门到精通实操教程",
+    tutorial: "凤希AI-从入门到精通实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
-    system: "全自动化创作体系全攻略",
+    system: "凤希AI-全自动化创作体系全攻略",
     systemUrl: "https://www.fxai.site/",
     cloudText: "本地算力不够",
     cloudCta: "立即使用云端凤希AI镜像",
@@ -279,7 +279,7 @@ app.registerExtension({
             this.brandNoticeBox = box;
             // 用 setSize 而非裸 size=：隐藏 widget 时 ComfyUI 会 computeSize 重算覆盖，
             // 这里设固定尺寸 + onResize 锁宽 + 延迟再锁一次，确保工作流里显示一致。
-            const FIX_W = 600, FIX_H = 550;
+            const FIX_W = 600, FIX_H = 520;
             this.setSize([FIX_W, FIX_H]);
             this.onResize = function (size) {
                 if (size[0] < FIX_W || size[1] < FIX_H) {

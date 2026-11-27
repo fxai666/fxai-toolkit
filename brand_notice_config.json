@@ -9,7 +9,7 @@
   "sponsor_qr": "",
   "sponsorTip": "支付宝 · 金额任意",
   "wechat_qr": "",
-  "tutorial": "从入门到精通实操教程",
+  "tutorial": "凤希AI-从入门到精通实操教程",
   "tutorialUrl": "https://www.fxai.site/tutorial/index.html",
   "cloudText": "本地算力不够",
   "cloudBtn": "填写邀请码送3元赠金",
@@ -34,9 +34,9 @@
       "color": "#60a5fa"
     }
   ],
-  "version": 26,
+  "version": 27,
   "_note": "文案记录源（节点已改为完全自包含，不再远程拉取；改文案请同步改 js/fxai_brand_notice.js 的 DEFAULT_CONFIG）",
   "cloudCta": "立即使用云端凤希AI镜像",
-  "system": "全自动化创作体系全攻略",
+  "system": "凤希AI-全自动化创作体系全攻略",
   "systemUrl": "https://www.fxai.site/"
 }
