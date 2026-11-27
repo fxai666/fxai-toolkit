@@ -11,10 +11,9 @@
   "wechat_qr": "",
   "tutorial": "凤希AI 实操教程",
   "tutorialUrl": "https://www.fxai.site/tutorial/index.html",
-  "cloudText": "本地算力不够，直接使用云端算力",
+  "cloudText": "本地算力不够，立即使用云端镜像算力",
   "cloudBtn": "填写邀请码送3元赠金",
-  "cloudUrl": "https://www.xiangongyun.com/register/9LWQ36",
-  "cloudReg": "立即注册",
+  "cloudUrl": "https://www.xiangongyun.com/image/detail/9463d4ca-2f86-45cf-b0a3-a81ba6f3b27c?r=9LWQ36",
   "inviter": "邀请码 9LWQ36",
   "channel": "视频号 凤希AI",
   "channel_qr": "",
@@ -35,6 +34,6 @@
       "color": "#60a5fa"
     }
   ],
-  "version": 20,
+  "version": 21,
   "_note": "文案记录源（节点已改为完全自包含，不再远程拉取；改文案请同步改 js/fxai_brand_notice.js 的 DEFAULT_CONFIG）"
 }
