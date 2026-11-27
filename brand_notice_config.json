@@ -12,5 +12,22 @@
   "tutorial": "凤希AI 实操教程",
   "tutorialUrl": "https://www.fxai.site/tutorial/index.html",
   "channel": "视频号 凤希AI",
-  "channel_qr": ""
+  "channel_qr": "",
+  "downloads": [
+    {
+      "label": "夸克网盘",
+      "url": "https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7",
+      "color": "#f59e0b"
+    },
+    {
+      "label": "迅雷网盘",
+      "url": "https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3",
+      "color": "#38bdf8"
+    },
+    {
+      "label": "百度网盘",
+      "url": "https://pan.baidu.com/s/1xt_93bsji6g76pvWZt4GZw?pwd=7r73",
+      "color": "#60a5fa"
+    }
+  ]
 }

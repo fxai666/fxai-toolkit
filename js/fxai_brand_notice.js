@@ -27,6 +27,11 @@ const DEFAULT_CONFIG = {
     site: "www.fxai.site",
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
+    downloads: [
+        { label: "夸克网盘", url: "https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7", color: "#f59e0b" },
+        { label: "迅雷网盘", url: "https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3", color: "#38bdf8" },
+        { label: "百度网盘", url: "https://pan.baidu.com/s/1xt_93bsji6g76pvWZt4GZw?pwd=7r73", color: "#60a5fa" },
+    ],
     wechat: "微信 fxai168",
     channel: "视频号 凤希AI",
     notice: "个人/学习：觉得有帮助欢迎赞助，金额任意；商用/对外交付：须先赞助获得授权使用，金额同样任意，付款即生效",
@@ -182,6 +187,29 @@ app.registerExtension({
             ]);
             clickable(tutorialEl);
 
+            // 下载渠道按钮行（三选一）
+            const dlRow = document.createElement("div");
+            dlRow.style.cssText = cssText([
+                "display:flex", "gap:6px", "justify-content:center",
+            ]);
+            const dlBtns = [];
+            for (const d of DEFAULT_CONFIG.downloads || []) {
+                const b = document.createElement("a");
+                b.textContent = d.label;
+                b.href = d.url;
+                b.target = "_blank";
+                b.rel = "noopener noreferrer";
+                b.title = "打开" + d.label + "下载";
+                b.style.cssText = cssText([
+                    "flex:1", "text-align:center", "font-size:11px", "font-weight:700",
+                    "color:#fff", "text-decoration:none", "padding:6px 4px", "border-radius:6px",
+                    "background:" + d.color, "opacity:.92",
+                ]);
+                clickable(b);
+                dlRow.appendChild(b);
+                dlBtns.push(b);
+            }
+
             // 连接信息行
             const links = document.createElement("div");
             links.style.cssText = cssText([
@@ -199,7 +227,7 @@ app.registerExtension({
             links.appendChild(qqLink); links.appendChild(wxLink);
 
             box.appendChild(head); box.appendChild(row);
-            box.appendChild(noticeEl); box.appendChild(tutorialEl); box.appendChild(links);
+            box.appendChild(noticeEl); box.appendChild(tutorialEl); box.appendChild(dlRow); box.appendChild(links);
 
             this.addDOMWidget("brand_notice", "custom", box, { serialize: false });
             this.brandNoticeBox = box;
@@ -229,6 +257,15 @@ app.registerExtension({
                 if (cfg.qq)      { qqLink.textContent = cfg.qq; qqCard.caption.textContent = cfg.qq; }
                 if (cfg.tutorial)    { tutorialEl.textContent = "📚 " + cfg.tutorial + " → 点击打开"; }
                 if (cfg.tutorialUrl) { tutorialEl.href = cfg.tutorialUrl; }
+                if (Array.isArray(cfg.downloads)) {
+                    cfg.downloads.forEach((d, i) => {
+                        const b = dlBtns[i];
+                        if (!b || !d) return;
+                        if (d.label) b.textContent = d.label;
+                        if (d.url) b.href = d.url;
+                        if (d.color) b.style.background = d.color;
+                    });
+                }
                 if (cfg.wechat)  { wxLink.textContent = cfg.wechat; wxCard.caption.textContent = cfg.wechat; }
                 if (cfg.sponsorTip) spCard.caption.textContent = cfg.sponsorTip;
                 if (cfg.notice)  noticeEl.textContent = "📢 " + cfg.notice;
