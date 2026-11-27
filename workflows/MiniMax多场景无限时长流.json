@@ -6010,7 +6010,7 @@
     },
     {
       "id": 1053,
-      "type": "LoadImage",
+      "type": "FxAiBrandNotice",
       "pos": [
         -238.99321201909376,
         -179.84290373167207
@@ -6022,54 +6022,16 @@
       "flags": {},
       "order": 35,
       "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "COMBO",
-          "widget": {
-            "name": "image"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "选择文件上传",
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "图像",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "slot_index": 0,
-          "links": null
-        },
-        {
-          "localized_name": "遮罩",
-          "name": "MASK",
-          "type": "MASK",
-          "slot_index": 1,
-          "links": null
-        }
-      ],
+      "title": "凤希AI · 品牌公示信息",
+      "inputs": [],
+      "outputs": [],
       "properties": {
-        "Node name for S&R": "LoadImage",
+        "Node name for S&R": "FxAiBrandNotice",
         "fxai_banner": true
       },
       "widgets_values": [
-        "fxai_workflow_banner.png",
-        "image"
-      ],
-      "widgets_values_named": {
-        "image": "fxai_workflow_banner.png",
-        "upload": "image"
-      }
+        "1.0"
+      ]
     },
     {
       "id": 1054,
