@@ -17,6 +17,8 @@ const DEFAULT_CONFIG = {
     site: "www.fxai.site",
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
+    system: "全自动化创作体系",
+    systemUrl: "https://www.fxai.site/",
     cloudText: "本地算力不够",
     cloudCta: "立即使用云端凤希AI镜像",
     cloudBtn: "填写邀请码送3元赠金",
@@ -204,19 +206,32 @@ app.registerExtension({
             cloudEl.appendChild(cloudBtnEl);
             cloudEl.appendChild(cloudCodeEl);
 
-            // 教程入口条（可点击打开）
-            const tutorialEl = document.createElement("a");
-            tutorialEl.textContent = "📚 " + DEFAULT_CONFIG.tutorial + " → 点击打开";
-            tutorialEl.href = DEFAULT_CONFIG.tutorialUrl;
-            tutorialEl.target = "_blank";
-            tutorialEl.rel = "noopener noreferrer";
-            tutorialEl.title = "打开凤希AI实操教程";
-            tutorialEl.style.cssText = cssText([
-                "display:block", "text-align:center", "font-size:12px", "font-weight:700",
-                "color:#fff", "text-decoration:none", "padding:8px 12px", "border-radius:8px",
-                "background:linear-gradient(90deg,#0ea5e9,#2563eb)",
+            // 教程 + 全自动化创作体系：一行两个入口（可点击打开）
+            const linkRow = document.createElement("div");
+            linkRow.style.cssText = cssText([
+                "display:flex", "gap:6px",
             ]);
-            clickable(tutorialEl);
+            function makeLink(text, url, title, bg) {
+                const a = document.createElement("a");
+                a.textContent = text;
+                a.href = url;
+                a.target = "_blank";
+                a.rel = "noopener noreferrer";
+                a.title = title;
+                a.style.cssText = cssText([
+                    "flex:1", "min-width:0", "text-align:center", "font-size:11px", "font-weight:700",
+                    "color:#fff", "text-decoration:none", "padding:8px 4px", "border-radius:8px",
+                    "white-space:nowrap", "overflow:hidden", "text-overflow:ellipsis",
+                    "background:" + bg,
+                ]);
+                clickable(a);
+                return a;
+            }
+            const tutorialEl = makeLink("📚 " + DEFAULT_CONFIG.tutorial, DEFAULT_CONFIG.tutorialUrl,
+                "打开凤希AI实操教程", "linear-gradient(90deg,#0ea5e9,#2563eb)");
+            const systemEl = makeLink("🚀 " + DEFAULT_CONFIG.system, DEFAULT_CONFIG.systemUrl,
+                "打开凤希AI全自动化创作体系介绍", "linear-gradient(90deg,#8b5cf6,#c026d3)");
+            linkRow.appendChild(tutorialEl); linkRow.appendChild(systemEl);
 
             // 下载渠道按钮行（三选一）
             const dlRow = document.createElement("div");
@@ -258,7 +273,7 @@ app.registerExtension({
             links.appendChild(qqLink); links.appendChild(wxLink);
 
             box.appendChild(head); box.appendChild(row);
-            box.appendChild(noticeEl); box.appendChild(tutorialEl); box.appendChild(dlRow); box.appendChild(cloudEl); box.appendChild(links);
+            box.appendChild(noticeEl); box.appendChild(linkRow); box.appendChild(dlRow); box.appendChild(cloudEl); box.appendChild(links);
 
             this.addDOMWidget("brand_notice", "custom", box, { serialize: false });
             this.brandNoticeBox = box;
