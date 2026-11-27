@@ -27,9 +27,10 @@ const DEFAULT_CONFIG = {
     site: "www.fxai.site",
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
-    cloudText: "本地算力不够？想学得更快 → 立即使用云端算力",
-    cloudBtn: "点击注册（邀请码 9LWQ36）",
+    cloudText: "本地算力不够，立即使用云端算力",
+    cloudBtn: "点击注册 · 送3元赠金",
     cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
+    inviter: "邀请码 9LWQ36",
     downloads: [
         { label: "夸克网盘", url: "https://pan.quark.cn/s/a1213641f8c2#/list/share/5e75665b0a764d4d9a9adbd2ec4b71f7", color: "#f59e0b" },
         { label: "迅雷网盘", url: "https://pan.xunlei.com/s/VOm0BR-N1g-SuFr_RceCmVKzA1?pwd=qnc3", color: "#38bdf8" },
@@ -38,7 +39,7 @@ const DEFAULT_CONFIG = {
     wechat: "微信 fxai168",
     channel: "视频号 凤希AI",
     notice: "个人/学习：觉得有帮助欢迎赞助，金额任意；商用/对外交付：须先赞助获得授权使用，金额同样任意，付款即生效",
-    sponsorTip: "个人/学习随意 · 商用须授权 · 金额均任意",
+    sponsorTip: "支付宝 · 金额任意",
     qq_qr: QQ_QR,          // data URI 或 http(s) 图片地址
     sponsor_qr: SPONSOR_QR,
     wechat_qr: WECHAT_QR,
@@ -161,7 +162,7 @@ app.registerExtension({
                 "display:flex", "gap:6px", "align-items:stretch",
             ]);
             const qqCard = makeQrCard("QQ群", DEFAULT_CONFIG.qq_qr, "扫码进群", "#60a5fa");
-            const spCard = makeQrCard("赞助", DEFAULT_CONFIG.sponsor_qr, "扫码赞助", "#c084fc");
+            const spCard = makeQrCard("赞助", DEFAULT_CONFIG.sponsor_qr, DEFAULT_CONFIG.sponsorTip, "#c084fc");
             const wxCard = makeQrCard("微信", DEFAULT_CONFIG.wechat_qr, "扫码加微信", "#34d399");
             const chCard = makeQrCard("视频号", DEFAULT_CONFIG.channel_qr, DEFAULT_CONFIG.channel, "#fb923c");
             row.appendChild(qqCard.card); row.appendChild(wxCard.card);
@@ -250,7 +251,11 @@ app.registerExtension({
             wxLink.title = "点击复制微信号";
             wxLink.style.textDecoration = "underline dotted";
             clickable(wxLink).addEventListener("click", () => copyText(DEFAULT_CONFIG.wechat.replace(/^微信\s*/, ""), wxLink));
-            links.appendChild(qqLink); links.appendChild(wxLink);
+            const invLink = document.createElement("span"); invLink.textContent = DEFAULT_CONFIG.inviter;
+            invLink.title = "点击复制邀请码（被邀请/自己填写时用）";
+            invLink.style.textDecoration = "underline dotted";
+            clickable(invLink).addEventListener("click", () => copyText(DEFAULT_CONFIG.inviter.replace(/[^0-9A-Za-z]/g, ""), invLink));
+            links.appendChild(qqLink); links.appendChild(wxLink); links.appendChild(invLink);
 
             box.appendChild(head); box.appendChild(row);
             box.appendChild(noticeEl); box.appendChild(cloudEl); box.appendChild(tutorialEl); box.appendChild(dlRow); box.appendChild(links);
@@ -284,6 +289,7 @@ app.registerExtension({
                 if (cfg.cloudText) cloudTextEl.textContent = "☁️ " + cfg.cloudText;
                 if (cfg.cloudBtn)  cloudBtnEl.textContent = cfg.cloudBtn;
                 if (cfg.cloudUrl)  cloudEl.href = cfg.cloudUrl;
+                if (cfg.inviter)   { invLink.textContent = cfg.inviter; }
                 if (cfg.tutorial)    { tutorialEl.textContent = "📚 " + cfg.tutorial + " → 点击打开"; }
                 if (cfg.tutorialUrl) { tutorialEl.href = cfg.tutorialUrl; }
                 if (Array.isArray(cfg.downloads)) {

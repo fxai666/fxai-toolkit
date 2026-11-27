@@ -14,7 +14,7 @@ from __future__ import annotations
 
 
 class FxAiBrandNotice:
-    VERSION = "1.7"
+    VERSION = "1.8"
 
     @classmethod
     def INPUT_TYPES(cls):
