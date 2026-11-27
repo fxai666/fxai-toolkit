@@ -28,7 +28,7 @@ const DEFAULT_CONFIG = {
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
     cloudText: "本地算力不够，立即使用云端算力",
-    cloudBtn: "点击注册 · 送3元赠金",
+    cloudBtn: "点击注册送3元定金 · 填邀请码送3元赠金",
     cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
     inviter: "邀请码 9LWQ36",
     downloads: [
@@ -38,7 +38,7 @@ const DEFAULT_CONFIG = {
     ],
     wechat: "微信 fxai168",
     channel: "视频号 凤希AI",
-    notice: "授权：用我方镜像默认授权、免赞助费；或任意金额赞助即授权（商用/对外交付同样金额任意、付款即生效）。未用镜像且未赞助者暂未授权。",
+    notice: "授权：用我方镜像、或任意渠道付费（含本地部署）即视为授权；未通过任何渠道付费者需任意金额赞助（商用/对外交付金额同样任意、付款即生效）。",
     sponsorTip: "支付宝 · 金额任意",
     qq_qr: QQ_QR,          // data URI 或 http(s) 图片地址
     sponsor_qr: SPONSOR_QR,
