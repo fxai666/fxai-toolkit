@@ -3,7 +3,7 @@ import { api } from "../../scripts/api.js";
 
 const TARGET_CLASS = "FxAiAudioSegmenterV2";
 const DEFAULT_WIDTH = 820;
-const DEFAULT_HEIGHT = 430;
+const DEFAULT_HEIGHT = 510;
 const SNAP_STEP_SECONDS = 1.0;
 
 function getWidget(node, name) {
