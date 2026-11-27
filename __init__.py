@@ -177,7 +177,7 @@ NODE_REGISTRY = [
     ("FxAiSegmentTotalFrames",    "fxai_segment_total_frames",  "凤希AI - 分段总帧数(向上取)"),
     ("FxAiTextPreview",           "fxai_text_preview",          "凤希AI - 文本预览"),
     ("FxAiImagePreview",          "fxai_image_preview",         "凤希AI - 图片预览"),
-    ("FxAiBrandNotice",           "fxai_brand_notice",          "凤希AI - 品牌公示信息"),
+    ("FxAiBrandNotice",           "fxai_brand_notice",          "凤希AI - 信息公示中心"),
     ("FxAiReleaseResources",      "fxai_release_resources",     "凤希AI - 释放资源"),
     ("FxAiGetImagePath",          "fxai_get_image_path",        "凤希AI - 获取图片路径"),
     ("FxAiStrToNumber",           "fxai_str_to_number",         "凤希AI - 字符串转数字"),
