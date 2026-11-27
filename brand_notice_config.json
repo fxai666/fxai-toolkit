@@ -34,7 +34,7 @@
       "color": "#60a5fa"
     }
   ],
-  "version": 27,
+  "version": 28,
   "_note": "文案记录源（节点已改为完全自包含，不再远程拉取；改文案请同步改 js/fxai_brand_notice.js 的 DEFAULT_CONFIG）",
   "cloudCta": "立即使用云端凤希AI镜像",
   "system": "凤希AI-全自动化创作体系全攻略",
