@@ -8,7 +8,8 @@ class FxAIGeneratorController:
     FUNCTION = "process"
 
     # 返回值：增加了处理后的宽度、高度
-    RETURN_TYPES = ("LIST", "INT", "INT", "INT", "INT", "INT", "INT","INT", "INT","INT","BOOLEAN","BOOLEAN")
+    # 场景续接已挪到「影视剧场数据解析 / 场景加载器」按场景输出，这里不再有总开关
+    RETURN_TYPES = ("LIST", "INT", "INT", "INT", "INT", "INT", "INT","INT", "INT","INT","BOOLEAN")
     RETURN_NAMES = (
         "分段时长列表",
         "开始索引",
@@ -21,7 +22,6 @@ class FxAIGeneratorController:
         "实际半宽",
         "实际半高",
         "自动关机",
-        "场景续接",
     )
 
     @classmethod
@@ -45,17 +45,10 @@ class FxAIGeneratorController:
                                "H3 合法网格 17k+5（5/22/39/56...）：1/5/9→5，25→22，50→39。"}),
                 "采样次数": ("INT", {"default": 1, "min": 1,"max":2,"step":1}),
                 "自动关机": ("BOOLEAN", {"default": False}),
-                # 场景续接总开关：输出同名 BOOLEAN，连给 V2 和 MiniMax视频保存V2 的「场景续接」
-                "场景续接": ("BOOLEAN", {
-                    "default": False,
-                    "label_on": "开启", "label_off": "关闭",
-                    "tooltip": "总开关：输出同时驱动「图生视频V2」的场景续接读取、\n"
-                               "和「视频保存V1」的续接帧落盘。两处不用再单独设。\n"
-                               "关：整条续接链停用，老行为。"}),
             }
         }
 
-    def process(self, 启用场景分段, 开始索引, 结束索引, 帧率, 宽度, 高度, 长宽对齐基数, 场景分段时长=None, 音频分段时长=None,过渡帧数=9,采样次数=1,自动关机=False,场景续接=False):
+    def process(self, 启用场景分段, 开始索引, 结束索引, 帧率, 宽度, 高度, 长宽对齐基数, 场景分段时长=None, 音频分段时长=None,过渡帧数=9,采样次数=1,自动关机=False):
         if 启用场景分段 and 场景分段时长 is not None:
             分段时长 = 场景分段时长
         else:
@@ -74,7 +67,7 @@ class FxAIGeneratorController:
             # 没有段就不该跑任何一轮。循环数给 1 会让循环体空跑一轮、
             # 「视频分段加载」对着空列表报「分段时长列表是空的」。
             # 给 0，循环开始节点会 block 掉整个循环体，静默跳过。
-            return ([], 0, 0, 帧率, 最终宽度, 最终高度, 0, 过渡帧数, 最终宽度//2, 最终高度//2,自动关机,场景续接)
+            return ([], 0, 0, 帧率, 最终宽度, 最终高度, 0, 过渡帧数, 最终宽度//2, 最终高度//2,自动关机)
 
         开始索引 = max(0, min(开始索引, 分段数量 - 1))
         
@@ -87,4 +80,4 @@ class FxAIGeneratorController:
         # 正常参数（结束索引 -1 / 落在段内）下不改变任何行为。
         循环数 = min(循环数, 分段数量 - 开始索引)
 
-        return (分段时长, 开始索引, 循环数, 帧率, 最终宽度, 最终高度,分段数量,过渡帧数,最终宽度//2,最终高度//2,自动关机,场景续接)
+        return (分段时长, 开始索引, 循环数, 帧率, 最终宽度, 最终高度,分段数量,过渡帧数,最终宽度//2,最终高度//2,自动关机)

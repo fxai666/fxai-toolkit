@@ -253,19 +253,14 @@ class FxAiMiniMaxImageToVideoV2:
                                "让分段接缝两侧画面连续（色调/姿态不跳）。\n"
                                "**不占 <Picture N> 序号** —— 提示词里的 <Picture 1> 永远还是角色参考图，\n"
                                "所以段数再多身份也不会逐段漂。不接就是老行为。"}),
-                # ↓ 场景续接：开关 + 段序号，节点内部直接读上一段落盘的续帧。
-                # 追加在最后，老工作流的槽位不受影响。
-                "场景续接": ("BOOLEAN", {
-                    "default": False,
-                    "label_on": "开启", "label_off": "关闭",
-                    "tooltip": "开：节点内部读 fxai/video/scene_relay/<续接段序号>.pt，\n"
-                               "取上一段末尾 N 帧 + 音轨（.pt 零损失），做第 0 帧起的引导。\n"
-                               "走磁盘不走循环内存值，单段重跑也能接上。文件不存在自动跳过。\n"
-                               "可接「生成控制器」的场景续接总开关。"}),
+                # ↓ 场景续接不再有开关：上一段勾了「场景续接」才会留下 <本序号>.pt，
+                # 文件在就接、不在就硬切。判断只发生在写端，读取端不重复判断。
                 "续接段序号": ("INT", {
                     "default": 0, "min": 0,
                     "tooltip": "当前是第几段（从 0 开始），接循环的 index。\n"
-                               "读写同号：读的就是 <本序号>.mp4（上一段存的）。第 0 段自动跳过。"}),
+                               "节点按本序号读 fxai/video/scene_relay/<本序号>.pt：\n"
+                               "文件在 = 上一段勾了「场景续接」，本段接着它生成；\n"
+                               "文件不在 = 硬切，打一句日志，不报错。第 0 段前面没段，自然读不到。"}),
             }
         }
 
@@ -277,7 +272,7 @@ class FxAiMiniMaxImageToVideoV2:
     def run(self, CLIP模型, 视频VAE, 提示词, 宽度, 高度, 帧数,
             音频VAE=None, 首帧图片=None, 尾帧图片=None, 参考图片列表=None, 参考音频列表=None,
             外置音频=None, 音频模式="音色参考", 参考视频=None, 参考视频音频=None,
-            接缝首帧=None, 场景续接=False, 续接段序号=0):
+            接缝首帧=None, 续接段序号=0):
         latent, frame_count = _empty_av_latent(宽度, 高度, 帧数)
         _t0 = time.perf_counter()
         _marks = []
@@ -313,23 +308,31 @@ class FxAiMiniMaxImageToVideoV2:
             img = _prepare_image(尾帧图片, 宽度, 高度, "center")
             keyframes.append({"resolved_frame_index": frame_count - 1, "image": img, "image_src": src, "crop": "center"})
             ref_images.append(img)
-        # 场景续接：节点内部读上一段落盘的续帧（N 帧 + 音轨），直接编码成引导关键帧。
-        # 只走 minimax_keyframes 的几何锚定通道，ref_images 和 <Picture N> 一律不碰。
-        guide_frames, guide_audio = None, None
-        if 场景续接:
-            try:
-                from fxai_scene_relay import load_relay
-                guide_frames, guide_audio = load_relay(int(续接段序号))
-            except Exception as e:
-                print("[凤希AI] 场景续接读取失败（按无引导继续）：%s: %s" % (type(e).__name__, e))
+        # 场景续接：判断只在写端（上一段勾了「场景续接」才留下 <续接段序号>.pt）。
+        # 这里只看文件在不在：在就锚第 0 帧，不在就硬切。不重复判断，避免两端口径打架。
+        # ref_images / <Picture N> / <Video N> 一律不碰，不新增槽位。
+        guide_frames, guide_audio, guide = None, None, None
+        try:
+            from fxai_scene_relay import load_relay
+            guide_frames, guide_audio = load_relay(int(续接段序号))
+        except Exception as e:
+            print("[凤希AI] 场景续接读取失败（按无引导继续）：%s: %s" % (type(e).__name__, e))
 
         if guide_frames is not None and guide_frames.shape[0] > 0:
-            guide = _resize(guide_frames[..., :3], 宽度, 高度, "disabled")
-            kf = {"resolved_frame_index": 0, "latent": 视频VAE.encode(guide),
-                  "image_src": guide, "crop": "disabled"}
-            if guide_audio is not None and 音频VAE is not None:
-                audio_latent, _ = _encode_ref_audio(音频VAE, guide_audio)
-                kf["audio_latent"] = audio_latent
+            # 🔴 测试版（用户 2026-11-27 09:01）：续帧只传**最后 1 帧**，不再铺满 5 帧。
+            # 5 帧铺满会把上一段的旧场景连着 5 个时间点一起钉进 DiT 硬条件，
+            # 换场景时新场景压不过去；单帧只锚第 0 帧的接缝画面，之后交给提示词。
+            # 单帧没有帧间亮度差，不再需要 _flatten_luma 拉平（要回 5 帧再恢复调用）。
+            tail = guide_frames[-1:]
+            guide = _resize(tail[..., :3], 宽度, 高度, "disabled")
+            kf_latent = 视频VAE.encode(guide)
+            # 二采用原始分辨率的那 1 帧；image_src 用原始尺寸而非缩小版，
+            # 避免 ResampleCond 把「缩一半」的图放大回成片尺寸、抹掉材质高频细节。
+            guide_src = tail[..., :3]
+            kf = {"resolved_frame_index": 0, "latent": kf_latent,
+                  "image_src": guide_src, "crop": "disabled"}
+            # 续帧音轨不进 K 帧：音频一旦编成 kf["audio_latent"] 走 cond_audio 条件行，
+            # 模型会把这段引导声音渲染出来，接缝处「噔」一下。K 帧只做画面几何锚定。
             # 替换首帧图占的第 0 帧几何锚定位；没读过续帧时保持原行为
             if frame0_pos is not None:
                 keyframes[frame0_pos] = kf
@@ -345,7 +348,8 @@ class FxAiMiniMaxImageToVideoV2:
             keyframes.append({"resolved_frame_index": 0, "image": img,
                               "image_src": src, "crop": "disabled"})
         if 参考图片列表 is not None:
-            ref_images += normalize_images(参考图片列表)
+            ref_list = normalize_images(参考图片列表)
+            ref_images += ref_list
 
         for img in ref_images[:9]:
             h, w = img.shape[1], img.shape[2]

@@ -64,7 +64,7 @@ app.registerExtension({
                 addLine(this);
             }
 
-            var FIXED_WIDTH = 840;
+            var FIXED_WIDTH = 892;
             this.size[0] = FIXED_WIDTH;
             this.setSize(this.computeSize());
 
@@ -104,6 +104,7 @@ app.registerExtension({
                         var duration = 10;
                         var text = "";
                         var imgStr = "";
+                        var relay = false;
                         
                         if (Array.isArray(item)) {
                             duration = Number(item[0]) || 10;
@@ -111,10 +112,18 @@ app.registerExtension({
                             if (item.length >= 3) imgStr = String(item[2] || "");
                             // 兼容旧格式（图片在索引4）：适配旧数据
                             if (item.length >= 5 && !imgStr) imgStr = String(item[4] || "");
+                            // 第 4 项 = 本场景续接勾选；旧数据这里是图片路径，只认布尔/0/1
+                            if (item.length >= 4) {
+                                var raw = item[3];
+                                if (raw === true || raw === false || raw === 1 || raw === 0 ||
+                                    raw === "1" || raw === "0" || raw === "true" || raw === "false") {
+                                    relay = (raw === true || raw === 1 || raw === "1" || raw === "true");
+                                }
+                            }
                         } else {
                             text = item || "";
                         }
-                        addLine(this, text, duration, imgStr);
+                        addLine(this, text, duration, imgStr, relay);
                     }
                 }
             } catch (e) {
@@ -135,6 +144,7 @@ app.registerExtension({
                         this.lines[i].duration,
                         this.lines[i].value,
                         this.lines[i].imgStr,
+                        this.lines[i].relay ? 1 : 0,
                     ]);
                 }
                 var json = JSON.stringify(values);
@@ -185,7 +195,10 @@ function createHeader(node) {
 
     var labels = [
         { text: "场景", width: "30px" },
-        { text: "时长(秒)", width: "60px" },
+        // 74px = input 的 60 + 左右 padding 12 + 边框 2，跟下面输入框实宽对齐
+        { text: "时长(秒)", width: "74px" },
+        // 60px 容得下「场景续接」四个字，下面勾选框同步 60px 才对齐
+        { text: "场景续接", width: "60px" },
         { text: "素材", width: "480px" },
         { text: "台词", flex: 1 },
         { text: "操作", width: "90px" }
@@ -205,10 +218,11 @@ function createHeader(node) {
     node.scrollContainer.appendChild(header);
 }
 
-function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
+function addLine(node, defaultValue, defaultDuration, defaultImgStr, defaultRelay) {
     if (defaultValue === undefined) defaultValue = "";
     if (defaultDuration === undefined) defaultDuration = 10;
     if (defaultImgStr === undefined) defaultImgStr = "";
+    if (defaultRelay === undefined) defaultRelay = false;
 
     var idx = node.lines.length;
     var row = document.createElement("div");
@@ -247,6 +261,17 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
     durationInput.style.flexShrink = "0";
     durationInput.style.marginTop = "2px";
     durationInput.value = defaultDuration;
+
+    // 场景续接：勾在接缝的前一段上（勾第 1 行 = 第 1 段与第 2 段之间要续）
+    var relayBox = document.createElement("label");
+    relayBox.title = "场景续接：勾上=本段与下一段之间接上（存本段末尾续帧给下一段）；不勾=断开，删除本段本该留的接点，下一段硬切。\n勾在接缝的前一段上：要让第 1 段接第 2 段，就勾第 1 行，不用勾第 2 行。";
+    relayBox.style.cssText = "width:60px;min-height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;cursor:pointer;";
+
+    var relayInput = document.createElement("input");
+    relayInput.type = "checkbox";
+    relayInput.checked = !!defaultRelay;
+    relayInput.style.cssText = "width:16px;height:16px;cursor:pointer;accent-color:#4a86e8;margin:0;";
+    relayBox.appendChild(relayInput);
 
     // 素材缩略图区：flex 换行网格（每行 4 张图 + "＋"），点击打开图片多选选择器，每张可删除
     var materialBox = document.createElement("div");
@@ -458,6 +483,7 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
 
     row.appendChild(lineNumLabel);
     row.appendChild(durationInput);
+    row.appendChild(relayBox);
     row.appendChild(materialBox);
     row.appendChild(textarea);
     row.appendChild(upBtn);
@@ -468,18 +494,25 @@ function addLine(node, defaultValue, defaultDuration, defaultImgStr) {
     var item = {
         textarea: textarea,
         durationInput: durationInput,
+        relayInput: relayInput,
         upBtn: upBtn,
         downBtn: downBtn,
         row: row,
         value: defaultValue,
         duration: defaultDuration,
         imgStr: defaultImgStr,
+        relay: !!defaultRelay,
         label: lineNumLabel,
         renderMaterialBox: renderMaterialBox
     };
     node.lines.push(item);
 
     renderMaterialBox();
+
+    relayInput.addEventListener("change", function() {
+        item.relay = !!relayInput.checked;
+        updateHidden(node);
+    });
 
     textarea.addEventListener("input", function() {
         item.value = textarea.value;
@@ -567,7 +600,8 @@ function updateHidden(node) {
         values.push([
             node.lines[i].duration,
             node.lines[i].value,
-            node.lines[i].imgStr
+            node.lines[i].imgStr,
+            node.lines[i].relay ? 1 : 0
         ]);
     }
     var data = JSON.stringify(values);

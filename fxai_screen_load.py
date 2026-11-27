@@ -8,6 +8,35 @@ from fxai_audio_utils import load_audio_tensor_from_file, slice_audio
 from fxai_character_profile_manager import get_characters_by_avatars
 from fxai_task_store import broadcast
 
+_TRUE_WORDS = {"1", "true", "yes", "y", "on", "开", "开启", "是", "要", "续接"}
+
+
+def _to_bool(v):
+    """把场景行里的续接标记转成 bool。作者可能填 1/0、"true"、勾选框、中文"是"。"""
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return v != 0
+    if isinstance(v, str):
+        return v.strip().lower() in _TRUE_WORDS
+    return bool(v)
+
+
+def scene_relay_flag(item):
+    """读当前场景行的「场景续接」标记。
+
+    场景续接按场景单独控制：每行自己决定本段要不要接上一段的续帧，
+    所以这个开关挂在「影视剧场数据解析 / 场景加载器」上，
+    由当前行数据决定，不再由生成控制器给一个全局总开关。
+    """
+    if not isinstance(item, dict):
+        return False
+    for key in ("场景续接", "启用场景续接", "续接", "scene_relay", "relay"):
+        if key in item:
+            return _to_bool(item[key])
+    return False
+
+
 def get_image_dir(subdir=""):
     comfy_root = folder_paths.base_path
     base_dir = "fxai/image"
@@ -35,8 +64,10 @@ class FxAiScreenLoad:
             }
         }
 
-    RETURN_TYPES = ("STRING", "IMAGE", "INT", "LIST", "LIST")
-    RETURN_NAMES = ("台词", "素材", "帧数", "参考音色", "音频")
+    # 输出槽位只往后追加：第 6 槽放在最后，
+    # 老工作流前 5 个槽位的连线一根都不用重连。
+    RETURN_TYPES = ("STRING", "IMAGE", "INT", "LIST", "LIST", "BOOLEAN")
+    RETURN_NAMES = ("台词", "素材", "帧数", "参考音色", "音频", "场景续接")
 
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI/影视剧场"
@@ -49,6 +80,7 @@ class FxAiScreenLoad:
         images = []
         参考音色 = []
         音频 = []
+        启用场景续接 = False
 
         try:
             total_lines = len(场景数据) if isinstance(场景数据, list) else 0
@@ -61,6 +93,8 @@ class FxAiScreenLoad:
             提示词 = 通用提示词 + 台词 + 尾部通用提示词
             素材 = item.get("素材", "")
             时长 = float(item.get("时长", 10.0))
+            # 本场景要不要接上一段的续帧，由这一行自己的标记决定
+            启用场景续接 = scene_relay_flag(item)
 
             print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 正在执行第 {行索引 + 1}/{total_lines} 个场景，本场景 {时长} 秒")
             broadcast("scene_executing", {
@@ -84,6 +118,7 @@ class FxAiScreenLoad:
                 frame,
                 参考音色,
                 音频,
+                启用场景续接,
             )
 
         # 按图片顺序查出角色声音（有声音的才输出，顺序对应前端 <Audio N>）
@@ -130,6 +165,7 @@ class FxAiScreenLoad:
             frame,
             参考音色,
             音频,
+            启用场景续接,
         )
 
 
@@ -149,8 +185,8 @@ class FxAiScreenLoadSimple:
             }
         }
 
-    RETURN_TYPES = ("STRING", "IMAGE")
-    RETURN_NAMES = ("台词", "素材")
+    RETURN_TYPES = ("STRING", "IMAGE", "BOOLEAN")
+    RETURN_NAMES = ("台词", "素材", "场景续接")
 
     FUNCTION = "get_scene_data"
     CATEGORY = "凤希AI/影视剧场"
@@ -159,6 +195,7 @@ class FxAiScreenLoadSimple:
         台词 = ""
         提示词 = ""
         images = []
+        启用场景续接 = False
 
         try:
             total_lines = len(场景数据) if isinstance(场景数据, list) else 0
@@ -175,6 +212,8 @@ class FxAiScreenLoadSimple:
                 台词 = first_item.get("台词", first_item.get("提示词文本", ""))
             提示词 = 通用提示词 + 台词 + 尾部通用提示词
             素材 = item.get("素材", "")
+            # 循环场景时按「实际落到的那一行」取续接标记，跟取台词/素材同一行
+            启用场景续接 = scene_relay_flag(item)
 
             print(f"✅ [凤希AI] {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 正在执行第 {行索引 + 1}/{total_lines} 个场景（循环取值：实际场景={实际索引 + 1}）")
             broadcast("scene_executing", {
@@ -188,7 +227,7 @@ class FxAiScreenLoadSimple:
 
         except Exception as e:
             print(f"✅ [凤希AI] 场景加载异常：{e}")
-            return (提示词, images)
+            return (提示词, images, 启用场景续接)
 
         for rel_path in path_list:
             parts = rel_path.split("/", 1)
@@ -209,4 +248,4 @@ class FxAiScreenLoadSimple:
             except Exception as e:
                 print(f"[凤希AI] 加载失败：{full_path} => {e}")
 
-        return (提示词, images)
+        return (提示词, images, 启用场景续接)

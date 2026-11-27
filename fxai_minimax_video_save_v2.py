@@ -233,22 +233,24 @@ class FxAiMiniMaxVideoSaveV2:
                 "保存目录": ("STRING", {"default": "sucai"}),
             },
             "optional": {
-                # 场景续接：追加在最后不影响老工作流
+                # 场景续接：勾在「接缝的前一段」上。本段勾了 → 存 <视频序号+1>.pt，下一段自动接上；
+                # 本段不勾 → 删掉 <视频序号+1>.pt，下一段硬切。接缝只有一个判断点，就在这一行。
                 "场景续接": ("BOOLEAN", {
-                    "default": False,
-                    "label_on": "开启", "label_off": "关闭",
-                    "tooltip": "开：本段末尾 N 帧连音轨另存到 fxai/video/scene_relay/<视频序号+1>.pt，\n"
-                               "给下一段 V2 节点的「场景续接」读。落盘传递，单段重跑也在。\n"
-                               "关：老行为，不写额外文件。"}),
+                    "default": True,
+                    "label_on": "续下一段", "label_off": "断开",
+                    "tooltip": "勾上 = 本段末尾 1 帧连音轨写到 scene_relay/<视频序号+1>.pt，下一段自动接着它生成。\n"
+                               "不勾 = 断开：删掉本段本该留的接点，下一段硬切（不影响上一段的接缝）。\n"
+                               "接「影视剧场数据解析 / 场景加载器」的「场景续接」，按行跟着勾选走；\n"
+                               "不接线 = 一直勾（每段都往后续）。"}),
                 "续接帧数": ("INT", {
-                    "default": 22, "min": 1, "max": 340, "step": 1,
-                    "tooltip": "可接「生成控制器」的「过渡帧数」。自动向下对齐 17k+5：\n"
-                               "1/5/9→5，25→22，50→39。不接默认 22。"}),
+                    "default": 1, "min": 1, "max": 340, "step": 1,
+                    "tooltip": "本段末尾存几帧给下一段做接点（每段覆盖写 scene_relay/<段号+1>.pt）。\n"
+                               "取 1 就够：V2 只用最后 1 帧锚第 0 帧，1 帧约 12MB。\n"
+                               "调到 5 会自动对齐 17k+5，但文件会到 GB 级，白占盘。"}),
             },
         }
 
-    def run(self, 图片序列, 视频序号, 音频, 保存目录="sucai",
-            场景续接=False, 续接帧数=22):
+    def run(self, 图片序列, 视频序号, 音频, 保存目录="sucai", 场景续接=True, 续接帧数=1):
         if 图片序列 is None:
             return (图片序列, "", "")
 
@@ -267,14 +269,18 @@ class FxAiMiniMaxVideoSaveV2:
             custom_num=视频序号,
         )
 
-        # 场景续接：本段末尾 N 帧连音轨另存一份，给下一段 V2 内部读。
-        # 必须在 del 之前，落盘失败也不影响成片本身。
-        if 场景续接 and 视频序号 >= 0:
+        # 场景续接：勾在本段 = 本段与下一段之间要续。存的是 <视频序号+1>，给下一段读。
+        # 不勾 = 本段之后断开：删掉本段本该留的接点（那个文件归本段处置，不是别人的）。
+        # 必须在 del 之前，落盘/清理失败都不影响成片本身。
+        if 视频序号 >= 0:
             try:
-                from fxai_scene_relay import save_relay
-                save_relay(图片序列, 音频, 视频序号, 24, 续接帧数)
+                from fxai_scene_relay import save_relay, clear_relay
+                if 场景续接:
+                    save_relay(图片序列, 音频, 视频序号, 24, 续接帧数, source=video_path)
+                else:
+                    clear_relay(视频序号)
             except Exception as e:
-                print(f"[凤希AI] 续接帧保存失败（不影响成片）：{type(e).__name__}: {e}")
+                print(f"[凤希AI] 续接帧处理失败（不影响成片）：{type(e).__name__}: {e}")
 
         del video_images, 图片序列
         gc.collect()
