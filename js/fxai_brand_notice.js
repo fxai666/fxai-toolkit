@@ -28,7 +28,7 @@ const DEFAULT_CONFIG = {
     tutorial: "凤希AI 实操教程",
     tutorialUrl: "https://www.fxai.site/tutorial/index.html",
     cloudText: "本地算力不够，立即使用云端算力",
-    cloudBtn: "填写邀请码送3元定金",
+    cloudBtn: "点击邀请码送3元定金",
     cloudUrl: "https://www.xiangongyun.com/register/9LWQ36",
     inviter: "邀请码 9LWQ36",
     downloads: [
@@ -199,15 +199,12 @@ app.registerExtension({
                 () => copyText(cloudCodeEl.textContent, cloudCodeEl));
             const cloudBtnEl = document.createElement("span");
             cloudBtnEl.textContent = DEFAULT_CONFIG.cloudBtn;
-            cloudBtnEl.style.cssText = cssText([
-                "background:rgba(255,255,255,.24)", "padding:3px 8px",
-                "border-radius:20px", "white-space:nowrap",
-            ]);
+            cloudBtnEl.style.cssText = cssText([ "white-space:nowrap" ]);
             clickable(cloudBtnEl).addEventListener("click",
                 () => window.open(cloudHref, "_blank", "noopener"));
             cloudEl.appendChild(cloudTextEl);
-            cloudEl.appendChild(cloudCodeEl);
             cloudEl.appendChild(cloudBtnEl);
+            cloudEl.appendChild(cloudCodeEl);
 
             // 教程入口条（可点击打开）
             const tutorialEl = document.createElement("a");
